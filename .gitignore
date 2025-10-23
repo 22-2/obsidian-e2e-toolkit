@@ -1,5 +1,4 @@
 node_modules/
-dist/
 *.log
 .DS_Store
 *.tgz
@@ -7,3 +6,7 @@ dist/
 .env
 test-results/
 playwright-report/
+
+# Note: dist/ is intentionally NOT ignored
+# It needs to be committed for GitHub-based installation
+# When users install via: pnpm add github:user/repo

@@ -136,7 +136,7 @@ MIT
 ```/dev/null/package.json#L1-10
 {
   "devDependencies": {
-    "obsidian-e2e-toolkit": "github:YOUR_USERNAME/obsidian-e2e-toolkit",
+    "obsidian-e2e-toolkit": "github:22-2/obsidian-e2e-toolkit",
     // または、npmに公開した場合
     // "obsidian-e2e-toolkit": "^1.0.0",
     // または、ローカルでリンクする場合

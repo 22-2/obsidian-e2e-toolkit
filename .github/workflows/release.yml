@@ -1,0 +1,121 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '23'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Get version from tag
+        id: tag_version
+        run: |
+          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create Release Archive
+        run: |
+          mkdir -p release-artifacts
+          tar -czf release-artifacts/obsidian-e2e-toolkit-${{ steps.tag_version.outputs.VERSION }}.tar.gz \
+            dist/ \
+            setup.sh \
+            assets/ \
+            README.md \
+            LICENSE \
+            package.json
+          
+          cd release-artifacts
+          sha256sum obsidian-e2e-toolkit-${{ steps.tag_version.outputs.VERSION }}.tar.gz > checksums.txt
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          # Get the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 ${{ steps.tag_version.outputs.TAG_NAME }}^ 2>/dev/null || echo "")
+          
+          if [ -z "$PREV_TAG" ]; then
+            echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+            echo "## What's New" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "Initial release of Obsidian E2E Toolkit" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "### Features" >> $GITHUB_OUTPUT
+            echo "- Complete E2E testing toolkit for Obsidian plugins" >> $GITHUB_OUTPUT
+            echo "- Playwright integration" >> $GITHUB_OUTPUT
+            echo "- Automated setup script" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "### Installation" >> $GITHUB_OUTPUT
+            echo '```bash' >> $GITHUB_OUTPUT
+            echo "pnpm add github:YOUR_USERNAME/obsidian-e2e-toolkit#${{ steps.tag_version.outputs.TAG_NAME }}" >> $GITHUB_OUTPUT
+            echo '```' >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+            echo "## What's Changed" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            git log $PREV_TAG..${{ steps.tag_version.outputs.TAG_NAME }} --pretty=format:"- %s (%h)" --no-merges >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "### Installation" >> $GITHUB_OUTPUT
+            echo '```bash' >> $GITHUB_OUTPUT
+            echo "pnpm add github:YOUR_USERNAME/obsidian-e2e-toolkit#${{ steps.tag_version.outputs.TAG_NAME }}" >> $GITHUB_OUTPUT
+            echo '```' >> $GITHUB_OUTPUT
+            echo "" >> $GITHUB_OUTPUT
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREV_TAG...${{ steps.tag_version.outputs.TAG_NAME }}" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ steps.tag_version.outputs.TAG_NAME }}
+          body: ${{ steps.release_notes.outputs.NOTES }}
+          files: |
+            release-artifacts/*.tar.gz
+            release-artifacts/checksums.txt
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release Summary
+        run: |
+          echo "### 🎉 Release ${{ steps.tag_version.outputs.TAG_NAME }} created successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version**: ${{ steps.tag_version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Installation" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "pnpm add github:${{ github.repository }}#${{ steps.tag_version.outputs.TAG_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "#### Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [Release Page](https://github.com/${{ github.repository }}/releases/tag/${{ steps.tag_version.outputs.TAG_NAME }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Source Code](https://github.com/${{ github.repository }}/tree/${{ steps.tag_version.outputs.TAG_NAME }})" >> $GITHUB_STEP_SUMMARY

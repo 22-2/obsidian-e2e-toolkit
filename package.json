@@ -13,18 +13,33 @@
   },
   "files": [
     "dist",
+    "setup.sh",
+    "assets",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "pnpm run build",
     "test:e2e:example": "pnpm playwright test e2e/specs/example.spec.ts --project=chromium"
   },
   "author": "22-2",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR_USERNAME/obsidian-e2e-toolkit.git"
+    "url": "git+https://github.com/22-2/obsidian-e2e-toolkit.git"
   },
+  "bugs": {
+    "url": "https://github.com/22-2/obsidian-e2e-toolkit/issues"
+  },
+  "homepage": "https://github.com/22-2/obsidian-e2e-toolkit#readme",
+  "keywords": [
+    "obsidian",
+    "e2e",
+    "testing",
+    "playwright",
+    "plugin"
+  ],
   "peerDependencies": {
     "@playwright/test": "^1.56.0",
     "playwright": "^1.56.0"
