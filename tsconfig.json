@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "ESNext",
+    "lib": [
+      "esnext"
+    ],
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "types": [
+      "obsidian-typings"
+    ]
+  },
+  "include": [
+    "src/**/*",
+    "example/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+  ]
+}

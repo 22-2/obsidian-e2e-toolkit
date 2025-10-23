@@ -1,0 +1,50 @@
+{
+  "name": "obsidian-e2e-toolkit",
+  "version": "1.0.0",
+  "description": "Reusable E2E testing utilities for Obsidian plugins using Playwright",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test:e2e:example": "pnpm playwright test e2e/specs/example.spec.ts --project=chromium"
+  },
+  "author": "22-2",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USERNAME/obsidian-e2e-toolkit.git"
+  },
+  "peerDependencies": {
+    "@playwright/test": "^1.56.0",
+    "playwright": "^1.56.0"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "loglevel": "^1.9.2",
+    "loglevel-plugin-prefix": "^0.8.4",
+    "tiny-invariant": "^1.3.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/node": "^24.9.1",
+    "electron": "^38.4.0",
+    "obsidian": "^1.10.0",
+    "obsidian-typings": "^4.58.0",
+    "playwright": "^1.56.1",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=23.0.0"
+  }
+}
