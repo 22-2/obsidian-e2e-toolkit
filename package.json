@@ -16,7 +16,8 @@
     "setup.sh",
     "assets",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "dist"
   ],
   "scripts": {
     "build": "tsc",
