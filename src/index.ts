@@ -39,6 +39,7 @@ export {
 
 export { IPCBridge } from "./helpers/IPCBridge";
 
+export * from "./helpers/ObsidianPageObject";
 export * from "./helpers/utils";
 
 export {
