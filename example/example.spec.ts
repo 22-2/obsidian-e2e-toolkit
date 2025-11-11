@@ -1,5 +1,5 @@
 import "e2e/obsidian-e2e/setup";
-import { CustomViewPageObject } from "./../src/helpers/ObsidianPageObject";
+import { CustomViewPageObject } from "../src/ObsidianAPI";
 
 // ===================================================================
 // Example Test (example.test.mts)
@@ -17,20 +17,20 @@ const VIEW_TYPE_CUSTOM_VIEW = "custom-view";
 class CustomPage extends CustomViewPageObject {}
 
 test.use({
-  vaultOptions: { ...DEFAULT_TEST_CONFIG, useSandbox: true },
+  options: { ...DEFAULT_TEST_CONFIG, useSandbox: true },
 });
 
 test("sandbox test: plugin activation and view creation via command", async ({
-  vault,
+  context: vault,
 }) => {
   // 1. Initial setup verification
   // Verify Vault name
-  const vaultName = await vault.window.evaluate(() => app.vault.getName());
+  const vaultName = await vault.page.evaluate(() => app.vault.getName());
   expect(vaultName).toBe(SANDBOX_VAULT_NAME);
 
   // Verify plugin activation
   expect(
-    await vault.window.evaluate(
+    await vault.page.evaluate(
       (pluginId) => app.plugins.getPlugin(pluginId),
       PLUGIN_ID
     )

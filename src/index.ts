@@ -155,7 +155,7 @@ function handleTestError(testInfo: any): void {
 // Vault Setup Helpers
 // ===================================================================
 
-async function setupVault(
+async function setupObsidianVault(
   obsidianSetup: ObsidianTestLauncher,
   vaultOptions: any
 ): Promise<any> {
@@ -167,13 +167,11 @@ async function setupVault(
 
   if (vaultOptions.showLoggerOnNode) {
     logger.debug("enable browser console");
-    setupBrowserConsoleLogging(context.window);
+    setupBrowserConsoleLogging(context.page);
   }
 
   // Remove all notices
-  const notices = await context.window
-    .locator(".notice-container .notice")
-    .all();
+  const notices = await context.page.locator(".notice-container .notice").all();
   logger.debug("remove all notices");
   await Promise.all(notices.map((notice: any) => notice.click()));
 
@@ -185,7 +183,7 @@ async function setupVault(
 // ===================================================================
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
-  vaultOptions: async ({}, use) => {
+  options: async ({}, use) => {
     await use({
       useSandbox: false,
       showLoggerOnNode: true,
@@ -193,7 +191,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     });
   },
 
-  obsidianSetup: async ({}, use, testInfo) => {
+  launcher: async ({}, use, testInfo) => {
     const paths = getResolvedPaths();
     const setup = new ObsidianTestLauncher(paths);
 
@@ -219,8 +217,8 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     }
   },
 
-  vault: async ({ obsidianSetup, vaultOptions }, use) => {
-    const context = await setupVault(obsidianSetup, vaultOptions);
+  context: async ({ launcher, options }, use) => {
+    const context = await setupObsidianVault(launcher, options);
 
     logger.debug("enter test");
     await use(context);
@@ -235,4 +233,4 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 // - expect (from @playwright/test)
 
 export { expect } from "@playwright/test";
-export { ObsidianPageObject } from "./helpers/ObsidianPageObject";
+export { ObsidianAPI as ObsidianPageObject } from "./ObsidianAPI";

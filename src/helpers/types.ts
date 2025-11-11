@@ -11,11 +11,11 @@ export type PluginHandleMap = JSHandle<Map<string, Plugin>>;
 
 export interface TestContext {
   electronApp: ElectronApplication;
-  window: Page;
+  page: Page;
   vaultName?: string;
 }
 
-export interface VaultPageTextContext extends TestContext {
+export interface ObsidianPageTextContext extends TestContext {
   pluginHandleMap: PluginHandleMap;
   paths: ResolvedPaths;
 }
@@ -36,9 +36,9 @@ export interface TestPlugin {
 }
 
 export type TestFixtures = {
-  obsidianSetup: ObsidianTestLauncher;
-  vault: VaultPageTextContext;
-  vaultOptions: VaultOptions;
+  launcher: ObsidianTestLauncher;
+  context: ObsidianPageTextContext;
+  options: VaultOptions;
 };
 
 export type WorkerFixtures = object;

@@ -19,16 +19,13 @@ import type { ElectronApplication, Page } from "playwright";
 import { _electron as electron } from "playwright/test";
 import type { ResolvedPaths } from "./config";
 import { createLaunchOptions } from "./config";
+import { SANDBOX_VAULT_NAME } from "./constants";
 import { IPCBridge } from "./helpers/IPCBridge";
-import type { TestContext, VaultPageTextContext } from "./helpers/types";
+import type { ObsidianPageTextContext, TestContext } from "./helpers/types";
 import { type VaultOptions } from "./helpers/types";
 import { getPluginHandleMap } from "./helpers/utils";
 
 const logger = log.getLogger("ObsidianTestLauncher");
-
-const SANDBOX_VAULT_NAME = "Obsidian Sandbox";
-
-interface LaunchOptions {}
 
 export class ObsidianTestLauncher {
   private electronApp?: ElectronApplication;
@@ -44,9 +41,7 @@ export class ObsidianTestLauncher {
   // Launch & Cleanup
   // ===================================================================
 
-  async launch(
-    options: LaunchOptions = { useUTF8Encoding: true }
-  ): Promise<void> {
+  async launch(): Promise<void> {
     this.tempUserDataDir = await fs.mkdtemp(
       path.join(os.tmpdir(), "obsidian-e2e-")
     );
@@ -115,7 +110,9 @@ export class ObsidianTestLauncher {
   // Vault Operations
   // ===================================================================
 
-  async openVault(options: VaultOptions = {}): Promise<VaultPageTextContext> {
+  async openVault(
+    options: VaultOptions = {}
+  ): Promise<ObsidianPageTextContext> {
     if (!this.electronApp || !this.ipc) {
       throw new Error("Setup not initialized. Call launch() first.");
     }
@@ -193,14 +190,16 @@ export class ObsidianTestLauncher {
 
     return {
       electronApp: this.electronApp,
-      window: page,
+      page: page,
       pluginHandleMap,
       vaultName,
       paths: this.paths,
     };
   }
 
-  async openSandbox(options: VaultOptions = {}): Promise<VaultPageTextContext> {
+  async openSandbox(
+    options: VaultOptions = {}
+  ): Promise<ObsidianPageTextContext> {
     return this.openVault({ ...options, useSandbox: true });
   }
 
@@ -216,7 +215,7 @@ export class ObsidianTestLauncher {
     await this.waitForStarterReady(page);
     return {
       electronApp: this.electronApp,
-      window: page,
+      page: page,
     };
   }
 
