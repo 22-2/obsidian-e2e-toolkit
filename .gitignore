@@ -6,7 +6,7 @@ node_modules/
 .env
 test-results/
 playwright-report/
-
+dist/
 # Note: dist/ is intentionally NOT ignored
 # It needs to be committed for GitHub-based installation
 # When users install via: pnpm add github:user/repo
