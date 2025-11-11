@@ -18,7 +18,7 @@ import { ObsidianAPI } from "./ObsidianAPI";
 
 import { test as base } from "@playwright/test";
 import log from "loglevel";
-import { getResolvedPaths } from "./helpers/constants";
+import { DEFAULT_VAULT_OPTIONS, getResolvedPaths } from "./helpers/constants";
 import { ObsidianTestLauncher } from "./helpers/launcher";
 import type {
   TestFixtures,
@@ -32,17 +32,6 @@ import {
 } from "./helpers/utils";
 
 export const logger = log.getLogger("obsidianSetup");
-
-// ===================================================================
-// Playwright Test Fixtures
-// ===================================================================
-
-// Default vault options
-const DEFAULT_VAULT_OPTIONS: VaultOptions = {
-  sandbox: false,
-  fresh: false,
-  plugins: [],
-};
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
   obsidian: async ({}, use, testInfo) => {
