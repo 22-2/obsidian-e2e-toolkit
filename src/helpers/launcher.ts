@@ -20,18 +20,16 @@ import { _electron as electron } from "playwright/test";
 import { IPCBridge } from "./IPCBridge";
 import type { ResolvedPaths } from "./config";
 import { createLaunchOptions } from "./config";
-import { SANDBOX_VAULT_NAME } from "./constants";
-import type { ObsidianPageTextContext, TestContext } from "./types";
+import { DEFAULT_VAULT_OPTIONS, SANDBOX_VAULT_NAME } from "./constants";
+import type {
+  ObsidianPageTextContext,
+  PluginConfig,
+  TestContext,
+} from "./types";
 import { type VaultOptions } from "./types";
 import { getPluginHandleMap } from "./utils";
 
 const logger = log.getLogger("ObsidianTestLauncher");
-
-type PluginConfig = {
-  path: string;
-  pluginId: string;
-  useSymlink?: boolean;
-};
 
 export class ObsidianTestLauncher {
   private electronApp?: ElectronApplication;
@@ -142,13 +140,13 @@ export class ObsidianTestLauncher {
   // ===================================================================
 
   async openVault(
-    options: VaultOptions = {}
+    options: VaultOptions = DEFAULT_VAULT_OPTIONS
   ): Promise<ObsidianPageTextContext> {
     this.validateInitialization();
 
     logger.debug("open vault", options);
 
-    const shouldUseSandbox = options.useSandbox && !process.env.CI;
+    const shouldUseSandbox = options.sandbox && !process.env.CI;
     const { vaultPath, page } = shouldUseSandbox
       ? await this.openSandboxVault()
       : await this.openNormalVault(options);
@@ -187,15 +185,12 @@ export class ObsidianTestLauncher {
 
     const vaultPath = await this.resolveVaultPath(options);
 
-    if (options.forceNewVault && existsSync(vaultPath)) {
+    if (options.fresh && existsSync(vaultPath)) {
       rmSync(vaultPath, { recursive: true });
     }
 
     const page = await this.executeActionAndWaitForNewWindow(async () => {
-      const result = await this.ipc!.openVault(
-        vaultPath,
-        options.forceNewVault
-      );
+      const result = await this.ipc!.openVault(vaultPath, options.fresh);
       if (result !== true) {
         throw new Error(`Failed to open vault: ${result}`);
       }
@@ -207,10 +202,6 @@ export class ObsidianTestLauncher {
   }
 
   private async resolveVaultPath(options: VaultOptions): Promise<string> {
-    if (options.vaultPath) {
-      return options.vaultPath;
-    }
-
     if (options.name) {
       return await this.getVaultPath(options.name);
     }
@@ -264,9 +255,9 @@ export class ObsidianTestLauncher {
   }
 
   async openSandbox(
-    options: VaultOptions = {}
+    options: VaultOptions = DEFAULT_VAULT_OPTIONS
   ): Promise<ObsidianPageTextContext> {
-    return this.openVault({ ...options, useSandbox: true });
+    return this.openVault({ ...options, sandbox: true });
   }
 
   async openStarter(): Promise<TestContext> {

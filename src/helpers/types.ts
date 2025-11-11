@@ -23,11 +23,9 @@ export interface ObsidianPageTextContext extends TestContext {
 
 export interface VaultOptions {
   name?: string;
-  vaultPath?: string;
-  forceNewVault?: boolean;
-  useSandbox?: boolean;
-  showLoggerOnNode?: boolean;
-  plugins?: TestPlugin[];
+  sandbox?: boolean;
+  fresh?: boolean;
+  plugins: TestPlugin[];
 }
 
 export interface TestPlugin {
@@ -42,3 +40,8 @@ export type TestFixtures = {
 };
 
 export type WorkerFixtures = object;
+export type PluginConfig = {
+  path: string;
+  pluginId: string;
+  useSymlink?: boolean;
+};

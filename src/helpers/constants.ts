@@ -4,6 +4,7 @@ import invariant from "tiny-invariant";
 import { fileURLToPath } from "url";
 import type { ResolvedPaths } from "./config";
 import { resolveConfig } from "./config";
+import type { VaultOptions } from "./types";
 
 // --- Project Structure Detection ---
 const __filename = fileURLToPath(import.meta.url);
@@ -120,3 +121,8 @@ export function getResolvedPaths(): ResolvedPaths {
 export function setResolvedPaths(paths: ResolvedPaths): void {
   RESOLVED_PATHS = paths;
 }
+export const DEFAULT_VAULT_OPTIONS: VaultOptions = {
+  sandbox: false,
+  fresh: false,
+  plugins: [],
+};

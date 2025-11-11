@@ -39,8 +39,8 @@ export const logger = log.getLogger("obsidianSetup");
 
 // Default vault options
 const DEFAULT_VAULT_OPTIONS: VaultOptions = {
-  useSandbox: false,
-  showLoggerOnNode: true,
+  sandbox: false,
+  fresh: false,
   plugins: [],
 };
 
@@ -63,10 +63,8 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       logger.debug("Creating Obsidian context");
       const context = await createObsidianContext(launcher, vaultOptions);
 
-      if (vaultOptions.showLoggerOnNode) {
-        logger.debug("Enabling browser console logging");
-        setupBrowserConsoleLogging(context.page);
-      }
+      logger.debug("Enabling browser console logging");
+      setupBrowserConsoleLogging(context.page);
 
       const api = new ObsidianAPI(context);
 
