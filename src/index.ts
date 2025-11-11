@@ -1,3 +1,4 @@
+// E:\Desktop\coding\templates\obsidian-e2e-toolkit\src\index.ts
 import { ObsidianAPI } from "./ObsidianAPI";
 /**
  * Main entry point for obsidian-e2e testing library
@@ -6,14 +7,12 @@ import { ObsidianAPI } from "./ObsidianAPI";
  *
  * @example
  * ```typescript
- * import { createTestSetup, resolveConfig } from 'obsidian-e2e';
+ * import { test, expect } from 'obsidian-e2e';
  *
- * const paths = resolveConfig({
- *   pluginDir: '/path/to/your/plugin',
+ * test('basic test', async ({ obsidian }) => {
+ *   // Use obsidian API directly
+ *   await obsidian.createNote('test.md', 'content');
  * });
- *
- * const setup = createTestSetup(paths);
- * await setup.launch();
  * ```
  */
 
@@ -21,7 +20,11 @@ import { test as base } from "@playwright/test";
 import log from "loglevel";
 import { getResolvedPaths } from "./helpers/constants";
 import { ObsidianTestLauncher } from "./helpers/launcher";
-import type { TestFixtures, WorkerFixtures } from "./helpers/types";
+import type {
+  TestFixtures,
+  VaultOptions,
+  WorkerFixtures,
+} from "./helpers/types";
 import {
   createObsidianContext,
   handleTestError,
@@ -34,60 +37,67 @@ export const logger = log.getLogger("obsidianSetup");
 // Playwright Test Fixtures
 // ===================================================================
 
-export const test = base.extend<TestFixtures, WorkerFixtures>({
-  obsOptions: async ({}, use) => {
-    await use({
-      useSandbox: false,
-      showLoggerOnNode: true,
-      plugins: [],
-    });
-  },
+// Default vault options
+const DEFAULT_VAULT_OPTIONS: VaultOptions = {
+  useSandbox: false,
+  showLoggerOnNode: true,
+  plugins: [],
+};
 
-  obsLauncher: async ({}, use, testInfo) => {
+export const test = base.extend<TestFixtures, WorkerFixtures>({
+  obsidian: async ({}, use, testInfo) => {
     const paths = getResolvedPaths();
-    const setup = new ObsidianTestLauncher(paths);
+    const launcher = new ObsidianTestLauncher(paths);
+
+    // Get vault options from test.use() or use defaults
+    const vaultOptions: VaultOptions = {
+      ...DEFAULT_VAULT_OPTIONS,
+      ...(testInfo.project.use as { vaultOptions?: VaultOptions })
+        ?.vaultOptions,
+    };
 
     try {
-      logger.debug("launch");
-      await setup.launch();
-      logger.debug("done");
-      logger.debug("enter tests");
+      logger.debug("Launching Obsidian");
+      await launcher.launch();
 
-      await use(setup);
+      logger.debug("Creating Obsidian context");
+      const context = await createObsidianContext(launcher, vaultOptions);
+
+      if (vaultOptions.showLoggerOnNode) {
+        logger.debug("Enabling browser console logging");
+        setupBrowserConsoleLogging(context.page);
+      }
+
+      const api = new ObsidianAPI(context);
+
+      logger.debug("Entering test");
+      await use(api);
+      logger.debug("Test completed");
 
       handleTestError(testInfo);
     } catch (err: any) {
-      logger.error(`Error during fixture setup: ${err.message || err}`);
+      logger.error(`Error during test execution: ${err.message || err}`);
       if (!process.env.CI) {
-        // await setup.getCurrentPage()?.pause();
+        // Uncomment for debugging: await launcher.getCurrentPage()?.pause();
       }
       throw err;
     } finally {
-      logger.debug("clean up app");
-      await setup.cleanup();
-      logger.debug("ok");
+      logger.debug("Cleaning up Obsidian");
+      await launcher.cleanup();
+      logger.debug("Cleanup completed");
     }
-  },
-
-  obsidian: async ({ obsLauncher, obsOptions }, use) => {
-    const context = await createObsidianContext(obsLauncher, obsOptions);
-
-    if (obsOptions.showLoggerOnNode) {
-      logger.debug("enable browser console");
-      setupBrowserConsoleLogging(context.page);
-    }
-
-    logger.debug("enter test");
-    await use(new ObsidianAPI(context));
-    logger.debug("done");
   },
 });
 
-// === PUBLIC API (MINIMAL) ===
-// Only expose the ergonomics that most consumers need:
-// - ObsidianPageObject
-// - test (playwright test instance with preconfigured fixtures)
-// - expect (from @playwright/test)
+// ===================================================================
+// Public API
+// ===================================================================
 
 export { expect } from "@playwright/test";
 export { ObsidianAPI } from "./ObsidianAPI";
+export type { VaultOptions } from "./helpers/types";
+
+// Helper to configure vault options for tests
+export function configureVault(options: VaultOptions) {
+  return { vaultOptions: options };
+}
