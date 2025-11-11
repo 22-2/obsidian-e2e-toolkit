@@ -12,7 +12,7 @@ import {
 } from "../src/helpers/constants";
 
 test.use({
-  obsOptions: { ...DEFAULT_TEST_CONFIG },
+  vaultOptions: { ...DEFAULT_TEST_CONFIG },
 });
 
 test("sandbox test: plugin activation and view creation via command", async ({

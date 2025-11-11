@@ -37,6 +37,7 @@ export interface TestPlugin {
 // Simplified fixture types
 export type TestFixtures = {
   obsidian: ObsidianAPI;
+  vaultOptions: VaultOptions;
 };
 
 export type WorkerFixtures = object;
