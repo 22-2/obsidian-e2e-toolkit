@@ -1,7 +1,7 @@
 import type { JSHandle, Locator, Page } from "playwright";
 import { expect } from "playwright/test";
 import invariant from "tiny-invariant";
-import { CMD_ID_CLOSE_TAB, CMD_ID_UNDO_CLOSE_TAB } from "./constants";
+import { CMD_ID_CLOSE_TAB, CMD_ID_UNDO_CLOSE_TAB } from "./helpers/constants";
 import type { ObsidianPageTextContext, VaultOptions } from "./helpers/types";
 import { getPluginHandleMap } from "./helpers/utils";
 

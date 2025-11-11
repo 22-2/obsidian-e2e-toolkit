@@ -53,7 +53,7 @@ import {
   DEFAULT_TEST_CONFIG,
   PLUGIN_ID,
   SANDBOX_VAULT_NAME,
-} from "../src/constants";
+} from "../src/helpers/constants";
 import { ObsidianPageTextContext } from "../src/helpers/types";
 
 const VIEW_TYPE_CUSTOM_VIEW = "custom-view";

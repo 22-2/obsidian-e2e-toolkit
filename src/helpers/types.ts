@@ -1,6 +1,6 @@
 import type { ElectronApplication, JSHandle, Page } from "playwright";
-import type { ResolvedPaths } from "../config";
-import type { ObsidianTestLauncher } from "../launcher";
+import type { ResolvedPaths } from "./config";
+import type { ObsidianTestLauncher } from "./launcher";
 
 // Minimal Plugin interface to avoid importing from obsidian package
 export interface Plugin {

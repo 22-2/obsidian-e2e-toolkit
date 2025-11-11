@@ -17,13 +17,13 @@ import os from "os";
 import path from "path";
 import type { ElectronApplication, Page } from "playwright";
 import { _electron as electron } from "playwright/test";
+import { IPCBridge } from "./IPCBridge";
 import type { ResolvedPaths } from "./config";
 import { createLaunchOptions } from "./config";
 import { SANDBOX_VAULT_NAME } from "./constants";
-import { IPCBridge } from "./helpers/IPCBridge";
-import type { ObsidianPageTextContext, TestContext } from "./helpers/types";
-import { type VaultOptions } from "./helpers/types";
-import { getPluginHandleMap } from "./helpers/utils";
+import type { ObsidianPageTextContext, TestContext } from "./types";
+import { type VaultOptions } from "./types";
+import { getPluginHandleMap } from "./utils";
 
 const logger = log.getLogger("ObsidianTestLauncher");
 

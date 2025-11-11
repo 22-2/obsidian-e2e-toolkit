@@ -120,4 +120,3 @@ export function getResolvedPaths(): ResolvedPaths {
 export function setResolvedPaths(paths: ResolvedPaths): void {
   RESOLVED_PATHS = paths;
 }
-export const SANDBOX_VAULT_NAME = "Obsidian Sandbox";
