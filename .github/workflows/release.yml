@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g., 1.0.0)"
+        required: true
+        type: string
 
 jobs:
   release:
@@ -21,6 +27,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "23"
+          cache: "pnpm"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -33,11 +40,18 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Get version from tag
+      - name: Get version
         id: tag_version
         run: |
-          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            TAG_NAME="${{ github.event.inputs.version }}"
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Create Release Archive
         run: |
@@ -56,8 +70,9 @@ jobs:
       - name: Generate Release Notes
         id: release_notes
         run: |
+          TAG_NAME="${{ steps.tag_version.outputs.TAG_NAME }}"
           # Get the previous tag
-          PREV_TAG=$(git describe --tags --abbrev=0 ${{ steps.tag_version.outputs.TAG_NAME }}^ 2>/dev/null || echo "")
+          PREV_TAG=$(git describe --tags --abbrev=0 "${TAG_NAME}^" 2>/dev/null || echo "")
 
           if [ -z "$PREV_TAG" ]; then
             echo "NOTES<<EOF" >> $GITHUB_OUTPUT
@@ -72,22 +87,22 @@ jobs:
             echo "" >> $GITHUB_OUTPUT
             echo "### Installation" >> $GITHUB_OUTPUT
             echo '```bash' >> $GITHUB_OUTPUT
-            echo "pnpm add github:22-2/obsidian-e2e-toolkit#${{ steps.tag_version.outputs.TAG_NAME }}" >> $GITHUB_OUTPUT
+            echo "pnpm add github:22-2/obsidian-e2e-toolkit#${TAG_NAME}" >> $GITHUB_OUTPUT
             echo '```' >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           else
             echo "NOTES<<EOF" >> $GITHUB_OUTPUT
             echo "## What's Changed" >> $GITHUB_OUTPUT
             echo "" >> $GITHUB_OUTPUT
-            git log $PREV_TAG..${{ steps.tag_version.outputs.TAG_NAME }} --pretty=format:"- %s (%h)" --no-merges >> $GITHUB_OUTPUT
+            git log "$PREV_TAG..$TAG_NAME" --pretty=format:"- %s (%h)" --no-merges >> $GITHUB_OUTPUT
             echo "" >> $GITHUB_OUTPUT
             echo "" >> $GITHUB_OUTPUT
             echo "### Installation" >> $GITHUB_OUTPUT
             echo '```bash' >> $GITHUB_OUTPUT
-            echo "pnpm add github:22-2/obsidian-e2e-toolkit#${{ steps.tag_version.outputs.TAG_NAME }}" >> $GITHUB_OUTPUT
+            echo "pnpm add github:22-2/obsidian-e2e-toolkit#${TAG_NAME}" >> $GITHUB_OUTPUT
             echo '```' >> $GITHUB_OUTPUT
             echo "" >> $GITHUB_OUTPUT
-            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREV_TAG...${{ steps.tag_version.outputs.TAG_NAME }}" >> $GITHUB_OUTPUT
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREV_TAG...$TAG_NAME" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           fi
 
