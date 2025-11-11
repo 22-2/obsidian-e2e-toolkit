@@ -1,3 +1,4 @@
+import { ObsidianAPI } from "./ObsidianAPI";
 /**
  * Main entry point for obsidian-e2e testing library
  *
@@ -21,7 +22,11 @@ import log from "loglevel";
 import { getResolvedPaths } from "./helpers/constants";
 import { ObsidianTestLauncher } from "./helpers/launcher";
 import type { TestFixtures, WorkerFixtures } from "./helpers/types";
-import { handleTestError, setupObsidianVault } from "./helpers/utils";
+import {
+  createObsidianContext,
+  handleTestError,
+  setupBrowserConsoleLogging,
+} from "./helpers/utils";
 
 export const logger = log.getLogger("obsidianSetup");
 
@@ -30,7 +35,7 @@ export const logger = log.getLogger("obsidianSetup");
 // ===================================================================
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
-  options: async ({}, use) => {
+  obsOptions: async ({}, use) => {
     await use({
       useSandbox: false,
       showLoggerOnNode: true,
@@ -38,7 +43,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     });
   },
 
-  launcher: async ({}, use, testInfo) => {
+  obsLauncher: async ({}, use, testInfo) => {
     const paths = getResolvedPaths();
     const setup = new ObsidianTestLauncher(paths);
 
@@ -64,11 +69,16 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     }
   },
 
-  context: async ({ launcher, options }, use) => {
-    const context = await setupObsidianVault(launcher, options);
+  obsidian: async ({ obsLauncher, obsOptions }, use) => {
+    const context = await createObsidianContext(obsLauncher, obsOptions);
+
+    if (obsOptions.showLoggerOnNode) {
+      logger.debug("enable browser console");
+      setupBrowserConsoleLogging(context.page);
+    }
 
     logger.debug("enter test");
-    await use(context);
+    await use(new ObsidianAPI(context));
     logger.debug("done");
   },
 });

@@ -1,4 +1,5 @@
 import type { ElectronApplication, JSHandle, Page } from "playwright";
+import { ObsidianAPI } from "../ObsidianAPI";
 import type { ResolvedPaths } from "./config";
 import type { ObsidianTestLauncher } from "./launcher";
 
@@ -36,9 +37,9 @@ export interface TestPlugin {
 }
 
 export type TestFixtures = {
-  launcher: ObsidianTestLauncher;
-  context: ObsidianPageTextContext;
-  options: VaultOptions;
+  obsLauncher: ObsidianTestLauncher;
+  obsOptions: VaultOptions;
+  obsidian: ObsidianAPI;
 };
 
 export type WorkerFixtures = object;

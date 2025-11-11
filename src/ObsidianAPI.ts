@@ -13,8 +13,8 @@ interface ItemView {
  * シンプルで直感的なObsidian APIクラス
  */
 export class ObsidianAPI {
-  private page: Page;
-  private context?: ObsidianPageTextContext;
+  public page: Page;
+  private context: ObsidianPageTextContext;
 
   // よく使うセレクタ
   private readonly sel = {
@@ -24,8 +24,8 @@ export class ObsidianAPI {
     tabContainer: ".mod-root .workspace-tab-header-container-inner",
   };
 
-  constructor(context?: ObsidianPageTextContext) {
-    invariant(context?.page, "Page context is required");
+  constructor(context: ObsidianPageTextContext) {
+    invariant(context.page, "Page context is required");
     this.page = context.page;
     this.context = context;
   }
@@ -54,6 +54,10 @@ export class ObsidianAPI {
     return this.page.locator(
       `${this.sel.activeLeaf} > .workspace-leaf-content[data-type="${viewType}"]`
     );
+  }
+
+  vaultName(): Promise<string> {
+    return this.page.evaluate(() => app.vault.getName());
   }
 
   title(viewType: string): Locator {

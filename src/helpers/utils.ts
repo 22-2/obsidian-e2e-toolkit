@@ -150,7 +150,7 @@ export function handleTestError(testInfo: any): void {
 // ===================================================================
 // Vault Setup Helpers
 // ===================================================================
-export async function setupObsidianVault(
+export async function createObsidianContext(
   obsidianSetup: ObsidianTestLauncher,
   vaultOptions: any
 ): Promise<any> {
@@ -159,11 +159,6 @@ export async function setupObsidianVault(
   const context = vaultOptions.useSandbox
     ? await obsidianSetup.openSandbox(vaultOptions)
     : await obsidianSetup.openVault(vaultOptions);
-
-  if (vaultOptions.showLoggerOnNode) {
-    logger.debug("enable browser console");
-    setupBrowserConsoleLogging(context.page);
-  }
 
   // Remove all notices
   const notices = await context.page.locator(".notice-container .notice").all();
