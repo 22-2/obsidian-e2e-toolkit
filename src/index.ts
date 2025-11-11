@@ -25,33 +25,6 @@ import { ObsidianTestLauncher } from "./launcher";
 const logger = log.getLogger("obsidianSetup");
 
 // ===================================================================
-// Type Exports
-// ===================================================================
-
-export {
-  type TestContext,
-  type TestFixtures,
-  type TestPlugin,
-  type VaultOptions,
-  type VaultPageTextContext,
-  type WorkerFixtures,
-} from "./helpers/types";
-
-export { IPCBridge } from "./helpers/IPCBridge";
-
-export * from "./helpers/ObsidianPageObject";
-export * from "./helpers/utils";
-
-export {
-  createLaunchOptions,
-  resolveConfig,
-  type ObsidianE2EConfig,
-  type ResolvedPaths,
-} from "./config";
-
-export { ObsidianTestLauncher as ObsidianTestSetup };
-
-// ===================================================================
 // Test Setup Factory
 // ===================================================================
 
@@ -80,14 +53,14 @@ export { ObsidianTestLauncher as ObsidianTestSetup };
  * ```
  */
 
-import { resolveConfig } from "./config";
+// import { resolveConfig } from "./config";
 
-export function createTestSetup(
-  config: import("./config").ObsidianE2EConfig
-): ObsidianTestLauncher {
-  const paths = resolveConfig(config);
-  return new ObsidianTestLauncher(paths);
-}
+// export function createTestSetup(
+//   config: import("./config").ObsidianE2EConfig
+// ): ObsidianTestLauncher {
+//   const paths = resolveConfig(config);
+//   return new ObsidianTestLauncher(paths);
+// }
 
 // ===================================================================
 // Console Logging Helpers
@@ -255,4 +228,11 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   },
 });
 
+// === PUBLIC API (MINIMAL) ===
+// Only expose the ergonomics that most consumers need:
+// - ObsidianPageObject
+// - test (playwright test instance with preconfigured fixtures)
+// - expect (from @playwright/test)
+
 export { expect } from "@playwright/test";
+export { ObsidianPageObject } from "./helpers/ObsidianPageObject";
