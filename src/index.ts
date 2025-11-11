@@ -80,4 +80,4 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 // - expect (from @playwright/test)
 
 export { expect } from "@playwright/test";
-export { ObsidianAPI as ObsidianPageObject } from "./ObsidianAPI";
+export { ObsidianAPI } from "./ObsidianAPI";
