@@ -83,8 +83,3 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 export { expect } from "@playwright/test";
 export { ObsidianAPI } from "./ObsidianAPI";
 export type { VaultOptions } from "./helpers/types";
-
-// Helper to configure vault options for tests
-export function configureVault(options: VaultOptions) {
-  return { vaultOptions: options };
-}
