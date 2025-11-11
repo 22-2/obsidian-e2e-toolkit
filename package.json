@@ -22,7 +22,7 @@
   "scripts": {
     "build": "tsc",
     "prepublishOnly": "pnpm run build",
-    "test:e2e:example": "pnpm playwright test e2e/specs/example.spec.ts --project=chromium",
+    "test:e2e:example": "pnpm playwright test example/example.spec.ts",
     "prepare": "pnpm run build"
   },
   "author": "22-2",
