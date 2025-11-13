@@ -1,6 +1,6 @@
 import { findUpSync } from "find-up";
 import { existsSync } from "fs";
-import { getLogger } from "loglevel";
+import log from "loglevel";
 import path from "path";
 import invariant from "tiny-invariant";
 import { fileURLToPath } from "url";
@@ -12,7 +12,7 @@ import type { VaultOptions } from "./types";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const logger = getLogger("constants");
+const logger = log.getLogger("constants");
 
 /**
  * Default configuration
