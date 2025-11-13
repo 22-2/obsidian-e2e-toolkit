@@ -11,8 +11,8 @@ export async function getPluginHandleMap(
   await page.waitForFunction(
     (pluginIds) => {
       const app = (globalThis as any).app;
-      if (!app?.plugins) return false;
-      return pluginIds.every((id: string) => app.plugins.getPlugin(id));
+      if (!app?.plugins?.plugins) return false;
+      return pluginIds.every((id: string) => app.plugins.plugins[id]);
     },
     plugins.map((p) => p.pluginId),
     { timeout: 10000 }
@@ -21,7 +21,7 @@ export async function getPluginHandleMap(
   return page.evaluateHandle((plugins) => {
     const map = new Map<string, Plugin>();
     plugins.forEach((p) => {
-      const plugin = (globalThis as any).app?.plugins.getPlugin(p.pluginId);
+      const plugin = (globalThis as any).app?.plugins.plugins[p.pluginId];
       if (plugin) {
         map.set(p.pluginId, plugin);
       }

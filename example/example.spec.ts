@@ -2,25 +2,26 @@
 // Example Test (example.test.ts)
 // ===================================================================
 
+// ===================================================================
+// Example Test (example.test.ts)
+// ===================================================================
+
 import { expect, test } from "../src";
-import {
-  DEFAULT_TEST_CONFIG,
-  PLUGIN_ID,
-  SANDBOX_VAULT_NAME,
-} from "../src/internal/constants";
+import path from "path";
 
 test.use({
-  vaultOptions: { ...DEFAULT_TEST_CONFIG },
+  vaultOptions: {
+    plugins: [
+      {
+        path: path.resolve("example/sample-plugin"),
+        pluginId: "sample-plugin",
+      },
+    ],
+  },
 });
 
-test("sandbox test: plugin activation and view creation via command", async ({
-  obsidian,
-}) => {
-  // 1. Initial setup verification
-  // Verify Vault name
-  expect(obsidian.vaultName()).toBe(SANDBOX_VAULT_NAME);
-
+test("plugin activation test", async ({ obsidian }) => {
   // Verify plugin activation
-
-  expect(await obsidian.plugin(PLUGIN_ID)).toBeTruthy();
+  expect(await obsidian.plugin("sample-plugin")).toBeTruthy();
 });
+
