@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
 import { logger } from "..";
-import { ObsidianTestLauncher } from "./launcher";
+import { ObsidianE2ELauncher } from "./launcher";
 import type { Plugin, PluginHandleMap } from "./types";
 
 export async function getPluginHandleMap(
@@ -67,22 +67,8 @@ export function handleTestError(testInfo: any): void {
 // Vault Setup Helpers
 // ===================================================================
 export async function createObsidianContext(
-  obsidianSetup: ObsidianTestLauncher
+  launcher: ObsidianE2ELauncher
 ): Promise<any> {
-  const vaultOptions = obsidianSetup.getVaultOptions();
-
-  const context = vaultOptions.sandbox
-    ? await obsidianSetup.openSandbox(vaultOptions)
-    : await obsidianSetup.openVault(vaultOptions);
-
-  if (vaultOptions.plugins?.length) {
-    await obsidianSetup.setupPlugins();
-  }
-
-  // Remove all notices
-  const notices = await context.page.locator(".notice-container .notice").all();
-  logger.debug("remove all notices");
-  await Promise.all(notices.map((notice: any) => notice.click()));
-
-  return context;
+  const vaultOptions = launcher.getVaultOptions();
+  return launcher.launch(vaultOptions);
 }

@@ -21,7 +21,7 @@ import { test as base } from "@playwright/test";
 import log from "loglevel";
 import { ObsidianAPI } from "./ObsidianAPI";
 import { DEFAULT_VAULT_OPTIONS, getResolvedPaths } from "./internal/constants";
-import { ObsidianTestLauncher } from "./internal/launcher";
+import { ObsidianE2ELauncher } from "./internal/launcher";
 import { setupBrowserConsoleLogging } from "./internal/logger";
 import type {
   TestFixtures,
@@ -42,11 +42,11 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       (testInfo.project.use?.vaultOptions as VaultOptions | undefined) ||
       DEFAULT_VAULT_OPTIONS;
 
-    const launcher = new ObsidianTestLauncher({ paths, options: vaultOptions });
+    const launcher = new ObsidianE2ELauncher({ paths, options: vaultOptions });
 
     try {
       logger.debug("Launching Obsidian");
-      await launcher.launch();
+      await launcher.initialize();
 
       logger.debug("Creating Obsidian context");
       const context = await createObsidianContext(launcher);

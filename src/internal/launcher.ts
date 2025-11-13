@@ -37,7 +37,7 @@ export interface LauncherConfig {
   options: VaultOptions;
 }
 
-export class ObsidianTestLauncher {
+export class ObsidianE2ELauncher {
   private electronApp?: ElectronApplication;
   private tempUserDataDir?: string;
   private ipc?: IPCBridge;
@@ -50,10 +50,10 @@ export class ObsidianTestLauncher {
   }
 
   // ===================================================================
-  // Launch & Cleanup
+  // Initialization & Cleanup
   // ===================================================================
 
-  async launch(): Promise<void> {
+  async initialize(): Promise<void> {
     await this.createTempUserDataDir();
     this.electronApp = await this.launchElectronApp();
 
@@ -155,7 +155,7 @@ export class ObsidianTestLauncher {
   // Vault Operations
   // ===================================================================
 
-  async openVault(
+  async launch(
     options: VaultOptions = DEFAULT_VAULT_OPTIONS
   ): Promise<ObsidianPageTextContext> {
     this.validateInitialization();
@@ -163,11 +163,24 @@ export class ObsidianTestLauncher {
     logger.debug("open vault", options);
 
     const shouldUseSandbox = options.sandbox && !process.env.CI;
-    const { vaultPath, page } = shouldUseSandbox
+    const { page } = shouldUseSandbox
       ? await this.openSandboxVault()
       : await this.openNormalVault(options);
 
-    return await this.createVaultContext(page, options.plugins);
+    if (this.getPlugins()?.length) {
+      await this.setupPlugins();
+    }
+
+    const context = await this.createVaultContext(page, options.plugins);
+
+    // Remove all notices
+    const notices = await context.page
+      .locator(".notice-container .notice")
+      .all();
+
+    logger.debug("remove all notices");
+    await Promise.all(notices.map((notice: any) => notice.click()));
+    return context;
   }
 
   private validateInitialization(): void {
@@ -262,12 +275,6 @@ export class ObsidianTestLauncher {
       vaultName,
       paths: this.paths,
     };
-  }
-
-  async openSandbox(
-    options: VaultOptions = DEFAULT_VAULT_OPTIONS
-  ): Promise<ObsidianPageTextContext> {
-    return this.openVault({ ...options, sandbox: true });
   }
 
   async openStarter(): Promise<TestContext> {
