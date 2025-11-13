@@ -2,6 +2,7 @@ import { existsSync } from "fs";
 import path from "path";
 import invariant from "tiny-invariant";
 import { fileURLToPath } from "url";
+import { findUp } from "find-up";
 import type { ResolvedPaths } from "./config";
 import { resolveConfig } from "./config";
 import type { VaultOptions } from "./types";
@@ -10,18 +11,6 @@ import type { VaultOptions } from "./types";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-function findProjectRoot(startDir: string): string {
-  let currentDir = startDir;
-  while (currentDir !== path.parse(currentDir).root) {
-    if (existsSync(path.join(currentDir, "manifest.json"))) {
-      return currentDir;
-    }
-    currentDir = path.dirname(currentDir);
-  }
-  // Fallback to the original behavior if package.json is not found
-  return path.resolve(startDir, "..");
-}
-
 /**
  * Default configuration
  * Assumes this package is installed in node_modules or used as a submodule
@@ -29,8 +18,14 @@ function findProjectRoot(startDir: string): string {
 function getDefaultConfig() {
   // When used as a library, __dirname points to node_modules/obsidian-e2e-toolkit/dist
   // or to the e2e toolkit directory in the project
-  const toolkitRoot = path.dirname(__dirname);
-  const projectRoot = findProjectRoot(toolkitRoot);
+  const toolkitRoot = path.resolve(__dirname, "..", "..", "..");
+
+  const manifestPath = findUp.sync("manifest.json", { cwd: toolkitRoot });
+  invariant(
+    manifestPath,
+    "Could not find manifest.json for the plugin project."
+  );
+  const projectRoot = path.dirname(manifestPath);
 
   return {
     pluginDir: projectRoot,
