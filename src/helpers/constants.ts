@@ -16,9 +16,13 @@ const __dirname = path.dirname(__filename);
  * Assumes this package is installed in node_modules or used as a submodule
  */
 function getDefaultConfig() {
-  // When used as a library, __dirname points to node_modules/obsidian-e2e-toolkit/dist
-  // or to the e2e toolkit directory in the project
-  const toolkitRoot = path.resolve(__dirname, "..", "..", "..");
+  // Find the root of the obsidian-e2e-toolkit package by looking for its package.json
+  const toolkitPackageJsonPath = findUpSync("package.json", { cwd: __dirname });
+  invariant(
+    toolkitPackageJsonPath,
+    "Could not find package.json for obsidian-e2e-toolkit."
+  );
+  const toolkitRoot = path.dirname(toolkitPackageJsonPath);
 
   const manifestPath = findUpSync("manifest.json", { cwd: toolkitRoot });
   invariant(
