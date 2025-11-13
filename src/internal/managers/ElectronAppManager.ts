@@ -14,21 +14,15 @@ const logger = log.getLogger("ElectronAppManager");
 
 export class ElectronAppManager {
   private electronApp?: ElectronApplication;
-  private tempUserDataDir?: string;
+  private tempUserDataDir: string;
 
-  constructor(private paths: ResolvedPaths) {}
-
-  async launch(): Promise<ElectronApplication> {
-    await this.createTempUserDataDir();
-    this.electronApp = await this.launchElectronApp();
-    return this.electronApp;
+  constructor(private paths: ResolvedPaths, tempUserDataDir: string) {
+    this.tempUserDataDir = tempUserDataDir;
   }
 
-  private async createTempUserDataDir(): Promise<void> {
-    this.tempUserDataDir = await fs.mkdtemp(
-      path.join(os.tmpdir(), "obsidian-e2e-")
-    );
-    logger.debug(`Using temporary user data dir: ${this.tempUserDataDir}`);
+  async launch(): Promise<ElectronApplication> {
+    this.electronApp = await this.launchElectronApp();
+    return this.electronApp;
   }
 
   private async launchElectronApp(): Promise<ElectronApplication> {
@@ -55,21 +49,12 @@ export class ElectronAppManager {
       await this.electronApp.close();
     }
 
-    if (this.tempUserDataDir) {
-      await this.removeTempUserDataDir();
-    }
-
     logger.debug("ElectronAppManager cleaned up");
   }
 
   private async closeAllWindows(): Promise<void> {
     const windows = this.electronApp!.windows();
     await Promise.all(windows.map((win) => win.close()));
-  }
-
-  private async removeTempUserDataDir(): Promise<void> {
-    logger.debug(`Removing temp user data dir: ${this.tempUserDataDir}`);
-    await fs.rm(this.tempUserDataDir!, { recursive: true, force: true });
   }
 
   getApp(): ElectronApplication {
@@ -82,7 +67,7 @@ export class ElectronAppManager {
   getCurrentPage(): Page | undefined {
     return this.electronApp?.windows()[0];
   }
-  getTempUserDataDir(): string | undefined {
+  getTempUserDataDir(): string {
     return this.tempUserDataDir;
   }
 }

@@ -25,7 +25,7 @@ export class PluginManager {
     const pluginsDir = this.ensurePluginsDirectory();
     const installedIds: string[] = [];
 
-    for (const plugin of this.plugins) {
+    for (const plugin of this.getPlugins()) {
       if (await this.installSingle(pluginsDir, plugin)) {
         installedIds.push(plugin.pluginId);
       }
@@ -65,7 +65,7 @@ export class PluginManager {
 
     const destDir = path.join(pluginsDir, plugin.pluginId);
 
-    if (plugin.useSymlink) {
+    if (plugin.symlink) {
       logger.debug(`Creating symlink for plugin: ${plugin.pluginId}`);
       return this.createPluginSymlink(plugin.path, destDir, plugin.pluginId);
     } else {

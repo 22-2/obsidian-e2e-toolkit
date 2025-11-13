@@ -14,7 +14,11 @@ import type { VaultOptions } from "../types";
 const logger = log.getLogger("VaultManager");
 
 export class VaultManager {
-  constructor(private ipc: IPCBridge, private options: VaultOptions) {}
+  constructor(
+    private ipc: IPCBridge,
+    private options: VaultOptions,
+    private vaultPath: string
+  ) {}
 
   async openSandboxVault(
     executeAction: (
@@ -61,15 +65,13 @@ export class VaultManager {
     return { vaultPath, page };
   }
 
-  private async resolveVaultPath(): Promise<string> {
+  async resolveVaultPath(): Promise<string> {
     if (this.options.name) {
       return await this.getVaultPathByName(this.options.name);
     }
 
-    logger.debug(
-      "options.name and options.path not specified, create temp dir"
-    );
-    const tempPath = await fs.mkdtemp(path.join(os.tmpdir(), "obsidian-e2e-"));
+    logger.debug("options.name not specified, create temp dir");
+    const tempPath = this.vaultPath;
     logger.debug("temp dir created:", tempPath);
     return tempPath;
   }

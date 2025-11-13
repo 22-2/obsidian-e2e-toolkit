@@ -40,9 +40,12 @@ export type TestFixtures = {
   vaultOptions: VaultOptions;
 };
 
-export type WorkerFixtures = object;
+export type WorkerFixtures = {
+  tempDir: string;
+};
+
 export type PluginConfig = {
   path: string;
   pluginId: string;
-  useSymlink?: boolean;
+  symlink?: boolean;
 };

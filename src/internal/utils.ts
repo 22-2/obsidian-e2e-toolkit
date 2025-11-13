@@ -10,8 +10,6 @@ export async function getPluginHandleMap(
   // Wait for plugins to be loaded
   await page.waitForFunction(
     (pluginIds) => {
-      const app = (globalThis as any).app;
-      if (!app?.plugins?.plugins) return false;
       return pluginIds.every((id: string) => app.plugins.plugins[id]);
     },
     plugins.map((p) => p.pluginId),

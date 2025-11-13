@@ -18,31 +18,37 @@ import "./internal/logger";
  */
 
 import { test as base } from "@playwright/test";
+import fs from "fs/promises";
 import log from "loglevel";
+import os from "os";
+import path from "path";
 import { ObsidianAPI } from "./ObsidianAPI";
 import { DEFAULT_VAULT_OPTIONS, getResolvedPaths } from "./internal/constants";
 import { ObsidianE2ELauncher } from "./internal/launcher";
 import { setupBrowserConsoleLogging } from "./internal/logger";
-import type {
-  TestFixtures,
-  VaultOptions,
-  WorkerFixtures,
-} from "./internal/types";
+import type { TestFixtures, WorkerFixtures } from "./internal/types";
 import { createObsidianContext, handleTestError } from "./internal/utils";
 
 export const logger = log.getLogger("obsidianSetup");
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
-  obsidian: async ({}, use, testInfo) => {
+  tempDir: [
+    async ({}, use) => {
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), "obsidian-e2e-"));
+      await use(dir);
+      await fs.rm(dir, { recursive: true, force: true });
+    },
+    { scope: "worker" },
+  ],
+  vaultOptions: [DEFAULT_VAULT_OPTIONS, { option: true }],
+  obsidian: async ({ vaultOptions, tempDir }, use, testInfo) => {
     const paths = getResolvedPaths();
 
-    // Get vault options from test.use()
-    const vaultOptions =
-      // @ts-expect-error
-      (testInfo.project.use?.vaultOptions as VaultOptions | undefined) ||
-      DEFAULT_VAULT_OPTIONS;
-
-    const launcher = new ObsidianE2ELauncher({ paths, options: vaultOptions });
+    const launcher = new ObsidianE2ELauncher({
+      paths,
+      options: vaultOptions,
+      tempUserDataDir: tempDir,
+    });
 
     try {
       logger.debug("Launching Obsidian");

@@ -4,7 +4,6 @@
 import chalk from "chalk";
 import log from "loglevel";
 import type { Page } from "playwright";
-import invariant from "tiny-invariant";
 import { DEFAULT_VAULT_OPTIONS } from "./constants";
 import { IPCBridge } from "./ipc";
 import { ElectronAppManager } from "./managers/ElectronAppManager";
@@ -26,6 +25,7 @@ const logger = log.getLogger("ObsidianTestLauncher");
 export interface LauncherConfig {
   paths: ResolvedPaths;
   options: VaultOptions;
+  tempUserDataDir: string;
 }
 
 export class ObsidianE2ELauncher {
@@ -37,11 +37,14 @@ export class ObsidianE2ELauncher {
   private ipc!: IPCBridge;
   private paths: ResolvedPaths;
   private options: VaultOptions;
+  private tempUserDataDir: string;
+  private vaultPath: string | null = null;
 
-  constructor({ paths, options }: LauncherConfig) {
+  constructor({ paths, options, tempUserDataDir }: LauncherConfig) {
     this.paths = paths;
     this.options = options;
-    this.electronManager = new ElectronAppManager(paths);
+    this.tempUserDataDir = tempUserDataDir;
+    this.electronManager = new ElectronAppManager(paths, tempUserDataDir);
   }
 
   async initialize(): Promise<void> {
@@ -68,13 +71,20 @@ export class ObsidianE2ELauncher {
         this.windowManager
       ),
     });
-    this.vaultManager = new VaultManager(this.ipc, this.options);
+    this.vaultManager = new VaultManager(
+      this.ipc,
+      this.options,
+      this.tempUserDataDir
+    );
     this.ipc.setWaitForVaultReady(
       this.vaultManager.waitForVaultReady.bind(this.vaultManager)
     );
+
+    // Resolve vault path once and store it
+    this.vaultPath = await this.vaultManager.resolveVaultPath();
     this.pluginManager = new PluginManager(
       this.options.plugins,
-      this.getVaultPath()
+      this.vaultPath
     );
   }
 
@@ -197,24 +207,10 @@ export class ObsidianE2ELauncher {
   }
 
   private getVaultPath(): string {
-    const vaultPath = this.electronManager.getTempUserDataDir();
-    invariant(vaultPath, "Vault path is not available");
-    return vaultPath;
-    // invariant(name, "Vault name is not specified in options");
-
-    // const page = this.electronManager.getCurrentPage();
-    // invariant(page, "No current page available");
-
-    // const userDataDir = await page.evaluate(() => {
-    //   const app = (window as any).app;
-    //   if (app?.vault?.adapter?.basePath) {
-    //     return app.vault.adapter.basePath;
-    //   }
-    //   throw new Error("failed to get user data path");
-    // });
-
-    // const parentDir = path.dirname(userDataDir);
-    // return path.join(parentDir, name);
+    if (!this.vaultPath) {
+      throw new Error("Vault path not initialized");
+    }
+    return this.vaultPath;
   }
 
   // Getters
