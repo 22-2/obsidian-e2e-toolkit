@@ -88,9 +88,11 @@ export function resolveConfig(config: ObsidianE2EConfig): ResolvedPaths {
 	} else if (existsSync(manifestPath)) {
 		manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
 	} else {
-		throw new Error(
-			`manifest.json not found at ${manifestPath}. Please provide pluginDir or manifest in config.`
-		);
+		manifest = {
+			id: "obsidian-e2e-toolkit-dummy-plugin",
+			name: "Dummy Plugin",
+			version: "1.0.0",
+		};
 	}
 
 	const pluginId = config.pluginId || manifest.id;

@@ -28,11 +28,7 @@ function getDefaultConfig() {
   const toolkitRoot = path.dirname(toolkitPackageJsonPath);
 
   const manifestPath = findUpSync("manifest.json", { cwd: toolkitRoot });
-  invariant(
-    manifestPath,
-    "Could not find manifest.json for the plugin project."
-  );
-  const projectRoot = path.dirname(manifestPath);
+  const projectRoot = manifestPath ? path.dirname(manifestPath) : toolkitRoot;
 
   return {
     pluginDir: projectRoot,
