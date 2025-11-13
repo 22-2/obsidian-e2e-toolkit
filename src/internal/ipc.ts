@@ -2,51 +2,67 @@
 // ipc-bridge.mts - IPCの簡素化と統合
 // ===================================================================
 
+import type { Page } from "playwright";
+
 export class IPCBridge {
-	constructor(private setup: { ensureSingleWindow: () => Promise<any>; waitForVaultReady: (page: any) => Promise<void> }) {}
+  private waitForVaultReady?: (page: Page) => Promise<void>;
 
-	private async send<T>(channel: string, ...args: unknown[]): Promise<T> {
-		await this.ensurePageLoaded();
-		return (await this.setup.ensureSingleWindow()).evaluate(
-			([ch, ...restArgs]: [string, ...unknown[]]) => {
-				return (window as any).electron.ipcRenderer.sendSync(ch, ...restArgs);
-			},
-			[channel, ...args]
-		);
-	}
+  constructor(
+    private setup: {
+      ensureSingleWindow: () => Promise<Page>;
+    }
+  ) {}
 
-	private async ensurePageLoaded(): Promise<void> {
-		const page = await this.setup.ensureSingleWindow();
-		await page.waitForLoadState("domcontentloaded");
+  setWaitForVaultReady(fn: (page: Page) => Promise<void>) {
+    this.waitForVaultReady = fn;
+  }
 
-		// スターターページでない場合はappオブジェクトを待つ
-		const isStarter = page.url().includes("starter");
-		if (!isStarter) {
-			return this.setup.waitForVaultReady(page);
-		}
-	}
+  private async send<T>(channel: string, ...args: unknown[]): Promise<T> {
+    await this.ensurePageLoaded();
+    return (await this.setup.ensureSingleWindow()).evaluate(
+      (args: any) => {
+        const [ch, ...restArgs] = args;
+        return (window as any).electron.ipcRenderer.sendSync(ch, ...restArgs);
+      },
+      [channel, ...args]
+    );
+  }
 
-	async openVault(vaultPath: string, forceNew = false): Promise<true | string> {
-		return this.send<true | string>("vault-open", vaultPath, forceNew);
-	}
+  private async ensurePageLoaded(): Promise<void> {
+    const page = await this.setup.ensureSingleWindow();
+    await page.waitForLoadState("domcontentloaded");
 
-	async openSandbox(): Promise<void> {
-		return void this.send<string>("sandbox");
-	}
+    // スターターページでない場合はappオブジェクトを待つ
+    const isStarter = page.url().includes("starter");
+    if (!isStarter) {
+      if (!this.waitForVaultReady) {
+        throw new Error("waitForVaultReady is not set");
+      }
+      return this.waitForVaultReady(page);
+    }
+  }
 
-	async getSandboxPath(): Promise<string> {
-		return this.send<string>("get-sandbox-vault-path");
-	}
+  async openVault(vaultPath: string, forceNew = false): Promise<true | string> {
+    return this.send<true | string>("vault-open", vaultPath, forceNew);
+  }
 
-	async openStarter(): Promise<void> {
-		await this.send("starter");
-	}
+  async openSandbox(): Promise<void> {
+    return void this.send<string>("sandbox");
+  }
 
-	async getVaultList(): Promise<{ vault: Record<string, { path: string }> }> {
-		return this.send("vault-list");
-	}
+  async getSandboxPath(): Promise<string> {
+    return this.send<string>("get-sandbox-vault-path");
+  }
 
-	async removeVault(vaultPath: string): Promise<void> {
-		await this.send("vault-remove", vaultPath);
-	}
+  async openStarter(): Promise<void> {
+    await this.send("starter");
+  }
+
+  async getVaultList(): Promise<{ vault: Record<string, { path: string }> }> {
+    return this.send("vault-list");
+  }
+
+  async removeVault(vaultPath: string): Promise<void> {
+    await this.send("vault-remove", vaultPath);
+  }
 }
