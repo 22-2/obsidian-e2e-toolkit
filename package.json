@@ -17,7 +17,7 @@
     "assets",
     "README.md",
     "LICENSE",
-    "dist"
+    ".obsidian-unpacked"
   ],
   "scripts": {
     "prebuild": "rimraf dist",

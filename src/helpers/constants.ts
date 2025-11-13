@@ -54,6 +54,10 @@ try {
 
   // --- Pre-flight checks ---
   invariant(existsSync(__dirname), `Toolkit root not found at: ${__dirname}.`);
+  invariant(
+    existsSync(RESOLVED_PATHS.appMainJsPath),
+    `Obsidian app not found at: ${RESOLVED_PATHS.appMainJsPath}. Did you run the setup script?`
+  );
 } catch (error) {
   console.error(
     "Error: Could not resolve paths. Make sure you've run the setup script.",
