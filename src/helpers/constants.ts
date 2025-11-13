@@ -1,8 +1,8 @@
+import { findUpSync } from "find-up";
 import { existsSync } from "fs";
 import path from "path";
 import invariant from "tiny-invariant";
 import { fileURLToPath } from "url";
-import { findUp } from "find-up";
 import type { ResolvedPaths } from "./config";
 import { resolveConfig } from "./config";
 import type { VaultOptions } from "./types";
@@ -20,7 +20,7 @@ function getDefaultConfig() {
   // or to the e2e toolkit directory in the project
   const toolkitRoot = path.resolve(__dirname, "..", "..", "..");
 
-  const manifestPath = findUp.sync("manifest.json", { cwd: toolkitRoot });
+  const manifestPath = findUpSync("manifest.json", { cwd: toolkitRoot });
   invariant(
     manifestPath,
     "Could not find manifest.json for the plugin project."
