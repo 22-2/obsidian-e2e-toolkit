@@ -139,7 +139,12 @@ export function setResolvedPaths(paths: ResolvedPaths): void {
 export const DEFAULT_VAULT_OPTIONS: VaultOptions = {
   sandbox: false,
   fresh: false,
-  plugins: [],
+  plugins: [
+    {
+      path: DIST_DIR,
+      pluginId: PLUGIN_ID,
+    },
+  ],
 };
 
 // ===================================================================
