@@ -1,5 +1,6 @@
-// E:\Desktop\coding\templates\obsidian-e2e-toolkit\src\index.ts
-import { ObsidianAPI } from "./ObsidianAPI";
+// setup logging as early as possible
+import "./internal/logger";
+
 /**
  * Main entry point for obsidian-e2e testing library
  *
@@ -18,6 +19,7 @@ import { ObsidianAPI } from "./ObsidianAPI";
 
 import { test as base } from "@playwright/test";
 import log from "loglevel";
+import { ObsidianAPI } from "./ObsidianAPI";
 import { DEFAULT_VAULT_OPTIONS, getResolvedPaths } from "./internal/constants";
 import { ObsidianTestLauncher } from "./internal/launcher";
 import { setupBrowserConsoleLogging } from "./internal/logger";

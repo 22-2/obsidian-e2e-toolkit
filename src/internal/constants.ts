@@ -1,5 +1,6 @@
 import { findUpSync } from "find-up";
 import { existsSync } from "fs";
+import { getLogger } from "loglevel";
 import path from "path";
 import invariant from "tiny-invariant";
 import { fileURLToPath } from "url";
@@ -10,6 +11,8 @@ import type { VaultOptions } from "./types";
 // --- Project Structure Detection ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const logger = getLogger("constants");
 
 /**
  * Default configuration
@@ -47,10 +50,10 @@ try {
   const defaultConfig = getDefaultConfig();
   RESOLVED_PATHS = resolveConfig(defaultConfig);
 
-  console.log("Plugin Directory:", RESOLVED_PATHS.pluginDir);
-  console.log("Dist Directory:", RESOLVED_PATHS.distDir);
-  console.log("Toolkit Root:", __dirname);
-  console.log("App Main Path:", RESOLVED_PATHS.appMainJsPath);
+  logger.log("Plugin Directory:", RESOLVED_PATHS.pluginDir);
+  logger.log("Dist Directory:", RESOLVED_PATHS.distDir);
+  logger.log("Toolkit Root:", __dirname);
+  logger.log("App Main Path:", RESOLVED_PATHS.appMainJsPath);
 
   // --- Pre-flight checks ---
   invariant(existsSync(__dirname), `Toolkit root not found at: ${__dirname}.`);
@@ -59,7 +62,7 @@ try {
     `Obsidian app not found at: ${RESOLVED_PATHS.appMainJsPath}. Did you run the setup script?`
   );
 } catch (error) {
-  console.error(
+  logger.error(
     "Error: Could not resolve paths. Make sure you've run the setup script.",
     error
   );
