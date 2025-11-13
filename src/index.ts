@@ -18,18 +18,15 @@ import { ObsidianAPI } from "./ObsidianAPI";
 
 import { test as base } from "@playwright/test";
 import log from "loglevel";
-import { DEFAULT_VAULT_OPTIONS, getResolvedPaths } from "./helpers/constants";
-import { ObsidianTestLauncher } from "./helpers/launcher";
+import { DEFAULT_VAULT_OPTIONS, getResolvedPaths } from "./internal/constants";
+import { ObsidianTestLauncher } from "./internal/launcher";
+import { setupBrowserConsoleLogging } from "./internal/logger";
 import type {
   TestFixtures,
   VaultOptions,
   WorkerFixtures,
-} from "./helpers/types";
-import {
-  createObsidianContext,
-  handleTestError,
-  setupBrowserConsoleLogging,
-} from "./helpers/utils";
+} from "./internal/types";
+import { createObsidianContext, handleTestError } from "./internal/utils";
 
 export const logger = log.getLogger("obsidianSetup");
 
@@ -82,4 +79,4 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
 export { expect } from "@playwright/test";
 export { ObsidianAPI } from "./ObsidianAPI";
-export type { VaultOptions } from "./helpers/types";
+export type { VaultOptions } from "./internal/types";

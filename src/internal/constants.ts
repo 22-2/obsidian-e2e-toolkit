@@ -3,8 +3,8 @@ import { existsSync } from "fs";
 import path from "path";
 import invariant from "tiny-invariant";
 import { fileURLToPath } from "url";
-import type { ResolvedPaths } from "./config";
-import { resolveConfig } from "./config";
+import type { ResolvedPaths } from "./path";
+import { resolveConfig } from "./path";
 import type { VaultOptions } from "./types";
 
 // --- Project Structure Detection ---

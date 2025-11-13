@@ -7,7 +7,7 @@ import {
   DEFAULT_TEST_CONFIG,
   PLUGIN_ID,
   SANDBOX_VAULT_NAME,
-} from "../src/helpers/constants";
+} from "../src/internal/constants";
 
 test.use({
   vaultOptions: { ...DEFAULT_TEST_CONFIG },

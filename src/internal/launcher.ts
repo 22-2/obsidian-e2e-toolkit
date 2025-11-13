@@ -18,10 +18,10 @@ import path from "path";
 import type { ElectronApplication, Page } from "playwright";
 import { _electron as electron } from "playwright/test";
 import invariant from "tiny-invariant";
-import { IPCBridge } from "./IPCBridge";
-import type { ResolvedPaths } from "./config";
-import { createLaunchOptions } from "./config";
 import { DEFAULT_VAULT_OPTIONS, SANDBOX_VAULT_NAME } from "./constants";
+import { IPCBridge } from "./ipc";
+import type { ResolvedPaths } from "./path";
+import { createLaunchOptions } from "./path";
 import type {
   ObsidianPageTextContext,
   PluginConfig,
