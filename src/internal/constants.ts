@@ -143,6 +143,7 @@ export const DEFAULT_VAULT_OPTIONS: VaultOptions = {
     {
       path: DIST_DIR,
       pluginId: PLUGIN_ID,
+      symlink: true,
     },
   ],
 };

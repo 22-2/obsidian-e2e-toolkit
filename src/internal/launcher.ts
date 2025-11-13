@@ -168,7 +168,9 @@ export class ObsidianE2ELauncher {
       : await this.openNormalVault(options);
 
     if (this.getPlugins()?.length) {
+      logger.debug("Installing plugins...");
       await this.setupPlugins();
+      logger.debug(`${this.getPlugins().length} Plugins setup completed.`);
     }
 
     const context = await this.createVaultContext(page, options.plugins);
@@ -332,14 +334,17 @@ export class ObsidianE2ELauncher {
     plugin: PluginConfig
   ): Promise<boolean> {
     if (!this.validatePluginPath(plugin)) {
+      logger.warn(`Invalid plugin path: ${plugin.path}`);
       return false;
     }
 
     const destDir = path.join(pluginsDir, plugin.pluginId);
 
     if (plugin.useSymlink) {
+      logger.debug(`Creating symlink for plugin: ${plugin.pluginId}`);
       return this.createPluginSymlink(plugin.path, destDir, plugin.pluginId);
     } else {
+      logger.debug(`Copying files for plugin: ${plugin.pluginId}`);
       return this.copyPluginFiles(plugin.path, destDir, plugin.pluginId);
     }
   }
