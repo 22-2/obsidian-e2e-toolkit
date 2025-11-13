@@ -10,6 +10,18 @@ import type { VaultOptions } from "./types";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+function findProjectRoot(startDir: string): string {
+  let currentDir = startDir;
+  while (currentDir !== path.parse(currentDir).root) {
+    if (existsSync(path.join(currentDir, "manifest.json"))) {
+      return currentDir;
+    }
+    currentDir = path.dirname(currentDir);
+  }
+  // Fallback to the original behavior if package.json is not found
+  return path.resolve(startDir, "..");
+}
+
 /**
  * Default configuration
  * Assumes this package is installed in node_modules or used as a submodule
@@ -18,7 +30,7 @@ function getDefaultConfig() {
   // When used as a library, __dirname points to node_modules/obsidian-e2e-toolkit/dist
   // or to the e2e toolkit directory in the project
   const toolkitRoot = path.dirname(__dirname);
-  const projectRoot = path.resolve(toolkitRoot, "..");
+  const projectRoot = findProjectRoot(toolkitRoot);
 
   return {
     pluginDir: projectRoot,
