@@ -35,6 +35,10 @@ export class PluginManager {
     logger.debug(`Installed plugins: ${installedIds.join(", ")}`);
   }
 
+  getPlugins(): PluginConfig[] {
+    return this.plugins || [];
+  }
+
   private ensurePluginsDirectory(): string {
     const obsidianDir = path.join(this.vaultPath, ".obsidian");
     const pluginsDir = path.join(obsidianDir, "plugins");
@@ -141,9 +145,9 @@ export class PluginManager {
     writeFileSync(pluginsJsonPath, JSON.stringify(installedIds));
   }
 
-  async enableAll(page: Page, pluginIds: string[]): Promise<void> {
+  async enableAll(page: Page): Promise<void> {
     await this.disableRestrictedMode(page);
-
+    const pluginIds = this.plugins.map((p) => p.pluginId);
     const enabledIds = await page.evaluate(async (ids) => {
       const app = (window as any).app;
       const enabled: string[] = [];

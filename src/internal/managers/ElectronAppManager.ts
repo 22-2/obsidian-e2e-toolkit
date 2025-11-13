@@ -82,4 +82,7 @@ export class ElectronAppManager {
   getCurrentPage(): Page | undefined {
     return this.electronApp?.windows()[0];
   }
+  getTempUserDataDir(): string | undefined {
+    return this.tempUserDataDir;
+  }
 }

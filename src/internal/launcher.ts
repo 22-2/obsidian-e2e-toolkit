@@ -3,7 +3,6 @@
 // ===================================================================
 import chalk from "chalk";
 import log from "loglevel";
-import path from "path";
 import type { Page } from "playwright";
 import invariant from "tiny-invariant";
 import { DEFAULT_VAULT_OPTIONS } from "./constants";
@@ -31,10 +30,11 @@ export interface LauncherConfig {
 
 export class ObsidianE2ELauncher {
   private electronManager: ElectronAppManager;
-  private windowManager?: WindowManager;
-  private vaultManager?: VaultManager;
-  private storageManager?: StorageManager;
-  private ipc?: IPCBridge;
+  private windowManager!: WindowManager;
+  private vaultManager!: VaultManager;
+  private storageManager!: StorageManager;
+  private pluginManager!: PluginManager;
+  private ipc!: IPCBridge;
   private paths: ResolvedPaths;
   private options: VaultOptions;
 
@@ -72,6 +72,10 @@ export class ObsidianE2ELauncher {
     this.ipc.setWaitForVaultReady(
       this.vaultManager.waitForVaultReady.bind(this.vaultManager)
     );
+    this.pluginManager = new PluginManager(
+      this.options.plugins,
+      this.getVaultPath()
+    );
   }
 
   private async initializePlaywrightMode(page: Page): Promise<void> {
@@ -103,10 +107,12 @@ export class ObsidianE2ELauncher {
       ? await this.vaultManager!.openSandboxVault(executeAction)
       : await this.vaultManager!.openNormalVault(executeAction);
 
-    if (this.getPlugins()?.length) {
+    if (this.pluginManager.getPlugins()?.length) {
       logger.debug("Installing plugins...");
       await this.setupPlugins(page);
-      logger.debug(`${this.getPlugins().length} Plugins setup completed.`);
+      logger.debug(
+        `${this.pluginManager.getPlugins().length} Plugins setup completed.`
+      );
     }
 
     const context = await this.createVaultContext(page, options.plugins);
@@ -128,18 +134,12 @@ export class ObsidianE2ELauncher {
   }
 
   private async setupPlugins(page: Page): Promise<void> {
-    const vaultPath = await this.getVaultPath();
-    const pluginManager = new PluginManager(this.getPlugins(), vaultPath);
-
     logger.debug("Installing plugins...");
-    await pluginManager.installAll();
+    await this.pluginManager.installAll();
     logger.debug("Plugins installed.");
 
     logger.debug("Enabling plugins...");
-    await pluginManager.enableAll(
-      page,
-      this.getPlugins().map((p) => p.pluginId)
-    );
+    await this.pluginManager.enableAll(page);
     logger.debug("Plugins enabled.");
 
     logger.debug(chalk.blue("Reloading vault to apply plugin changes..."));
@@ -196,23 +196,25 @@ export class ObsidianE2ELauncher {
     }
   }
 
-  private async getVaultPath(): Promise<string> {
-    const name = this.options.name;
-    invariant(name, "Vault name is not specified in options");
+  private getVaultPath(): string {
+    const vaultPath = this.electronManager.getTempUserDataDir();
+    invariant(vaultPath, "Vault path is not available");
+    return vaultPath;
+    // invariant(name, "Vault name is not specified in options");
 
-    const page = this.electronManager.getCurrentPage();
-    invariant(page, "No current page available");
+    // const page = this.electronManager.getCurrentPage();
+    // invariant(page, "No current page available");
 
-    const userDataDir = await page.evaluate(() => {
-      const app = (window as any).app;
-      if (app?.vault?.adapter?.basePath) {
-        return app.vault.adapter.basePath;
-      }
-      throw new Error("failed to get user data path");
-    });
+    // const userDataDir = await page.evaluate(() => {
+    //   const app = (window as any).app;
+    //   if (app?.vault?.adapter?.basePath) {
+    //     return app.vault.adapter.basePath;
+    //   }
+    //   throw new Error("failed to get user data path");
+    // });
 
-    const parentDir = path.dirname(userDataDir);
-    return path.join(parentDir, name);
+    // const parentDir = path.dirname(userDataDir);
+    // return path.join(parentDir, name);
   }
 
   // Getters
@@ -230,9 +232,5 @@ export class ObsidianE2ELauncher {
 
   getVaultOptions(): VaultOptions {
     return this.options;
-  }
-
-  getPlugins(): PluginConfig[] {
-    return this.options.plugins || [];
   }
 }
