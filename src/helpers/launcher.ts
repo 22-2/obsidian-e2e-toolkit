@@ -17,6 +17,7 @@ import os from "os";
 import path from "path";
 import type { ElectronApplication, Page } from "playwright";
 import { _electron as electron } from "playwright/test";
+import invariant from "tiny-invariant";
 import { IPCBridge } from "./IPCBridge";
 import type { ResolvedPaths } from "./config";
 import { createLaunchOptions } from "./config";
@@ -31,14 +32,21 @@ import { getPluginHandleMap } from "./utils";
 
 const logger = log.getLogger("ObsidianTestLauncher");
 
+export interface LauncherConfig {
+  paths: ResolvedPaths;
+  options: VaultOptions;
+}
+
 export class ObsidianTestLauncher {
   private electronApp?: ElectronApplication;
   private tempUserDataDir?: string;
   private ipc?: IPCBridge;
   private paths: ResolvedPaths;
+  private options: VaultOptions;
 
-  constructor(paths: ResolvedPaths) {
+  constructor({ paths, options }: LauncherConfig) {
     this.paths = paths;
+    this.options = options;
   }
 
   // ===================================================================
@@ -135,6 +143,14 @@ export class ObsidianTestLauncher {
     return this.paths;
   }
 
+  getVaultOptions(): VaultOptions {
+    return this.options;
+  }
+
+  getPlugins(): PluginConfig[] {
+    return this.options.plugins || [];
+  }
+
   // ===================================================================
   // Vault Operations
   // ===================================================================
@@ -150,10 +166,6 @@ export class ObsidianTestLauncher {
     const { vaultPath, page } = shouldUseSandbox
       ? await this.openSandboxVault()
       : await this.openNormalVault(options);
-
-    if (options.plugins?.length) {
-      await this.setupPlugins(page, vaultPath, options.plugins);
-    }
 
     return await this.createVaultContext(page, options.plugins);
   }
@@ -203,7 +215,7 @@ export class ObsidianTestLauncher {
 
   private async resolveVaultPath(options: VaultOptions): Promise<string> {
     if (options.name) {
-      return await this.getVaultPath(options.name);
+      return await this.getVaultPath();
     }
 
     logger.debug(
@@ -214,19 +226,17 @@ export class ObsidianTestLauncher {
     return tempPath;
   }
 
-  private async setupPlugins(
-    page: Page,
-    vaultPath: string,
-    plugins: PluginConfig[]
-  ): Promise<void> {
+  public async setupPlugins(): Promise<void> {
+    const page = this.getCurrentPage();
+    invariant(page, "No active page to setup plugins");
     logger.debug("Installing plugins...");
-    await this.installPlugins(vaultPath, plugins);
+    await this.installPlugins();
     logger.debug("Plugins installed.");
 
     logger.debug("Enabling plugins...");
     await this.enablePlugins(
       page,
-      plugins.map((p) => p.pluginId)
+      this.getPlugins().map((p) => p.pluginId)
     );
     logger.debug("Plugins enabled.");
 
@@ -280,14 +290,12 @@ export class ObsidianTestLauncher {
   // Plugin Management
   // ===================================================================
 
-  private async installPlugins(
-    vaultPath: string,
-    plugins: PluginConfig[]
-  ): Promise<void> {
+  private async installPlugins(): Promise<void> {
+    const vaultPath = await this.getVaultPath();
     const pluginsDir = this.ensurePluginsDirectory(vaultPath);
     const installedIds: string[] = [];
 
-    for (const plugin of plugins) {
+    for (const plugin of this.getPlugins()) {
       if (await this.installSinglePlugin(pluginsDir, plugin)) {
         installedIds.push(plugin.pluginId);
       }
@@ -691,7 +699,9 @@ export class ObsidianTestLauncher {
     return path.dirname(userDataDir);
   }
 
-  private async getVaultPath(name: string): Promise<string> {
+  private async getVaultPath(): Promise<string> {
+    const name = this.options.name;
+    invariant(name, "Vault name is not specified in options");
     const userDataDir = await this.getUserDataPath();
     logger.debug("userDataDir", userDataDir);
 

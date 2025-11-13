@@ -151,14 +151,17 @@ export function handleTestError(testInfo: any): void {
 // Vault Setup Helpers
 // ===================================================================
 export async function createObsidianContext(
-  obsidianSetup: ObsidianTestLauncher,
-  vaultOptions: any
+  obsidianSetup: ObsidianTestLauncher
 ): Promise<any> {
-  logger.debug("vaultOptions", vaultOptions);
+  const vaultOptions = obsidianSetup.getVaultOptions();
 
-  const context = vaultOptions.useSandbox
+  const context = vaultOptions.sandbox
     ? await obsidianSetup.openSandbox(vaultOptions)
     : await obsidianSetup.openVault(vaultOptions);
+
+  if (vaultOptions.plugins?.length) {
+    await obsidianSetup.setupPlugins();
+  }
 
   // Remove all notices
   const notices = await context.page.locator(".notice-container .notice").all();

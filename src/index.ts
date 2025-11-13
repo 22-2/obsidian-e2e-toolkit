@@ -36,21 +36,21 @@ export const logger = log.getLogger("obsidianSetup");
 export const test = base.extend<TestFixtures, WorkerFixtures>({
   obsidian: async ({}, use, testInfo) => {
     const paths = getResolvedPaths();
-    const launcher = new ObsidianTestLauncher(paths);
 
-    // Get vault options from test.use() or use defaults
-    const vaultOptions: VaultOptions = {
-      ...DEFAULT_VAULT_OPTIONS,
-      ...(testInfo.project.use as { vaultOptions?: VaultOptions })
-        ?.vaultOptions,
-    };
+    // Get vault options from test.use()
+    const vaultOptions =
+      // @ts-expect-error
+      (testInfo.project.use?.vaultOptions as VaultOptions | undefined) ||
+      DEFAULT_VAULT_OPTIONS;
+
+    const launcher = new ObsidianTestLauncher({ paths, options: vaultOptions });
 
     try {
       logger.debug("Launching Obsidian");
       await launcher.launch();
 
       logger.debug("Creating Obsidian context");
-      const context = await createObsidianContext(launcher, vaultOptions);
+      const context = await createObsidianContext(launcher);
 
       logger.debug("Enabling browser console logging");
       setupBrowserConsoleLogging(context.page);
