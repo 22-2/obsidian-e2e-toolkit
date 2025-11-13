@@ -13,7 +13,7 @@
   },
   "files": [
     "dist",
-    "setup.sh",
+    "setup.mjs",
     "assets",
     "README.md",
     "LICENSE",
