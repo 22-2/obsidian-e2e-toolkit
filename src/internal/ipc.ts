@@ -31,7 +31,7 @@ export class IPCBridge {
     // スターターページでない場合はappオブジェクトを待つ
     const isStarter = page.url().includes("starter");
     if (!isStarter) {
-      return PageWaiter.waitForVaultReady(page);
+      return PageWaiter.waitForPage(page);
     }
   }
 
