@@ -3,13 +3,11 @@
 // ===================================================================
 import chalk from "chalk";
 import { existsSync, rmSync } from "fs";
-import fs from "fs/promises";
 import log from "loglevel";
-import os from "os";
 import path from "path";
 import type { Page } from "playwright";
-import type { IPCBridge } from "../ipc";
 import { PageWaiter } from "../PageWaiter";
+import type { IPCBridge } from "../ipc";
 import type { VaultOptions } from "../types";
 
 const logger = log.getLogger("VaultManager");
