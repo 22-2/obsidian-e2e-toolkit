@@ -28,6 +28,7 @@ import { ObsidianE2ELauncher } from "./internal/launcher";
 import { setupBrowserConsoleLogging, toggleLoggerBy } from "./internal/logger";
 import type { TestFixtures, WorkerFixtures } from "./internal/types";
 import { createObsidianContext, handleTestError } from "./internal/utils";
+import { merge } from "es-toolkit";
 
 export const logger = log.getLogger("obsidianSetup");
 
@@ -48,7 +49,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
     const launcher = new ObsidianE2ELauncher({
       paths,
-      options: vaultOptions,
+      options: merge(DEFAULT_VAULT_OPTIONS, vaultOptions),
       tempUserDataDir: tempDir,
     });
 

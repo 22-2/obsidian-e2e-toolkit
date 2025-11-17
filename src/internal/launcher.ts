@@ -58,7 +58,7 @@ export class ObsidianE2ELauncher {
 
     const initialPage = await electronApp.waitForEvent("window");
     await this.initializePlaywrightMode(initialPage);
-    await PageWaiter.waitForStarterReady(initialPage);
+    await PageWaiter.waitForPage(initialPage);
 
     logger.debug("starter ready");
 
@@ -154,7 +154,7 @@ export class ObsidianE2ELauncher {
 
     logger.debug(chalk.blue("Reloading vault to apply plugin changes..."));
     await page.reload();
-    await PageWaiter.waitForVaultReady(page);
+    await PageWaiter.waitForPage(page);
     logger.debug(chalk.blue("Vault reloaded."));
   }
 
@@ -181,10 +181,10 @@ export class ObsidianE2ELauncher {
 
     const page = await this.windowManager!.executeActionAndWaitForNewWindow(
       async () => await this.ipc!.openStarter(),
-      PageWaiter.waitForStarterReady
+      PageWaiter.waitForPage
     );
 
-    await PageWaiter.waitForStarterReady(page);
+    await PageWaiter.waitForPage(page);
 
     return {
       electronApp: this.electronManager.getApp(),
