@@ -25,7 +25,7 @@ import path from "path";
 import { ObsidianAPI } from "./ObsidianAPI";
 import { DEFAULT_VAULT_OPTIONS, getResolvedPaths } from "./internal/constants";
 import { ObsidianE2ELauncher } from "./internal/launcher";
-import { setupBrowserConsoleLogging } from "./internal/logger";
+import { setupBrowserConsoleLogging, toggleLoggerBy } from "./internal/logger";
 import type { TestFixtures, WorkerFixtures } from "./internal/types";
 import { createObsidianContext, handleTestError } from "./internal/utils";
 
@@ -51,6 +51,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     });
 
     try {
+      toggleLoggerBy(vaultOptions.logLevel || "warn");
       logger.debug("Launching Obsidian");
       await launcher.initialize();
 
@@ -58,7 +59,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       const context = await createObsidianContext(launcher);
 
       logger.debug("Enabling browser console logging");
-      setupBrowserConsoleLogging(context.page);
+      if (vaultOptions.enableBrowserConsoleLogging) {
+        setupBrowserConsoleLogging(context.page);
+      }
 
       const api = new ObsidianAPI(context);
 

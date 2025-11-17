@@ -2,6 +2,7 @@
 import type { ElectronApplication, JSHandle, Page } from "playwright";
 import { ObsidianAPI } from "../ObsidianAPI";
 import type { ResolvedPaths } from "./path";
+import log from "loglevel";
 
 // Minimal Plugin interface to avoid importing from obsidian package
 export interface Plugin {
@@ -25,6 +26,8 @@ export interface VaultOptions {
   name?: string;
   sandbox?: boolean;
   fresh?: boolean;
+  logLevel?: log.LogLevelDesc;
+  enableBrowserConsoleLogging?: boolean;
   plugins: TestPlugin[];
 }
 

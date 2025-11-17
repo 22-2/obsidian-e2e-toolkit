@@ -135,6 +135,7 @@ export function setResolvedPaths(paths: ResolvedPaths): void {
 export const DEFAULT_VAULT_OPTIONS: VaultOptions = {
   sandbox: false,
   fresh: false,
+  logLevel: "warn",
   plugins: [
     {
       path: DIST_DIR,
