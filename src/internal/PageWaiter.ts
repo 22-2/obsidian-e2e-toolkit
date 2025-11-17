@@ -8,7 +8,7 @@ export class PageWaiter {
    * Wait for the Obsidian vault to be ready
    * This ensures the workspace layout is initialized
    */
-  async waitForVaultReady(page: Page): Promise<void> {
+  static async waitForVaultReady(page: Page): Promise<void> {
     await page.waitForLoadState("domcontentloaded");
 
     await page.waitForFunction(
@@ -27,7 +27,7 @@ export class PageWaiter {
    * Wait for the Obsidian starter (welcome) page to be ready
    * This page appears when no vault is open
    */
-  async waitForStarterReady(page: Page): Promise<void> {
+  static async waitForStarterReady(page: Page): Promise<void> {
     await page.waitForSelector(".mod-change-language", {
       state: "visible",
     });

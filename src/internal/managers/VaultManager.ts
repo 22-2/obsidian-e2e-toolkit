@@ -9,7 +9,7 @@ import os from "os";
 import path from "path";
 import type { Page } from "playwright";
 import type { IPCBridge } from "../ipc";
-import type { PageWaiter } from "../PageWaiter";
+import { PageWaiter } from "../PageWaiter";
 import type { VaultOptions } from "../types";
 
 const logger = log.getLogger("VaultManager");
@@ -18,8 +18,7 @@ export class VaultManager {
   constructor(
     private ipc: IPCBridge,
     private options: VaultOptions,
-    private vaultPath: string,
-    private pageWaiter: PageWaiter
+    private vaultPath: string
   ) {}
 
   async openSandboxVault(
@@ -32,7 +31,7 @@ export class VaultManager {
 
     const page = await executeAction(
       () => this.ipc.openSandbox(),
-      this.pageWaiter.waitForVaultReady.bind(this.pageWaiter)
+      PageWaiter.waitForVaultReady
     );
 
     const vaultPath = await this.ipc.getSandboxPath();
@@ -60,7 +59,7 @@ export class VaultManager {
       if (result !== true) {
         throw new Error(`Failed to open vault: ${result}`);
       }
-    }, this.pageWaiter.waitForVaultReady.bind(this.pageWaiter));
+    }, PageWaiter.waitForVaultReady);
 
     logger.debug("Normal vault opened:", vaultPath);
 

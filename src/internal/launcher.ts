@@ -36,7 +36,6 @@ export class ObsidianE2ELauncher {
   private storageManager!: StorageManager;
   private pluginManager!: PluginManager;
   private ipc!: IPCBridge;
-  private pageWaiter: PageWaiter;
   private paths: ResolvedPaths;
   private options: VaultOptions;
   private tempUserDataDir: string;
@@ -47,7 +46,6 @@ export class ObsidianE2ELauncher {
     this.options = options;
     this.tempUserDataDir = tempUserDataDir;
     this.electronManager = new ElectronAppManager(paths, tempUserDataDir);
-    this.pageWaiter = new PageWaiter();
   }
 
   async initialize(): Promise<void> {
@@ -58,7 +56,7 @@ export class ObsidianE2ELauncher {
 
     const initialPage = await electronApp.waitForEvent("window");
     await this.initializePlaywrightMode(initialPage);
-    await this.pageWaiter.waitForStarterReady(initialPage);
+    await PageWaiter.waitForStarterReady(initialPage);
 
     logger.debug("starter ready");
 
@@ -66,7 +64,7 @@ export class ObsidianE2ELauncher {
     await initialPage.reload({ waitUntil: "domcontentloaded" });
 
     const currentPage = await this.windowManager.ensureSingleWindow();
-    await this.pageWaiter.waitForStarterReady(currentPage);
+    await PageWaiter.waitForStarterReady(currentPage);
     logger.debug("init start page");
 
     this.ipc = new IPCBridge({
@@ -77,12 +75,9 @@ export class ObsidianE2ELauncher {
     this.vaultManager = new VaultManager(
       this.ipc,
       this.options,
-      this.tempUserDataDir,
-      this.pageWaiter
+      this.tempUserDataDir
     );
-    this.ipc.setWaitForVaultReady(
-      this.pageWaiter.waitForVaultReady.bind(this.pageWaiter)
-    );
+    this.ipc.setWaitForVaultReady(PageWaiter.waitForVaultReady);
 
     // Resolve vault path once and store it
     this.vaultPath = await this.vaultManager.resolveVaultPath();
@@ -158,7 +153,7 @@ export class ObsidianE2ELauncher {
 
     logger.debug(chalk.blue("Reloading vault to apply plugin changes..."));
     await page.reload();
-    await this.pageWaiter.waitForVaultReady(page);
+    await PageWaiter.waitForVaultReady(page);
     logger.debug(chalk.blue("Vault reloaded."));
   }
 
@@ -185,10 +180,10 @@ export class ObsidianE2ELauncher {
 
     const page = await this.windowManager!.executeActionAndWaitForNewWindow(
       async () => await this.ipc!.openStarter(),
-      this.pageWaiter.waitForStarterReady.bind(this.pageWaiter)
+      PageWaiter.waitForStarterReady
     );
 
-    await this.pageWaiter.waitForStarterReady(page);
+    await PageWaiter.waitForStarterReady(page);
 
     return {
       electronApp: this.electronManager.getApp(),
