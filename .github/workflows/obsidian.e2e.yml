@@ -48,36 +48,10 @@ jobs:
       - name: Install Playwright
         run: pnpm playwright install chromium
 
-      - name: Cache jq (Windows)
-        if: runner.os == 'Windows'
-        uses: actions/cache@v4
-        id: jq-cache
-        with:
-          path: jq.exe
-          key: jq-win64-latest
-
-      - name: Install and setup jq (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          if [[ ! -f "jq.exe" ]]; then
-            echo "jq not found in cache. Downloading..."
-            curl -L -o jq.exe https://github.com/jqlang/jq/releases/latest/download/jq-win64.exe
-          else
-            echo "jq found in cache."
-          fi
-          # jq.exeがあるカレントディレクトリをPATHに追加します
-          echo "${{ github.workspace }}" >> $GITHUB_PATH
-
       - name: PWD # For debugging purposes
         shell: bash
         run: |
           pwd
-
-      - name: List project files # For debugging purposes
-        shell: bash
-        run: |
-          npx @telosh/filetree --exclude node_modules,.git
 
       - name: Run Playwright example tests
         run: pnpm run test:e2e:example
