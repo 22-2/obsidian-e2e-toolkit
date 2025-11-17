@@ -4,6 +4,14 @@ import type { Page } from "playwright";
  * Handles waiting for various page states in Obsidian
  */
 export class PageWaiter {
+    static waitForPage(page: Page): Promise<void> {
+    if (page.url().includes("starter")) {
+      return this.waitForStarterReady(page);
+    } else {
+      return this.waitForVaultReady(page);
+    }
+  }
+
   /**
    * Wait for the Obsidian vault to be ready
    * This ensures the workspace layout is initialized

@@ -3,19 +3,15 @@
 // ===================================================================
 
 import type { Page } from "playwright";
+import { PageWaiter } from "./PageWaiter";
 
 export class IPCBridge {
-  private waitForVaultReady?: (page: Page) => Promise<void>;
 
   constructor(
     private setup: {
       ensureSingleWindow: () => Promise<Page>;
     }
   ) {}
-
-  setWaitForVaultReady(fn: (page: Page) => Promise<void>) {
-    this.waitForVaultReady = fn;
-  }
 
   private async send<T>(channel: string, ...args: unknown[]): Promise<T> {
     await this.ensurePageLoaded();
@@ -35,10 +31,7 @@ export class IPCBridge {
     // スターターページでない場合はappオブジェクトを待つ
     const isStarter = page.url().includes("starter");
     if (!isStarter) {
-      if (!this.waitForVaultReady) {
-        throw new Error("waitForVaultReady is not set");
-      }
-      return this.waitForVaultReady(page);
+      return PageWaiter.waitForVaultReady(page);
     }
   }
 

@@ -64,7 +64,7 @@ export class ObsidianE2ELauncher {
     await initialPage.reload({ waitUntil: "domcontentloaded" });
 
     const currentPage = await this.windowManager.ensureSingleWindow();
-    await PageWaiter.waitForStarterReady(currentPage);
+    await PageWaiter.waitForPage(currentPage);
     logger.debug("init start page");
 
     this.ipc = new IPCBridge({
@@ -77,7 +77,6 @@ export class ObsidianE2ELauncher {
       this.options,
       this.tempUserDataDir
     );
-    this.ipc.setWaitForVaultReady(PageWaiter.waitForVaultReady);
 
     // Resolve vault path once and store it
     this.vaultPath = await this.vaultManager.resolveVaultPath();
@@ -189,26 +188,6 @@ export class ObsidianE2ELauncher {
       electronApp: this.electronManager.getApp(),
       page,
     };
-  }
-
-  private getVaultPath(): string {
-    if (!this.vaultPath) {
-      throw new Error("Vault path not initialized");
-    }
-    return this.vaultPath;
-  }
-
-  // Getters
-  getCurrentPage(): Page | undefined {
-    return this.electronManager.getCurrentPage();
-  }
-
-  getElectronApp() {
-    return this.electronManager.getApp();
-  }
-
-  getPaths(): ResolvedPaths {
-    return this.paths;
   }
 
   getVaultOptions(): VaultOptions {
