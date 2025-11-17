@@ -2,7 +2,7 @@
 // 3. VaultManager.ts - Vaultの管理
 // ===================================================================
 import chalk from "chalk";
-import { existsSync, rmSync } from "fs";
+import { existsSync, mkdirSync, rmSync } from "fs";
 import log from "loglevel";
 import path from "path";
 import type { Page } from "playwright";
@@ -50,6 +50,12 @@ export class VaultManager {
 
     if (this.options.fresh && existsSync(vaultPath)) {
       rmSync(vaultPath, { recursive: true });
+    }
+
+    // Ensure vault directory exists
+    if (!existsSync(vaultPath)) {
+      logger.debug("Creating vault directory:", vaultPath);
+      mkdirSync(vaultPath, { recursive: true });
     }
 
     const page = await executeAction(async () => {
