@@ -29,7 +29,7 @@ export class VaultManager {
 
     const page = await executeAction(
       () => this.ipc.openSandbox(),
-      PageWaiter.waitForVaultReady
+      PageWaiter.waitForPage
     );
 
     const vaultPath = await this.ipc.getSandboxPath();
@@ -63,7 +63,7 @@ export class VaultManager {
       if (result !== true) {
         throw new Error(`Failed to open vault: ${result}`);
       }
-    }, PageWaiter.waitForVaultReady);
+    }, PageWaiter.waitForPage);
 
     logger.debug("Normal vault opened:", vaultPath);
 
