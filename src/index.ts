@@ -36,7 +36,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     async ({}, use) => {
       const dir = await fs.mkdtemp(path.join(os.tmpdir(), "obsidian-e2e-"));
       await use(dir);
-      await fs.rm(dir, { recursive: true, force: true });
+      // Clean up both user data dir and vault dir
+      await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+      await fs.rm(`${dir}-vault`, { recursive: true, force: true }).catch(() => {});
     },
     { scope: "worker" },
   ],

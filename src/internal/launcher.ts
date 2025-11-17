@@ -39,12 +39,14 @@ export class ObsidianE2ELauncher {
   private paths: ResolvedPaths;
   private options: VaultOptions;
   private tempUserDataDir: string;
+  private tempVaultDir: string;
   private vaultPath: string | null = null;
 
   constructor({ paths, options, tempUserDataDir }: LauncherConfig) {
     this.paths = paths;
     this.options = options;
     this.tempUserDataDir = tempUserDataDir;
+    this.tempVaultDir = `${tempUserDataDir}-vault`;
     this.electronManager = new ElectronAppManager(paths, tempUserDataDir);
   }
 
@@ -75,7 +77,7 @@ export class ObsidianE2ELauncher {
     this.vaultManager = new VaultManager(
       this.ipc,
       this.options,
-      this.tempUserDataDir
+      this.tempVaultDir
     );
 
     // Resolve vault path once and store it

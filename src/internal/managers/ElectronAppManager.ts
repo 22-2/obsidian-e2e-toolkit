@@ -45,8 +45,12 @@ export class ElectronAppManager {
 
   async cleanup(): Promise<void> {
     if (this.electronApp) {
-      await this.closeAllWindows();
-      await this.electronApp.close();
+      try {
+        await this.closeAllWindows();
+        await this.electronApp.close();
+      } catch (error) {
+        logger.warn("Error during cleanup:", error);
+      }
     }
 
     logger.debug("ElectronAppManager cleaned up");
