@@ -6,9 +6,9 @@ import type { Page } from "playwright";
 export class PageWaiter {
     static waitForPage(page: Page): Promise<void> {
     if (page.url().includes("starter")) {
-      return this.waitForStarterReady(page);
+      return PageWaiter.waitForStarterReady(page);
     } else {
-      return this.waitForVaultReady(page);
+      return PageWaiter.waitForVaultReady(page);
     }
   }
 
