@@ -1,39 +1,81 @@
-# Obsidian E2E Test Toolkit (Simplified API)
+# Obsidian E2E Test Toolkit
 
-Reusable E2E testing utilities for Obsidian plugins using Playwright.
+Obsidian（Electron）を Playwright でE2Eテストするためのユーティリティです。トップレベルの公開APIは `test` / `expect` / `ObsidianAPI` に絞っています。
 
-Primary usage (recommended)
-```typescript
-import { ObsidianPageObject, test, expect } from "obsidian-e2e-toolkit";
+## 要件
 
-test("basic smoke", async ({ vault }) => {
-  const pageObj = new ObsidianPageObject(vault);
-  // use pageObj, test and expect for most tests
-});
-```
+- Node.js: `>= 23`
+- Playwright: `@playwright/test` / `playwright`（peerDependencies）
 
-Notes
-- The library still contains internal helpers (config, launcher, utilities) but they are not exported from the top-level by default to keep the public API small and focused.
-- If you need lower-level APIs, import from internal paths during development or extend the toolkit as needed.
+## インストール
 
-Installation
 ```bash
 pnpm add -D obsidian-e2e-toolkit
 ```
 
-Quick start
-1. Add a setup script in package.json:
-```json
-{
-  "scripts": {
-    "setup:e2e": "sh node_modules/obsidian-e2e-toolkit/setup.sh"
-  }
-}
-```
-2. Run setup:
+インストール後に `postinstall` で `setup.mjs` が実行され、同梱されている Obsidian の ASAR アセットを `.obsidian-unpacked/` に展開します。
+
+再実行したい場合:
+
 ```bash
-pnpm setup:e2e
+node node_modules/obsidian-e2e-toolkit/setup.mjs
 ```
-3. Write tests using the simplified import shown above.
+
+## クイックスタート
+
+Playwright のテストはそのまま使い、import だけこのパッケージの `test` を使います（fixtureとして `obsidian: ObsidianAPI` が生えます）。
+
+```ts
+import { expect, test } from "obsidian-e2e-toolkit";
+
+test("smoke", async ({ obsidian }) => {
+  await obsidian.waitReady();
+  expect(await obsidian.vaultName()).toBeTruthy();
+});
+```
+
+### プラグインを読み込んでテストする
+
+```ts
+import { expect, test } from "obsidian-e2e-toolkit";
+import path from "node:path";
+
+test.use({
+  vaultOptions: {
+    plugins: [
+      {
+        path: path.resolve("example/sample-plugin"),
+        pluginId: "sample-plugin",
+      },
+    ],
+  },
+});
+
+test("plugin activation", async ({ obsidian }) => {
+  expect(await obsidian.isPluginEnabled("sample-plugin")).toBe(true);
+  expect(await obsidian.plugin("sample-plugin")).toBeTruthy();
+});
+```
+
+## `vaultOptions`（fixture）
+
+`test.use({ vaultOptions: ... })` で vault の挙動を調整できます。
+
+- `name?: string` - vault名
+- `sandbox?: boolean` - sandbox vaultを使うか
+- `fresh?: boolean` - 毎回クリーンなvaultを作るか
+- `logLevel?: "trace" | "debug" | "info" | "warn" | "error" | "silent"`
+- `enableBrowserConsoleLogging?: boolean`
+- `plugins: Array<{ path: string; pluginId: string; symlink?: boolean }>`
+
+## APIリファレンス
+
+- `docs/API.md`
+
+## このリポジトリ内のサンプルを動かす
+
+```bash
+pnpm -s test:e2e:example
+```
 
 License: MIT
