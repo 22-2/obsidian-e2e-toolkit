@@ -134,7 +134,7 @@ export function setResolvedPaths(paths: ResolvedPaths): void {
 
 export const DEFAULT_VAULT_OPTIONS: VaultOptions = {
   sandbox: false,
-  fresh: false,
+  fresh: true,
   logLevel: "warn",
   plugins: [
     {
