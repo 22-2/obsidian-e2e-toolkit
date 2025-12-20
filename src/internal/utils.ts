@@ -18,12 +18,18 @@ export async function getPluginHandleMap(
 
   return page.evaluateHandle((plugins) => {
     const map = new Map<string, Plugin>();
+    const idMapping = new Map<string, string>();
     plugins.forEach((p) => {
       const plugin = (globalThis as any).app?.plugins.plugins[p.pluginId];
       if (plugin) {
         map.set(p.pluginId, plugin);
+        if ((p as any).originalId) {
+          map.set((p as any).originalId, plugin);
+          idMapping.set((p as any).originalId, p.pluginId);
+        }
       }
     });
+    (window as any).__pluginIdMapping = idMapping;
     return map;
   }, plugins);
 }

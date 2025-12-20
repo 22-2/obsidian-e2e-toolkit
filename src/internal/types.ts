@@ -41,11 +41,10 @@ export interface TestPlugin {
 export type TestFixtures = {
   obsidian: ObsidianAPI;
   vaultOptions: Partial<VaultOptions>;
-};
-
-export type WorkerFixtures = {
   tempDir: string;
 };
+
+export type WorkerFixtures = {};
 
 export type PluginConfig = {
   path: string;

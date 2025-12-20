@@ -52,8 +52,8 @@ export class VaultManager {
       rmSync(vaultPath, { recursive: true });
     }
 
-    // Ensure vault directory exists
-    if (!existsSync(vaultPath)) {
+    // Ensure vault directory exists if not fresh
+    if (!this.options.fresh && !existsSync(vaultPath)) {
       logger.debug("Creating vault directory:", vaultPath);
       mkdirSync(vaultPath, { recursive: true });
     }
