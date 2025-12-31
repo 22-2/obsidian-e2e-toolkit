@@ -13,19 +13,19 @@
   },
   "files": [
     "dist",
-    "setup.mjs",
     "assets",
+    "scripts",
     "README.md",
     "LICENSE",
     ".obsidian-unpacked"
   ],
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "node build.mjs && tsc --emitDeclarationOnly",
+    "build": "node scripts/build.mjs && tsc --emitDeclarationOnly",
     "prepublishOnly": "pnpm run build",
     "test:e2e:example": "pnpm playwright test example/example.spec.ts",
     "test:e2e:vfe": "pnpm playwright test example/drag-and-drop.spec.ts",
-    "postinstall": "node .\\node_modules\\electron\\install.js && node setup.mjs",
+    "postinstall": "node ./scripts/postinstall.mjs",
     "prepare": "pnpm run build"
   },
   "author": "22-2",
