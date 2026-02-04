@@ -46,6 +46,7 @@ try {
     format: "cjs",
     external,
     tsconfig: "tsconfig.json",
+    outExtension: { ".js": ".cjs" },
   });
   console.log("✅ Build successful");
 } catch (e) {
