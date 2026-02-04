@@ -9,8 +9,12 @@ import { resolveConfig } from "./path";
 import type { VaultOptions } from "./types";
 
 // --- Project Structure Detection ---
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const filename =
+  typeof __filename !== "undefined"
+    ? __filename
+    : fileURLToPath(import.meta.url);
+const dirname =
+  typeof __dirname !== "undefined" ? __dirname : path.dirname(filename);
 
 const logger = log.getLogger("constants");
 
@@ -20,7 +24,7 @@ const logger = log.getLogger("constants");
  */
 function getDefaultConfig() {
   // Find the root of the obsidian-e2e-toolkit package by looking for its package.json
-  const toolkitPackageJsonPath = findUpSync("package.json", { cwd: __dirname });
+  const toolkitPackageJsonPath = findUpSync("package.json", { cwd: dirname });
   invariant(
     toolkitPackageJsonPath,
     "Could not find package.json for obsidian-e2e-toolkit."
@@ -55,7 +59,7 @@ try {
 
   logger.log("Plugin Directory:", RESOLVED_PATHS.pluginDir);
   logger.log("Dist Directory:", RESOLVED_PATHS.distDir);
-  logger.log("Toolkit Root:", __dirname);
+  logger.log("Toolkit Root:", dirname);
   logger.log("App Main Path:", RESOLVED_PATHS.appMainJsPath);
 
   // --- Pre-flight checks ---
@@ -73,7 +77,7 @@ try {
 }
 
 // Export resolved paths for backward compatibility
-export const E2E_ROOT_DIR = __dirname;
+export const E2E_ROOT_DIR = dirname;
 export const PROJECT_ROOT_DIR = RESOLVED_PATHS.pluginDir;
 export const DIST_DIR = RESOLVED_PATHS.distDir;
 export const PLUGIN_ID = RESOLVED_PATHS.pluginId;

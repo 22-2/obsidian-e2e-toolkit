@@ -2,9 +2,13 @@ import { existsSync, readFileSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Get __dirname equivalent in ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Get __dirname equivalent in ES modules or CJS (when transpiled by test runners)
+const filename =
+	typeof __filename !== "undefined"
+		? __filename
+		: fileURLToPath(import.meta.url);
+const dirname =
+	typeof __dirname !== "undefined" ? __dirname : path.dirname(filename);
 
 /**
  * Configuration for Obsidian E2E test setup
@@ -108,13 +112,13 @@ export function resolveConfig(config: ObsidianE2EConfig): ResolvedPaths {
 		: path.join(pluginDir, "dist");
 
 	// Default to looking for assets in the obsidian-e2e directory
-	const defaultAssetsDir = path.join(__dirname, "assets");
+	const defaultAssetsDir = path.join(dirname, "assets");
 	const assetsDir = config.assetsDir
 		? path.resolve(config.assetsDir)
 		: defaultAssetsDir;
 
 	const defaultObsidianUnpackedDir = path.join(
-		__dirname,
+		dirname,
 		".obsidian-unpacked"
 	);
 	const obsidianUnpackedDir = config.obsidianUnpackedDir
