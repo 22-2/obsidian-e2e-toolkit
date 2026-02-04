@@ -38,26 +38,34 @@ export async function fetchPlugin(repo: string, destArg?: string, opts?: { fallb
     if (res.ok) {
       const rel = await res.json();
       const assets = Array.isArray(rel.assets) ? rel.assets : [];
-      const candidate = assets.find((a: any) => /\.(zip|tgz|tar\.gz|tar)$/.test(a.name));
-      if (candidate && candidate.browser_download_url) {
+      if (assets.length > 0) {
         fs.mkdirSync(dest, { recursive: true });
-        const tmp = path.join(os.tmpdir(), `plugin-${owner}-${repoName}-${Date.now()}`);
-        await downloadToFile(candidate.browser_download_url, tmp);
-        // prefer zip extraction
-        if (/\.zip$/i.test(candidate.name)) {
-          await extract(tmp, { dir: dest });
+
+        // If there's a single archive asset, prefer extracting it. Otherwise download all assets as files.
+        const archive = assets.find((a: any) => /\.(zip|tgz|tar\.gz|tar)$/.test(a.name));
+        if (archive && archive.browser_download_url) {
+          const tmp = path.join(os.tmpdir(), `plugin-${owner}-${repoName}-${Date.now()}`);
+          await downloadToFile(archive.browser_download_url, tmp);
+          if (/\.zip$/i.test(archive.name)) {
+            await extract(tmp, { dir: dest });
+          } else {
+            try {
+              run("tar", ["-xzf", tmp, "-C", dest]);
+            } catch (err) {
+              throw new Error(`Failed to extract tarball: ${err}`);
+            }
+          }
+          try { fs.rmSync(tmp); } catch {}
         } else {
-          // fallback: try tar extraction via system tar
-          try {
-            run("tar", ["-xzf", tmp, "-C", dest]);
-          } catch (err) {
-            // if tar is not available, throw
-            throw new Error(`Failed to extract tarball: ${err}`);
+          // download each asset as a file into dest
+          for (const a of assets) {
+            if (!a.browser_download_url || !a.name) continue;
+            const out = path.join(dest, a.name);
+            await downloadToFile(a.browser_download_url, out);
           }
         }
-        try { fs.rmSync(tmp); } catch {}
 
-        // After extraction, if package.json exists run install/build
+        // After extraction/download, if package.json exists run install/build
         try {
           const pkgJson = path.join(dest, 'package.json');
           if (fs.existsSync(pkgJson)) {
