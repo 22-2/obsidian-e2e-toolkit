@@ -8,12 +8,13 @@ const path = require('path');
 
 const cwd = process.cwd();
 const initCwd = process.env.INIT_CWD || '';
+const isDependencyInstall = initCwd && path.resolve(initCwd) !== path.resolve(cwd);
 
 // By default run the setup even when installed as a dependency so the
 // toolkit has required unpacked assets available at runtime. Consumers
 // that want to skip the heavy download can set
 // OBSIDIAN_E2E_TOOLKIT_SKIP_SETUP=1 in their environment.
-if (initCwd && path.resolve(initCwd) !== path.resolve(cwd)) {
+if (isDependencyInstall) {
   if (process.env.OBSIDIAN_E2E_TOOLKIT_SKIP_SETUP === '1') {
     console.log('Skipping obsidian-e2e-toolkit postinstall (skipped by env)');
     process.exit(0);
@@ -21,8 +22,11 @@ if (initCwd && path.resolve(initCwd) !== path.resolve(cwd)) {
   console.log('Running obsidian-e2e-toolkit postinstall (installed as dependency)');
 }
 
-function run(nodePath, args) {
-  const r = spawnSync(nodePath, args, { stdio: 'inherit' });
+function run(nodePath, args, envOverrides = {}) {
+  const r = spawnSync(nodePath, args, {
+    stdio: 'inherit',
+    env: { ...process.env, ...envOverrides },
+  });
   if (r.error) throw r.error;
   if (r.status !== 0) process.exit(r.status);
 }
@@ -37,7 +41,10 @@ try {
 
 try {
   console.log('Running setup.mjs...');
-  run(process.execPath, [path.resolve('scripts', 'setup.mjs')]);
+  const envOverrides = isDependencyInstall
+    ? { OBSIDIAN_E2E_TOOLKIT_HOME: initCwd }
+    : {};
+  run(process.execPath, [path.resolve('scripts', 'setup.mjs')], envOverrides);
 } catch (err) {
   console.error('Setup script failed:', err);
   process.exit(1);

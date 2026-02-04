@@ -30,11 +30,18 @@ function getDefaultConfig() {
   const manifestPath = findUpSync("manifest.json", { cwd: toolkitRoot });
   const projectRoot = manifestPath ? path.dirname(manifestPath) : toolkitRoot;
 
+  const toolkitHome =
+    process.env.OBSIDIAN_E2E_TOOLKIT_HOME || projectRoot;
+
   return {
     pluginDir: projectRoot,
     distDir: path.join(projectRoot, "dist"),
     assetsDir: path.join(toolkitRoot, "assets"),
-    obsidianUnpackedDir: path.join(toolkitRoot, ".obsidian-unpacked"),
+    obsidianUnpackedDir: path.join(
+      toolkitHome,
+      ".obsidian-e2e-toolkit",
+      "obsidian-unpacked"
+    ),
     appMainFile: "main.cjs",
   };
 }

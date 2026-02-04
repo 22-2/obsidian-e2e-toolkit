@@ -72,8 +72,16 @@ async function main() {
   const scriptDir = path.dirname(__filename);
   const repoRoot = path.resolve(scriptDir, "..");
 
-  const obsidianUnpackedPath = path.join(repoRoot, ".obsidian-unpacked");
-  const cacheDir = path.join(repoRoot, ".obsidian-cache");
+  const initCwd = process.env.INIT_CWD || "";
+  const toolkitHome =
+    process.env.OBSIDIAN_E2E_TOOLKIT_HOME ||
+    (initCwd && path.resolve(initCwd) !== path.resolve(repoRoot)
+      ? initCwd
+      : repoRoot);
+  const toolkitCacheRoot = path.join(toolkitHome, ".obsidian-e2e-toolkit");
+
+  const obsidianUnpackedPath = path.join(toolkitCacheRoot, "obsidian-unpacked");
+  const cacheDir = path.join(toolkitCacheRoot, "cache");
   const appAsarPath = path.join(cacheDir, "app.asar");
   const obsidianAsarGzPath = path.join(cacheDir, "obsidian.asar.gz");
   const obsidianAsarPath = path.join(cacheDir, "obsidian.asar");
