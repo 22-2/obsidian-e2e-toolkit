@@ -1,7 +1,7 @@
 import asar from "asar";
 import chalk from "chalk";
 import { createReadStream, createWriteStream, existsSync } from "fs";
-import { copyFile, mkdir, rename, rm } from "fs/promises";
+import { copyFile, mkdir, rename, rm, cp } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { pipeline } from "stream/promises";
@@ -128,6 +128,15 @@ async function main() {
         log.info(`Found app.asar at ${findResult}`);
         await copyFile(findResult, appAsarPath);
         log.success("Copied app.asar to cache");
+
+        // If the archive had an accompanying unpacked directory, copy it too.
+        const srcUnpacked = `${findResult}.unpacked`;
+        const destUnpacked = `${appAsarPath}.unpacked`;
+        if (existsSync(srcUnpacked)) {
+          log.info("Copying app.asar.unpacked to cache...");
+          await cp(srcUnpacked, destUnpacked, { recursive: true });
+          log.success("Copied app.asar.unpacked to cache");
+        }
 
         // Cleanup extracted directory
         await rm(appExtractDir, { recursive: true, force: true });
