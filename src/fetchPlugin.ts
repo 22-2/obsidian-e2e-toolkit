@@ -30,37 +30,49 @@ export async function fetchPlugin(repo: string, destArg?: string, opts?: { fallb
   const cwd = process.cwd();
   const { owner, repo: repoName } = parseRepoUrl(repo);
   const dest = destArg ? path.resolve(cwd, destArg) : path.resolve(cwd, "myfiles", repoName);
+  console.log(`[fetchPlugin] repo=${repo} owner=${owner} repoName=${repoName} dest=${dest} opts=${JSON.stringify(opts)}`);
 
   // Try to find a release that contains plugin files (main.js / manifest.json / styles.css).
   const desiredFiles = ["main.js", "manifest.json", "styles.css"];
   let chosenRelease: any = null;
   try {
     const latestApi = `https://api.github.com/repos/${owner}/${repoName}/releases/latest`;
+    console.log(`[fetchPlugin] checking latest release: ${latestApi}`);
     let res = await fetch(latestApi, { headers: { 'User-Agent': 'obsidian-e2e-toolkit' } });
     if (res.ok) {
       const rel = await res.json();
       const assets = Array.isArray(rel.assets) ? rel.assets : [];
+      console.log(`[fetchPlugin] latest release tag=${rel.tag_name} assets=${assets.map((a:any)=>a.name).join(',')}`);
       if (assets.some((a: any) => desiredFiles.includes(a.name))) {
         chosenRelease = rel;
+        console.log(`[fetchPlugin] chosenRelease set to latest tag=${rel.tag_name}`);
       }
+    } else {
+      console.log(`[fetchPlugin] latest release fetch failed: ${res.status}`);
     }
 
     if (!chosenRelease) {
       // try listing recent releases and find one that contains desired files
       const listApi = `https://api.github.com/repos/${owner}/${repoName}/releases?per_page=20`;
+      console.log(`[fetchPlugin] listing releases: ${listApi}`);
       const listRes = await fetch(listApi, { headers: { 'User-Agent': 'obsidian-e2e-toolkit' } });
       if (listRes.ok) {
         const list = await listRes.json();
         for (const rel of list) {
           const assets = Array.isArray(rel.assets) ? rel.assets : [];
+          console.log(`[fetchPlugin] examine release tag=${rel.tag_name} assets=${assets.map((a:any)=>a.name).join(',')}`);
           if (assets.some((a: any) => desiredFiles.includes(a.name))) {
             chosenRelease = rel;
+            console.log(`[fetchPlugin] chosenRelease set to tag=${rel.tag_name}`);
             break;
           }
         }
+      } else {
+        console.log(`[fetchPlugin] release list fetch failed: ${listRes.status}`);
       }
     }
   } catch (err) {
+    console.log(`[fetchPlugin] release lookup error: ${err && (err as Error).message}`);
     // ignore and fallback handling below
   }
 
@@ -73,7 +85,13 @@ export async function fetchPlugin(repo: string, destArg?: string, opts?: { fallb
       const asset = assets.find((a: any) => a.name === fname);
       if (asset && asset.browser_download_url) {
         const out = path.join(dest, fname);
-        await downloadToFile(asset.browser_download_url, out);
+        console.log(`[fetchPlugin] downloading ${asset.browser_download_url} -> ${out}`);
+        try {
+          await downloadToFile(asset.browser_download_url, out);
+          console.log(`[fetchPlugin] downloaded ${fname}`);
+        } catch (err) {
+          console.log(`[fetchPlugin] failed to download ${fname}: ${err && (err as Error).message}`);
+        }
       }
     }
 
@@ -83,7 +101,13 @@ export async function fetchPlugin(repo: string, destArg?: string, opts?: { fallb
       for (const a of assets) {
         if (!a.browser_download_url || !a.name) continue;
         const out = path.join(dest, a.name);
-        await downloadToFile(a.browser_download_url, out);
+        console.log(`[fetchPlugin] downloading asset ${a.browser_download_url} -> ${out}`);
+        try {
+          await downloadToFile(a.browser_download_url, out);
+          console.log(`[fetchPlugin] downloaded asset ${a.name}`);
+        } catch (err) {
+          console.log(`[fetchPlugin] failed to download asset ${a.name}: ${err && (err as Error).message}`);
+        }
       }
     }
 
@@ -98,6 +122,7 @@ export async function fetchPlugin(repo: string, destArg?: string, opts?: { fallb
         }
       }
     } catch (err) {
+      console.log(`[fetchPlugin] prepare error: ${err && (err as Error).message}`);
       throw new Error(`Failed to prepare plugin from release in ${dest}: ${err}`);
     }
 
@@ -105,12 +130,14 @@ export async function fetchPlugin(repo: string, destArg?: string, opts?: { fallb
   }
   // No release asset found. Either fallback to git clone if allowed, or fail.
   if (!opts || !opts.fallbackToGit) {
+    console.log(`[fetchPlugin] no release found and fallbackToGit is false for ${owner}/${repoName}`);
     throw new Error(`No release asset found for ${owner}/${repoName} and fallbackToGit is false`);
   }
 
   // Fallback: git clone (shallow)
   if (fs.existsSync(dest)) {
     try {
+      console.log(`[fetchPlugin] destination exists; pulling: ${dest}`);
       run("git", ["-C", dest, "pull"]);
       return dest;
     } catch (err) {
@@ -120,6 +147,7 @@ export async function fetchPlugin(repo: string, destArg?: string, opts?: { fallb
 
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   try {
+    console.log(`[fetchPlugin] cloning ${repo} -> ${dest}`);
     run("git", ["clone", "--depth", "1", repo, dest]);
     // After clone, install deps and build if needed
     try {
