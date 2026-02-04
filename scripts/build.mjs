@@ -26,13 +26,14 @@ try {
   await esbuild.build({
     entryPoints,
     absWorkingDir: repoRoot,
-    outdir: "dist/src",
+    outdir: "dist/esm",
     bundle: true,
     sourcemap: true,
     platform: "node",
     format: "esm",
     external,
     tsconfig: "tsconfig.json",
+    outExtension: { ".js": ".mjs" },
   });
 
   // CJS build for consumers that require() the package
