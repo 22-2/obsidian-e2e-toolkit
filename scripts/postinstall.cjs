@@ -30,7 +30,7 @@ try {
 
 try {
   console.log('Running setup.mjs...');
-  run(process.execPath, [path.resolve('setup.mjs')]);
+  run(process.execPath, [path.resolve('scripts', 'setup.mjs')]);
 } catch (err) {
   console.error('Setup script failed:', err);
   process.exit(1);
