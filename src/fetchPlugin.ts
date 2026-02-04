@@ -24,7 +24,7 @@ async function downloadToFile(url: string, destPath: string) {
   await writeFile(destPath, buffer);
 }
 
-export async function fetchPlugin(repo: string, destArg?: string): Promise<string> {
+export async function fetchPlugin(repo: string, destArg?: string, opts?: { fallbackToGit?: boolean }): Promise<string> {
   if (!repo) throw new TypeError("repo url is required");
 
   const cwd = process.cwd();
@@ -56,11 +56,30 @@ export async function fetchPlugin(repo: string, destArg?: string): Promise<strin
           }
         }
         try { fs.rmSync(tmp); } catch {}
+
+        // After extraction, if package.json exists run install/build
+        try {
+          const pkgJson = path.join(dest, 'package.json');
+          if (fs.existsSync(pkgJson)) {
+            run('pnpm', ['install'], { cwd: dest });
+            const pkg = JSON.parse(fs.readFileSync(pkgJson, 'utf8'));
+            if (pkg.scripts && pkg.scripts.build) {
+              run('pnpm', ['run', 'build'], { cwd: dest });
+            }
+          }
+        } catch (err) {
+          throw new Error(`Failed to prepare plugin from release in ${dest}: ${err}`);
+        }
+
         return dest;
       }
     }
   } catch (err) {
     // ignore and fallback to git clone
+  }
+  // No release asset found. Either fallback to git clone if allowed, or fail.
+  if (!opts || !opts.fallbackToGit) {
+    throw new Error(`No release asset found for ${owner}/${repoName} and fallbackToGit is false`);
   }
 
   // Fallback: git clone (shallow)
@@ -76,6 +95,19 @@ export async function fetchPlugin(repo: string, destArg?: string): Promise<strin
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   try {
     run("git", ["clone", "--depth", "1", repo, dest]);
+    // After clone, install deps and build if needed
+    try {
+      const pkgJson = path.join(dest, 'package.json');
+      if (fs.existsSync(pkgJson)) {
+        run('pnpm', ['install'], { cwd: dest });
+        const pkg = JSON.parse(fs.readFileSync(pkgJson, 'utf8'));
+        if (pkg.scripts && pkg.scripts.build) {
+          run('pnpm', ['run', 'build'], { cwd: dest });
+        }
+      }
+    } catch (err) {
+      throw new Error(`Failed to prepare plugin after clone in ${dest}: ${err}`);
+    }
     return dest;
   } catch (err) {
     throw new Error(`Failed to clone ${repo}: ${err}`);
