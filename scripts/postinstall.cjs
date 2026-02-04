@@ -9,9 +9,16 @@ const path = require('path');
 const cwd = process.cwd();
 const initCwd = process.env.INIT_CWD || '';
 
+// By default run the setup even when installed as a dependency so the
+// toolkit has required unpacked assets available at runtime. Consumers
+// that want to skip the heavy download can set
+// OBSIDIAN_E2E_TOOLKIT_SKIP_SETUP=1 in their environment.
 if (initCwd && path.resolve(initCwd) !== path.resolve(cwd)) {
-  console.log('Skipping obsidian-e2e-toolkit postinstall (installed as dependency)');
-  process.exit(0);
+  if (process.env.OBSIDIAN_E2E_TOOLKIT_SKIP_SETUP === '1') {
+    console.log('Skipping obsidian-e2e-toolkit postinstall (skipped by env)');
+    process.exit(0);
+  }
+  console.log('Running obsidian-e2e-toolkit postinstall (installed as dependency)');
 }
 
 function run(nodePath, args) {

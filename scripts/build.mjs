@@ -22,14 +22,28 @@ const external = [
 ];
 
 try {
+  // ESM build
   await esbuild.build({
     entryPoints,
     absWorkingDir: repoRoot,
     outdir: "dist/src",
-    bundle: true, // Set to true to enable bundling and module resolution
+    bundle: true,
     sourcemap: true,
     platform: "node",
     format: "esm",
+    external,
+    tsconfig: "tsconfig.json",
+  });
+
+  // CJS build for consumers that require() the package
+  await esbuild.build({
+    entryPoints,
+    absWorkingDir: repoRoot,
+    outdir: "dist/cjs",
+    bundle: true,
+    sourcemap: true,
+    platform: "node",
+    format: "cjs",
     external,
     tsconfig: "tsconfig.json",
   });
