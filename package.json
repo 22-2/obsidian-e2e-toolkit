@@ -1,6 +1,6 @@
 {
   "name": "obsidian-e2e-toolkit",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Reusable E2E testing utilities for Obsidian plugins using Playwright",
   "type": "module",
   "main": "./dist/cjs/index.cjs",
