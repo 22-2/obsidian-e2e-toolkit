@@ -2,7 +2,7 @@ import * as asar from "@electron/asar";
 import chalk from "chalk";
 import { createReadStream, createWriteStream, existsSync } from "fs";
 import { copyFile, mkdir, rename, rm, cp } from "fs/promises";
-import findUp from "find-up";
+import * as findUp from "find-up";
 import path from "path";
 import { fileURLToPath } from "url";
 import { pipeline } from "stream/promises";
