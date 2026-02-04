@@ -20,7 +20,7 @@ jobs:
           lfs: true
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
           version: 8
 
@@ -28,7 +28,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "23"
-          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --no-lockfile
