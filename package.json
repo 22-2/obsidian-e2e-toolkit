@@ -19,7 +19,7 @@
   ],
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "node scripts/build.mjs && tsc --emitDeclarationOnly",
+    "build": "node scripts/build.mjs && node scripts/emit-dts.mjs",
     "prepublishOnly": "pnpm run build",
     "test:e2e:example": "pnpm playwright test example/example.spec.ts",
     "test:e2e:vfe": "pnpm playwright test example/drag-and-drop.spec.ts",
