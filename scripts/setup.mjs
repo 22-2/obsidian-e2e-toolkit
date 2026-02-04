@@ -1,6 +1,6 @@
 import asar from "asar";
 import chalk from "chalk";
-import { createWriteStream, existsSync } from "fs";
+import { createReadStream, createWriteStream, existsSync } from "fs";
 import { copyFile, mkdir, rename, rm } from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -152,7 +152,7 @@ async function main() {
       if (!existsSync(obsidianAsarPath)) {
         log.info("Decompressing obsidian.asar.gz...");
         await pipeline(
-          createWriteStream(obsidianAsarGzPath),
+          createReadStream(obsidianAsarGzPath),
           zlib.createGunzip(),
           createWriteStream(obsidianAsarPath)
         );
