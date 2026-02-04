@@ -8,7 +8,8 @@
     ],
     "declaration": true,
     "outDir": "./dist",
-    "rootDir": "./",
+    "rootDir": "src",
+    "declarationDir": "./dist/esm",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -21,8 +22,7 @@
     ]
   },
   "include": [
-    "src/**/*",
-    "example/**/*"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",

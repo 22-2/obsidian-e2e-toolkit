@@ -91,3 +91,4 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 export { expect } from "@playwright/test";
 export { ObsidianAPI } from "./ObsidianAPI";
 export type { VaultOptions } from "./internal/types";
+export { fetchPlugin } from "./fetchPlugin";
