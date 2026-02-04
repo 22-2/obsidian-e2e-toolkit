@@ -2,6 +2,7 @@ import * as asar from "@electron/asar";
 import chalk from "chalk";
 import { createReadStream, createWriteStream, existsSync } from "fs";
 import { copyFile, mkdir, rename, rm, cp } from "fs/promises";
+import findUp from "find-up";
 import path from "path";
 import { fileURLToPath } from "url";
 import { pipeline } from "stream/promises";
@@ -110,19 +111,15 @@ async function main() {
       await extractTarGz(appTarGzPath, appExtractDir);
 
       // Find app.asar in extracted files (usually at obsidian-*/resources/app.asar)
-      const { execSync } = await import("child_process");
       try {
-        const findResult = execSync(
-          `find "${appExtractDir}" -name "app.asar" -type f`
-        )
-          .toString()
-          .trim()
-          .split("\n")[0];
+        const findResult = await findUp(async (directory) => {
+          // check for app.asar in this directory
+          const candidate = path.join(directory, "app.asar");
+          return existsSync(candidate) ? candidate : undefined;
+        }, { cwd: appExtractDir, type: 'file' });
 
         if (!findResult) {
-          throw new Error(
-            "Could not find app.asar in extracted tar.gz archive"
-          );
+          throw new Error("Could not find app.asar in extracted tar.gz archive");
         }
 
         log.info(`Found app.asar at ${findResult}`);
