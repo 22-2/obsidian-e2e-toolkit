@@ -22,7 +22,7 @@ function run(nodePath, args) {
 
 try {
   console.log('Running electron installer...');
-  run(process.execPath, [path.join('node_modules', 'electron', 'install.js')]);
+  run(process.execPath, [path.resolve('node_modules', 'electron', 'install.js')]);
 } catch (err) {
   console.error('Electron install failed:', err);
   process.exit(1);
@@ -30,7 +30,7 @@ try {
 
 try {
   console.log('Running setup.mjs...');
-  run(process.execPath, ['setup.mjs']);
+  run(process.execPath, [path.resolve('setup.mjs')]);
 } catch (err) {
   console.error('Setup script failed:', err);
   process.exit(1);
