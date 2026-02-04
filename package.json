@@ -48,7 +48,7 @@
     "playwright": "^1.56.0"
   },
   "dependencies": {
-    "asar": "^3.2.0",
+    "@electron/asar": "^4.0.1",
     "chalk": "^5.6.2",
     "es-toolkit": "^1.44.0",
     "extract-zip": "^2.0.1",

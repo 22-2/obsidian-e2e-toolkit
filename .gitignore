@@ -12,3 +12,4 @@ dist/
 # When users install via: pnpm add github:user/repo
 .obsidian-unpacked/
 .obsidian-cache/
+pnpm-lock.yaml

@@ -1,4 +1,4 @@
-import asar from "asar";
+import asar from "@electron/asar";
 import chalk from "chalk";
 import { createReadStream, createWriteStream, existsSync } from "fs";
 import { copyFile, mkdir, rename, rm, cp } from "fs/promises";
