@@ -31,7 +31,7 @@ jobs:
           cache: "pnpm"
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --no-lockfile
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -41,7 +41,7 @@ jobs:
             %LOCALAPPDATA%/ms-playwright  # Windows
             ~/Library/Caches/ms-playwright # macOS
 
-          key: ${{ runner.os }}-playwright-chromium-${{ hashFiles('**/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-playwright-chromium
           restore-keys: |
             ${{ runner.os }}-playwright-chromium-
 
