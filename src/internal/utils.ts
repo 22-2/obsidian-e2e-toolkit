@@ -8,13 +8,26 @@ export async function getPluginHandleMap(
   plugins: { pluginId: string; path: string }[]
 ): Promise<PluginHandleMap> {
   // Wait for plugins to be loaded
-  await page.waitForFunction(
-    (pluginIds) => {
-      return pluginIds.every((id: string) => app.plugins.plugins[id]);
-    },
-    plugins.map((p) => p.pluginId),
-    { timeout: 10000 }
-  );
+  const pluginIds = plugins.map((p) => p.pluginId);
+  logger.debug("getPluginHandleMap: waiting for plugin IDs:", pluginIds);
+  try {
+    await page.waitForFunction(
+      (pluginIds) => {
+        return pluginIds.every((id: string) => app.plugins.plugins[id]);
+      },
+      pluginIds,
+      { timeout: 10000 }
+    );
+  } catch (err) {
+    logger.error("getPluginHandleMap: timeout waiting for plugins to load", err && (err as Error).message);
+    try {
+      const available = await page.evaluate(() => Object.keys((window as any).app?.plugins?.plugins || {}));
+      logger.error("getPluginHandleMap: available app.plugins.plugins keys:", available);
+    } catch (e) {
+      logger.error("getPluginHandleMap: failed to enumerate app.plugins.plugins", e && (e as Error).message);
+    }
+    throw err;
+  }
 
   return page.evaluateHandle((plugins) => {
     const map = new Map<string, Plugin>();

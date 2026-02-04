@@ -25,12 +25,17 @@ export class PluginManager {
   async installAll(): Promise<void> {
     const pluginsDir = this.ensurePluginsDirectory();
     const installedIds: string[] = [];
+    const installedPlugins: PluginConfig[] = [];
 
     for (const plugin of this.getPlugins()) {
       if (await this.installSingle(pluginsDir, plugin)) {
         installedIds.push(plugin.pluginId);
+        installedPlugins.push(plugin);
       }
     }
+
+    // Replace the managed plugin list with only those that were successfully installed
+    this.plugins = installedPlugins;
 
     this.updateCommunityPluginsJson(installedIds);
     logger.debug(`Installed plugins: ${installedIds.join(", ")}`);

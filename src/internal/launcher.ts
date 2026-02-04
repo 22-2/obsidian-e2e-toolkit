@@ -52,18 +52,24 @@ export class ObsidianE2ELauncher {
 
   async initialize(): Promise<void> {
     const electronApp = await this.electronManager.launch();
+    logger.debug("Electron app launched");
 
     this.windowManager = new WindowManager(electronApp);
     this.storageManager = new StorageManager(electronApp);
 
     const initialPage = await electronApp.waitForEvent("window");
+    logger.debug("initial window event received");
     await this.initializePlaywrightMode(initialPage);
     await PageWaiter.waitForPage(initialPage);
+
+    logger.debug("initial page ready; clearing storage and reloading");
 
     logger.debug("starter ready");
 
     await this.storageManager.clearAll();
+    logger.debug("storage cleared");
     await initialPage.reload({ waitUntil: "domcontentloaded" });
+    logger.debug("initial page reloaded");
 
     const currentPage = await this.windowManager.ensureSingleWindow();
     await PageWaiter.waitForPage(currentPage);
@@ -82,6 +88,7 @@ export class ObsidianE2ELauncher {
 
     // Resolve vault path once and store it
     this.vaultPath = await this.vaultManager.resolveVaultPath();
+    logger.debug("vaultPath resolved:", this.vaultPath);
     this.pluginManager = new PluginManager(
       this.options.plugins,
       this.vaultPath
@@ -117,15 +124,17 @@ export class ObsidianE2ELauncher {
       ? await this.vaultManager!.openSandboxVault(executeAction)
       : await this.vaultManager!.openNormalVault(executeAction);
 
-    if (this.pluginManager.getPlugins()?.length) {
+    const configuredPlugins = this.pluginManager.getPlugins() || [];
+    logger.debug("configured plugins:", configuredPlugins.map(p => ({ path: p.path, pluginId: p.pluginId })));
+    if (configuredPlugins.length) {
       logger.debug("Installing plugins...");
       await this.setupPlugins(page);
-      logger.debug(
-        `${this.pluginManager.getPlugins().length} Plugins setup completed.`
-      );
+      logger.debug(`${this.pluginManager.getPlugins().length} Plugins setup completed.`);
     }
 
-    const context = await this.createVaultContext(page, options.plugins);
+    logger.debug("creating vault context with plugins:", this.pluginManager.getPlugins().map(p => p.pluginId));
+    const context = await this.createVaultContext(page, this.pluginManager.getPlugins());
+    logger.debug("vault context created; vaultName:", context.vaultName);
 
     // Remove all notices
     const notices = await context.page
