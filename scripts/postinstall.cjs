@@ -1,5 +1,6 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
+const { existsSync } = require('fs');
 
 // When package managers run lifecycle scripts, they usually set INIT_CWD
 // to the original working directory where the install was invoked.
@@ -32,8 +33,13 @@ function run(nodePath, args, envOverrides = {}) {
 }
 
 try {
-  console.log('Running electron installer...');
-  run(process.execPath, [path.resolve('node_modules', 'electron', 'install.js')]);
+  const electronInstall = path.resolve('node_modules', 'electron', 'install.js');
+  if (existsSync(electronInstall)) {
+    console.log('Running electron installer...');
+    run(process.execPath, [electronInstall]);
+  } else {
+    console.log('Skipping electron installer (electron not installed).');
+  }
 } catch (err) {
   console.error('Electron install failed:', err);
   process.exit(1);
