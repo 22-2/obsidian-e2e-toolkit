@@ -6,7 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { pipeline } from "stream/promises";
 import zlib from "zlib";
-import tar from "tar";
+import * as tar from "tar";
 
 // =============================================================================
 // Utility Functions
