@@ -6,6 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { pipeline } from "stream/promises";
 import zlib from "zlib";
+import tar from "tar";
 
 // =============================================================================
 // Utility Functions
@@ -52,7 +53,6 @@ function findAssetByName(assets, pattern) {
 
 // Extract tar.gz file
 async function extractTarGz(tarGzPath, extractDir) {
-  const { default: tar } = await import("tar");
   await tar.extract({
     file: tarGzPath,
     cwd: extractDir,
