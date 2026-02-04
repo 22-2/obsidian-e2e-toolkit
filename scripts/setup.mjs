@@ -50,6 +50,15 @@ function findAssetByName(assets, pattern) {
   return assets.find((asset) => asset.name.match(pattern));
 }
 
+// Extract tar.gz file
+async function extractTarGz(tarGzPath, extractDir) {
+  const { default: tar } = await import("tar");
+  await tar.extract({
+    file: tarGzPath,
+    cwd: extractDir,
+  });
+}
+
 // =============================================================================
 // Core Functions
 // =============================================================================
@@ -67,6 +76,8 @@ async function main() {
   const appAsarPath = path.join(cacheDir, "app.asar");
   const obsidianAsarGzPath = path.join(cacheDir, "obsidian.asar.gz");
   const obsidianAsarPath = path.join(cacheDir, "obsidian.asar");
+  const appTarGzPath = path.join(cacheDir, "app.tar.gz");
+  const appExtractDir = path.join(cacheDir, "app-extracted");
 
   try {
     // --- Download Assets ---
@@ -79,16 +90,53 @@ async function main() {
     const release = await getLatestObsidianRelease();
     log.success(`Found Obsidian ${release.tag_name}`);
 
-    // Find and download app.asar
-    const appAsarAsset = findAssetByName(release.assets, /app\.asar$/);
-    if (appAsarAsset) {
-      if (!existsSync(appAsarPath)) {
-        await downloadFile(appAsarAsset.browser_download_url, appAsarPath);
-      } else {
-        log.info(`Using cached ${appAsarPath}`);
+    // Find and download app.tar.gz (Linux application archive)
+    const appTarAsset = findAssetByName(
+      release.assets,
+      /obsidian-[\d.]+\.tar\.gz$/
+    );
+    if (!appTarAsset) {
+      throw new Error("Could not find obsidian-*.tar.gz in release assets");
+    }
+
+    if (!existsSync(appAsarPath)) {
+      if (!existsSync(appTarGzPath)) {
+        await downloadFile(appTarAsset.browser_download_url, appTarGzPath);
+      }
+
+      // Extract tar.gz to get app.asar from resources/app.asar
+      log.info("Extracting app.tar.gz to find app.asar...");
+      await mkdir(appExtractDir, { recursive: true });
+      await extractTarGz(appTarGzPath, appExtractDir);
+
+      // Find app.asar in extracted files (usually at obsidian-*/resources/app.asar)
+      const { execSync } = await import("child_process");
+      try {
+        const findResult = execSync(
+          `find "${appExtractDir}" -name "app.asar" -type f`
+        )
+          .toString()
+          .trim()
+          .split("\n")[0];
+
+        if (!findResult) {
+          throw new Error(
+            "Could not find app.asar in extracted tar.gz archive"
+          );
+        }
+
+        log.info(`Found app.asar at ${findResult}`);
+        await copyFile(findResult, appAsarPath);
+        log.success("Copied app.asar to cache");
+
+        // Cleanup extracted directory
+        await rm(appExtractDir, { recursive: true, force: true });
+      } catch (err) {
+        log.error("Failed to extract app.asar from tar.gz");
+        throw err;
       }
     } else {
-      throw new Error("Could not find app.asar in release assets");
+      log.info(`Using cached ${appAsarPath}`);
     }
 
     // Find and download obsidian.asar.gz
