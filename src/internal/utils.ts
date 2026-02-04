@@ -8,8 +8,13 @@ export async function getPluginHandleMap(
   plugins: { pluginId: string; path: string }[]
 ): Promise<PluginHandleMap> {
   // Wait for plugins to be loaded
-  const pluginIds = plugins.map((p) => p.pluginId);
+  const pluginIds = plugins.map((p) => p.pluginId).filter(Boolean);
   logger.debug("getPluginHandleMap: waiting for plugin IDs:", pluginIds);
+
+  if (pluginIds.length === 0) {
+    logger.debug("getPluginHandleMap: no plugin IDs to wait for — returning empty map");
+    return page.evaluateHandle(() => new Map());
+  }
   try {
     await page.waitForFunction(
       (pluginIds) => {
