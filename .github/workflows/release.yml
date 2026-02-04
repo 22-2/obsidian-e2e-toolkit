@@ -59,7 +59,6 @@ jobs:
           tar -czf release-artifacts/obsidian-e2e-toolkit-${{ steps.tag_version.outputs.VERSION }}.tar.gz \
             dist/ \
             scripts/setup.mjs \
-            assets/ \
             README.md \
             LICENSE \
             package.json
