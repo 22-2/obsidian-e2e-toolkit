@@ -9,10 +9,12 @@ export async function getPluginHandleMap(
 ): Promise<PluginHandleMap> {
   // Wait for plugins to be loaded
   const pluginIds = plugins.map((p) => p.pluginId).filter(Boolean);
-  logger.debug("getPluginHandleMap: waiting for plugin IDs:", pluginIds);
+  logger.warn("getPluginHandleMap: waiting for plugin IDs:", pluginIds);
+  console.warn("[getPluginHandleMap] waiting for plugin IDs:", pluginIds);
 
   if (pluginIds.length === 0) {
-    logger.debug("getPluginHandleMap: no plugin IDs to wait for — returning empty map");
+    logger.warn("getPluginHandleMap: no plugin IDs to wait for — returning empty map");
+    console.warn("[getPluginHandleMap] no plugin IDs to wait for — returning empty map");
     return page.evaluateHandle(() => new Map());
   }
   try {
@@ -25,11 +27,14 @@ export async function getPluginHandleMap(
     );
   } catch (err) {
     logger.error("getPluginHandleMap: timeout waiting for plugins to load", err && (err as Error).message);
+    console.error("[getPluginHandleMap] timeout waiting for plugins to load", err && (err as Error).message);
     try {
       const available = await page.evaluate(() => Object.keys((window as any).app?.plugins?.plugins || {}));
       logger.error("getPluginHandleMap: available app.plugins.plugins keys:", available);
+      console.error("[getPluginHandleMap] available app.plugins.plugins keys:", available);
     } catch (e) {
       logger.error("getPluginHandleMap: failed to enumerate app.plugins.plugins", e && (e as Error).message);
+      console.error("[getPluginHandleMap] failed to enumerate app.plugins.plugins", e && (e as Error).message);
     }
     throw err;
   }

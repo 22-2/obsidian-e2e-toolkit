@@ -174,7 +174,13 @@ export class ObsidianE2ELauncher {
     const vaultName = await page.evaluate(() => app?.vault?.getName());
     logger.debug("Vault name:", vaultName);
 
-    const pluginHandleMap = await getPluginHandleMap(page, plugins || []);
+    let pluginHandleMap;
+    if (!plugins || plugins.length === 0) {
+      logger.warn("createVaultContext: no plugins configured — skipping wait");
+      pluginHandleMap = await page.evaluateHandle(() => new Map());
+    } else {
+      pluginHandleMap = await getPluginHandleMap(page, plugins || []);
+    }
 
     return {
       electronApp: this.electronManager.getApp(),
