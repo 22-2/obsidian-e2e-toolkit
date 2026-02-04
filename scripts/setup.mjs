@@ -26,9 +26,10 @@ async function main() {
   // --- Define Paths ---
   const __filename = fileURLToPath(import.meta.url);
   const scriptDir = path.dirname(__filename);
+  const repoRoot = path.resolve(scriptDir, "..");
 
-  const obsidianUnpackedPath = path.join(scriptDir, ".obsidian-unpacked");
-  const assetsDir = path.join(scriptDir, "assets");
+  const obsidianUnpackedPath = path.join(repoRoot, ".obsidian-unpacked");
+  const assetsDir = path.join(repoRoot, "assets");
   const appAsarPath = path.join(assetsDir, "app.asar");
   const appAsarUnpackedZipPath = path.join(assetsDir, "app.asar.unpacked.zip");
   const obsidianAsarPath = path.join(assetsDir, "obsidian.asar");
