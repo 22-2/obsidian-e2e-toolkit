@@ -39,6 +39,7 @@ try {
     run(process.execPath, [electronInstall]);
   } else {
     console.log('Skipping electron installer (electron not installed).');
+    console.log('If you plan to run E2E tests, ensure `electron` is installed in the project.');
   }
 } catch (err) {
   console.error('Electron install failed:', err);

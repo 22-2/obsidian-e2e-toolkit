@@ -62,6 +62,7 @@
   "dependencies": {
     "@electron/asar": "^4.0.1",
     "chalk": "^5.6.2",
+    "electron": "^40.1.0",
     "es-toolkit": "^1.44.0",
     "extract-zip": "^2.0.1",
     "find-up": "^8.0.0",
@@ -73,7 +74,6 @@
   "devDependencies": {
     "@playwright/test": "^1.58.1",
     "@types/node": "^25.2.0",
-    "electron": "^40.1.0",
     "esbuild": "^0.27.2",
     "glob": "^13.0.1",
     "obsidian": "^1.11.4",
