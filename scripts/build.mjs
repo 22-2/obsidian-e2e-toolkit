@@ -1,11 +1,19 @@
 import esbuild from "esbuild";
 import { glob } from "glob";
 import { readFile } from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const pkg = JSON.parse(await readFile(new URL("./package.json", import.meta.url)));
+const __filename = fileURLToPath(import.meta.url);
+const scriptDir = path.dirname(__filename);
+const repoRoot = path.resolve(scriptDir, "..");
+
+const pkg = JSON.parse(
+  await readFile(path.join(repoRoot, "package.json"), "utf8")
+);
 
 // Automatically find all .ts files in the src directory
-const entryPoints = await glob("src/**/*.ts");
+const entryPoints = await glob("src/**/*.ts", { cwd: repoRoot });
 
 // External dependencies that should not be bundled
 const external = [
@@ -16,6 +24,7 @@ const external = [
 try {
   await esbuild.build({
     entryPoints,
+    absWorkingDir: repoRoot,
     outdir: "dist/src",
     bundle: true, // Set to true to enable bundling and module resolution
     sourcemap: true,
