@@ -63,7 +63,7 @@ try {
   logger.log("App Main Path:", RESOLVED_PATHS.appMainJsPath);
 
   // --- Pre-flight checks ---
-  invariant(existsSync(__dirname), `Toolkit root not found at: ${__dirname}.`);
+  invariant(existsSync(dirname), `Toolkit root not found at: ${dirname}.`);
   invariant(
     existsSync(RESOLVED_PATHS.appMainJsPath),
     `Obsidian app not found at: ${RESOLVED_PATHS.appMainJsPath}. Did you run the setup script?`
