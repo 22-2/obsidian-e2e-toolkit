@@ -76,7 +76,7 @@ export class ObsidianAPI {
 
   async command(commandId: string): Promise<void> {
     const success = await this.page.evaluate((id) => {
-      if ((globalThis as any).app.commands.executeCommandById(id)) {
+      if (app.commands.executeCommandById(id)) {
         return true;
       }
 
@@ -86,7 +86,7 @@ export class ObsidianAPI {
         const actualId = (window as any).__pluginIdMapping?.get(pluginId);
         if (actualId) {
           const mappedId = [actualId, ...rest].join(":");
-          return (globalThis as any).app.commands.executeCommandById(mappedId);
+          return app.commands.executeCommandById(mappedId);
         }
       }
       return false;
