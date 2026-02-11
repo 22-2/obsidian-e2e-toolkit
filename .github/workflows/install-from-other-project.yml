@@ -35,9 +35,14 @@ jobs:
         run: |
           # 1. 現在のビルド結果(dist)を含めたダミーのGitリモートを作成するっす
           git clone . ../remote-repo
+          
+          # 【修正点】ビルド済みの dist を手動でコピーしてくるっす
+          cp -r dist ../remote-repo/
+          
           cd ../remote-repo
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
+          
           # distを強制的にコミットに加えることで、Release時のタグと同じ状態を再現するっす！
           git add -f dist/
           git commit -m "Simulate release state with dist"
