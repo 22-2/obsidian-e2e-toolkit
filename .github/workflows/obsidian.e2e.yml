@@ -56,8 +56,8 @@ jobs:
         run: pnpm run test:e2e:example
         env:
           DEBUG: "pw:browser"
-      - name: Run Playwright minimal main test
-        run: pnpm run test:e2e:minimal-main
+      - name: Run Playwright vfe test
+        run: pnpm run test:e2e:vfe
         env:
           DEBUG: "pw:browser"
 
