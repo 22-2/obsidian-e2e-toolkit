@@ -35,8 +35,7 @@ jobs:
           pnpm init
           VERSION=$(node -e "console.log(require(process.env.GITHUB_WORKSPACE + '/package.json').version)")
           echo "Detected version: $VERSION"
-          # Try with v<version> then <version> as fallback
-          pnpm add -D "git+https://github.com/22-2/obsidian-e2e-toolkit.git#v$VERSION" || pnpm add -D "git+https://github.com/22-2/obsidian-e2e-toolkit.git#$VERSION"
+          pnpm add -D "git+https://github.com/22-2/obsidian-e2e-toolkit.git#$VERSION"
           node -e "import('obsidian-e2e-toolkit').then(()=>console.log('import ok')).catch(e=>{console.error(e); process.exit(1)})"
 
       - name: Show installed files for debug
