@@ -1,0 +1,44 @@
+name: Test install from other project
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  install-from-other:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Enable Corepack and pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
+
+      - name: Install dependencies and build package
+        run: |
+          pnpm install
+          pnpm build
+
+      - name: Create a consumer project and install this package from Git tag
+        run: |
+          mkdir consumer
+          cd consumer
+          pnpm init -y
+          VERSION=$(node -e "console.log(require(process.env.GITHUB_WORKSPACE + '/package.json').version)")
+          echo "Detected version: $VERSION"
+          # Try with v<version> then <version> as fallback
+          pnpm add -D "git+https://github.com/22-2/obsidian-e2e-toolkit.git#v$VERSION" || pnpm add -D "git+https://github.com/22-2/obsidian-e2e-toolkit.git#$VERSION"
+          node -e "import('obsidian-e2e-toolkit').then(()=>console.log('import ok')).catch(e=>{console.error(e); process.exit(1)})"
+
+      - name: Show installed files for debug
+        run: |
+          ls -la consumer/node_modules || true
