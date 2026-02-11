@@ -69,14 +69,14 @@ export class PluginManager {
       return false;
     }
 
-    const actualId = this.getActualPluginId(plugin.path);
-    if (actualId && actualId !== plugin.pluginId) {
-      logger.info(
-        `Plugin ID mismatch for ${plugin.path}: expected ${plugin.pluginId}, found ${actualId}. Using ${actualId}.`
-      );
-      (plugin as any).originalId = plugin.pluginId;
-      plugin.pluginId = actualId;
-    }
+    // const actualId = getActualPluginId(plugin.path);
+    // if (actualId && actualId !== plugin.pluginId) {
+    //   logger.info(
+    //     `Plugin ID mismatch for ${plugin.path}: expected ${plugin.pluginId}, found ${actualId}. Using ${actualId}.`
+    //   );
+    //   (plugin as any).originalId = plugin.pluginId;
+    //   plugin.pluginId = actualId;
+    // }
 
     const destDir = path.join(pluginsDir, plugin.pluginId);
 
@@ -87,19 +87,6 @@ export class PluginManager {
       logger.debug(`Copying files for plugin: ${plugin.pluginId}`);
       return this.copyPluginFiles(plugin.path, destDir, plugin.pluginId);
     }
-  }
-
-  private getActualPluginId(pluginPath: string): string {
-    const manifestPath = path.join(pluginPath, "manifest.json");
-    if (existsSync(manifestPath)) {
-      try {
-        const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
-        return manifest.id;
-      } catch (e) {
-        logger.warn(`Failed to parse manifest.json at ${pluginPath}`);
-      }
-    }
-    return "";
   }
 
   private validatePluginPath(plugin: PluginConfig): boolean {
@@ -275,4 +262,18 @@ export class PluginManager {
     const isEnabled = await this.isCommunityPluginsEnabled(page);
     expect(isEnabled, "Failed to enable community plugins.").toBe(true);
   }
+}
+
+
+export function getActualPluginId(pluginPath: string): string {
+  const manifestPath = path.join(pluginPath, "manifest.json");
+  if (existsSync(manifestPath)) {
+    try {
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+      return manifest.id;
+    } catch (e) {
+      logger.warn(`Failed to parse manifest.json at ${pluginPath}`);
+    }
+  }
+  return "";
 }

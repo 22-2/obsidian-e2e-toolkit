@@ -14,7 +14,7 @@ test.use({
     plugins: [
       {
         path: path.resolve("example/sample-plugin"),
-        pluginId: "sample-plugin",
+        // pluginId: "sample-plugin",
       },
     ],
   },

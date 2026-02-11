@@ -33,7 +33,7 @@ export interface VaultOptions {
 
 export interface TestPlugin {
   path: string;
-  pluginId: string;
+  // pluginId: string;
   symlink?: boolean;
 }
 

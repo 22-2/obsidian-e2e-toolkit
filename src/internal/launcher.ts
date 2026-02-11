@@ -7,7 +7,7 @@ import type { Page } from "playwright";
 import { DEFAULT_VAULT_OPTIONS } from "./constants";
 import { IPCBridge } from "./ipc";
 import { ElectronAppManager } from "./managers/ElectronAppManager";
-import { PluginManager } from "./managers/PluginManager";
+import { PluginManager, getActualPluginId } from "./managers/PluginManager";
 import { StorageManager } from "./managers/StorageManager";
 import { VaultManager } from "./managers/VaultManager";
 import { WindowManager } from "./managers/WindowManager";
@@ -90,7 +90,10 @@ export class ObsidianE2ELauncher {
     this.vaultPath = await this.vaultManager.resolveVaultPath();
     logger.debug("vaultPath resolved:", this.vaultPath);
     this.pluginManager = new PluginManager(
-      this.options.plugins,
+      this.options.plugins.map((plugin) => ({
+        ...plugin,
+        pluginId: getActualPluginId(plugin.path),
+      })),
       this.vaultPath
     );
   }
