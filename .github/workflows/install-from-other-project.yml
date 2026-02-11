@@ -27,25 +27,33 @@ jobs:
         run: |
           pnpm install
           pnpm build
+          # ここでセットアップも実行して、.obsidian-e2e-toolkit を生成しておくっす
+          pnpm run postinstall
 
       - name: Create a consumer project and install this package from local clone
-        # git+https... で自分自身をインストールしようとすると、CI上では
-        # 「まだプッシュされていない最新のコミット」が取得できないため、
-        # ローカルのディレクトリを別の場所にクローンして、そこを「リモートリポジトリ」に見立ててテストするっす！
+        # release.yml の挙動をシミュレートするために、
+        # dist と .obsidian-e2e-toolkit を含み、ビルドスクリプトを削った状態のリポジトリを作るっす！
         run: |
-          # 1. 現在のビルド結果(dist)を含めたダミーのGitリモートを作成するっす
+          # 1. 現在のビルド結果を含めたダミーのGitリモートを作成するっす
           git clone . ../remote-repo
           
-          # 【修正点】ビルド済みの dist を手動でコピーしてくるっす
+          # ビルド済みの dist とアセットをコピーするっす
           cp -r dist ../remote-repo/
+          cp -r .obsidian-e2e-toolkit ../remote-repo/
           
           cd ../remote-repo
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
           
-          # distを強制的にコミットに加えることで、Release時のタグと同じ状態を再現するっす！
+          # release.yml と同様に、package.json からビルド関連スクリプトを削除するっす！
+          # これにより、onlyBuiltDependencies の設定なしでインストール可能になるっす
+          node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); delete pkg.scripts.prepare; delete pkg.scripts.postinstall; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2))"
+
+          # 成果物を強制的にコミットに加えるっす
           git add -f dist/
-          git commit -m "Simulate release state with dist"
+          git add -f .obsidian-e2e-toolkit/
+          git add package.json
+          git commit -m "Simulate release state (pre-built assets & no scripts)"
           cd -
           
           # 2. 消費者プロジェクトの作成
@@ -53,12 +61,17 @@ jobs:
           cd consumer
           pnpm init
           
-          echo "Installing from local git clone (with committed dist)..."
+          echo "Installing from local git clone (pre-built state)..."
+          # タグの代わりに、作成したリポジトリの HEAD からインストールするっす
           pnpm add -D "git+file://$(realpath ../../remote-repo)"
 
           echo "Debug: checking node_modules content"
           ls -R node_modules/obsidian-e2e-toolkit/dist
           
+          # セットアップを実行しなくても、すでにアセットが含まれているか確認するっす
+          echo "Debug: checking unpacked assets"
+          ls -R node_modules/obsidian-e2e-toolkit/.obsidian-e2e-toolkit/obsidian-unpacked
+
           echo "Verifying dist access..."
           node -e "import('obsidian-e2e-toolkit').then((m)=>console.log('import ok keys:', Object.keys(m))).catch(e=>{console.error(e); process.exit(1)})"
 
