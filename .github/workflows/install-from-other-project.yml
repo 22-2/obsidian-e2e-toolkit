@@ -27,7 +27,7 @@ jobs:
         run: |
           pnpm install
           pnpm build
-          # ここでセットアップも実行して、.obsidian-e2e-toolkit を生成しておくっす
+          # ここでセットアップも実行して、obsidian-e2e-toolkit-assets を生成しておくっす
           pnpm run postinstall
 
       - name: Create a consumer project and install this package from local clone
@@ -39,7 +39,7 @@ jobs:
           
           # ビルド済みの dist とアセットをコピーするっす
           cp -r dist ../remote-repo/
-          cp -r .obsidian-e2e-toolkit ../remote-repo/
+          cp -r obsidian-e2e-toolkit-assets ../remote-repo/
           
           cd ../remote-repo
           git config user.email "action@github.com"
@@ -51,7 +51,7 @@ jobs:
 
           # 成果物を強制的にコミットに加えるっす
           git add -f dist/
-          git add -f .obsidian-e2e-toolkit/
+          git add -f obsidian-e2e-toolkit-assets/
           git add package.json
           git commit -m "Simulate release state (pre-built assets & no scripts)"
           cd -
@@ -70,7 +70,7 @@ jobs:
           
           # セットアップを実行しなくても、すでにアセットが含まれているか確認するっす
           echo "Debug: checking unpacked assets"
-          ls -R node_modules/obsidian-e2e-toolkit/.obsidian-e2e-toolkit/obsidian-unpacked
+          ls -R node_modules/obsidian-e2e-toolkit/obsidian-e2e-toolkit-assets/obsidian-unpacked
 
           echo "Verifying dist access..."
           node -e "import('obsidian-e2e-toolkit').then((m)=>console.log('import ok keys:', Object.keys(m))).catch(e=>{console.error(e); process.exit(1)})"

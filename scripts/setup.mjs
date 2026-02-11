@@ -78,7 +78,7 @@ async function main() {
     (initCwd && path.resolve(initCwd) !== path.resolve(repoRoot)
       ? initCwd
       : repoRoot);
-  const toolkitCacheRoot = path.join(toolkitHome, ".obsidian-e2e-toolkit");
+  const toolkitCacheRoot = path.join(toolkitHome, "obsidian-e2e-toolkit-assets");
 
   const obsidianUnpackedPath = path.join(toolkitCacheRoot, "obsidian-unpacked");
   const cacheDir = path.join(toolkitCacheRoot, "cache");
