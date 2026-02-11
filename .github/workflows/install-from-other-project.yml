@@ -61,16 +61,21 @@ jobs:
           cd consumer
           pnpm init
           
+          echo "Debug: Listing remote repo contents before install"
+          ls -la ../remote-repo
+          ls -R ../remote-repo/obsidian-e2e-toolkit-assets || echo "Assets not in remote-repo"
+
           echo "Installing from local git clone (pre-built state)..."
-          # タグの代わりに、作成したリポジトリの HEAD からインストールするっす
           pnpm add -D "git+file://$(realpath ../../remote-repo)"
 
           echo "Debug: checking node_modules content"
+          ls -la node_modules/obsidian-e2e-toolkit
           ls -R node_modules/obsidian-e2e-toolkit/dist
           
           # セットアップを実行しなくても、すでにアセットが含まれているか確認するっす
           echo "Debug: checking unpacked assets"
-          ls -R node_modules/obsidian-e2e-toolkit/obsidian-e2e-toolkit-assets/obsidian-unpacked
+          ls -la node_modules/obsidian-e2e-toolkit/obsidian-e2e-toolkit-assets || echo "Assets folder missing in node_modules"
+          ls -R node_modules/obsidian-e2e-toolkit/obsidian-e2e-toolkit-assets/obsidian-unpacked || echo "Unpacked assets missing"
 
           echo "Verifying dist access..."
           node -e "import('obsidian-e2e-toolkit').then((m)=>console.log('import ok keys:', Object.keys(m))).catch(e=>{console.error(e); process.exit(1)})"
