@@ -1,26 +1,26 @@
 {
   "name": "obsidian-e2e-toolkit",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Reusable E2E testing utilities for Obsidian plugins using Playwright",
   "type": "module",
-  "main": "./dist/cjs/index.cjs",
-  "types": "./dist/esm/index.d.ts",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/esm/index.d.ts",
-      "import": "./dist/esm/index.mjs",
-      "require": "./dist/cjs/index.cjs",
-      "default": "./dist/esm/index.mjs"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.mjs"
     },
     "./esm": {
-      "types": "./dist/esm/index.d.ts",
-      "import": "./dist/esm/index.mjs",
-      "default": "./dist/esm/index.mjs"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
     },
     "./cjs": {
-      "types": "./dist/esm/index.d.ts",
-      "require": "./dist/cjs/index.cjs",
-      "default": "./dist/cjs/index.cjs"
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.cjs"
     }
   },
   "files": [
@@ -30,12 +30,13 @@
     "LICENSE"
   ],
   "scripts": {
+    "prepare": "pnpm run build",
     "prebuild": "rimraf dist",
     "build": "tsup",
     "prepublishOnly": "pnpm run build",
     "test:e2e:example": "pnpm playwright test example/example.spec.ts",
     "test:e2e:vfe": "pnpm playwright test example/drag-and-drop.spec.ts",
-    "postinstall": "node ./scripts/postinstall.mjs"
+    "postinstall": "node ./scripts/postinstall.cjs"
   },
   "author": "22-2",
   "license": "MIT",

@@ -28,16 +28,36 @@ jobs:
           pnpm install
           pnpm build
 
-      - name: Create a consumer project and install this package from Git tag
+      - name: Create a consumer project and install this package from local clone
+        # git+https... で自分自身をインストールしようとすると、CI上では
+        # 「まだプッシュされていない最新のコミット」が取得できないため、
+        # ローカルのディレクトリを別の場所にクローンして、そこを「リモートリポジトリ」に見立ててテストするっす！
         run: |
+          # 1. 現在のビルド結果(dist)を含めたダミーのGitリモートを作成するっす
+          git clone . ../remote-repo
+          cd ../remote-repo
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          # distを強制的にコミットに加えることで、Release時のタグと同じ状態を再現するっす！
+          git add -f dist/
+          git commit -m "Simulate release state with dist"
+          cd -
+          
+          # 2. 消費者プロジェクトの作成
           mkdir consumer
           cd consumer
           pnpm init
-          VERSION=$(node -e "console.log(require(process.env.GITHUB_WORKSPACE + '/package.json').version)")
-          echo "Detected version: $VERSION"
-          pnpm add -D "git+https://github.com/22-2/obsidian-e2e-toolkit.git#$VERSION"
-          node -e "import('obsidian-e2e-toolkit').then(()=>console.log('import ok')).catch(e=>{console.error(e); process.exit(1)})"
+          
+          echo "Installing from local git clone (with committed dist)..."
+          # --ignore-scriptsをつけても、distがGitに含まれていれば動くはずっす！
+          pnpm add -D "git+file://$(realpath ../../remote-repo)" --ignore-scripts
+          
+          echo "Debug: checking node_modules content"
+          ls -R node_modules/obsidian-e2e-toolkit/dist
+          
+          echo "Verifying dist access..."
+          node -e "import('obsidian-e2e-toolkit').then((m)=>console.log('import ok keys:', Object.keys(m))).catch(e=>{console.error(e); process.exit(1)})"
 
-      - name: Show installed files for debug
-        run: |
-          ls -la consumer/node_modules || true
+      - name: Cleanup remote repo
+        if: always()
+        run: rm -rf ../remote-repo
