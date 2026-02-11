@@ -32,7 +32,7 @@ jobs:
         run: |
           mkdir consumer
           cd consumer
-          pnpm init -y
+          pnpm init
           VERSION=$(node -e "console.log(require(process.env.GITHUB_WORKSPACE + '/package.json').version)")
           echo "Detected version: $VERSION"
           # Try with v<version> then <version> as fallback
