@@ -43,7 +43,7 @@ function getDefaultConfig() {
     assetsDir: path.join(toolkitRoot, "assets"),
     obsidianUnpackedDir: path.join(
       toolkitHome,
-      ".obsidian-e2e-toolkit",
+      "obsidian-e2e-toolkit-assets",
       "obsidian-unpacked"
     ),
     appMainFile: "main.cjs",
