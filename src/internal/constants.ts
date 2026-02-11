@@ -35,7 +35,10 @@ function getDefaultConfig() {
   const projectRoot = manifestPath ? path.dirname(manifestPath) : toolkitRoot;
 
   const toolkitHome =
-    process.env.OBSIDIAN_E2E_TOOLKIT_HOME || projectRoot;
+    process.env.OBSIDIAN_E2E_TOOLKIT_HOME ||
+    (existsSync(path.join(toolkitRoot, "obsidian-e2e-toolkit-assets"))
+      ? toolkitRoot
+      : projectRoot);
 
   return {
     pluginDir: projectRoot,
