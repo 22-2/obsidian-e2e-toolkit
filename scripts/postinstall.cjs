@@ -2,6 +2,9 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 const { existsSync } = require('fs');
 
+const fs = require('fs');
+const distPath = path.resolve(__dirname, '..', 'dist');
+
 // When package managers run lifecycle scripts, they usually set INIT_CWD
 // to the original working directory where the install was invoked.
 // If INIT_CWD differs from the package's own directory (process.cwd()),
@@ -10,6 +13,13 @@ const { existsSync } = require('fs');
 const cwd = process.cwd();
 const initCwd = process.env.INIT_CWD || '';
 const isDependencyInstall = initCwd && path.resolve(initCwd) !== path.resolve(cwd);
+
+// すでにビルド済み(distがある)なら、重い処理やエラーの元になる処理をスキップするっす
+// skip heavy processing and potential error sources if already built (dist exists)
+if (fs.existsSync(distPath) && isDependencyInstall) {
+  console.log('obsidian-e2e-toolkit: dist already exists, skipping build/setup.');
+  process.exit(0); 
+}
 
 // When installed as a dependency, avoid running the heavy setup by default.
 // This prevents large downloads during `pnpm add`/install in consumer projects.
