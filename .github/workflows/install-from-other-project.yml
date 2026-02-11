@@ -56,15 +56,15 @@ jobs:
           git commit -m "Simulate release state (pre-built assets & no scripts)"
           cd -
           
+          echo "Debug: Listing remote repo contents before install"
+          ls -la ../remote-repo
+          ls -R ../remote-repo/obsidian-e2e-toolkit-assets || echo "Assets not in remote-repo"
+
           # 2. 消費者プロジェクトの作成
           mkdir consumer
           cd consumer
           pnpm init
           
-          echo "Debug: Listing remote repo contents before install"
-          ls -la ../remote-repo
-          ls -R ../remote-repo/obsidian-e2e-toolkit-assets || echo "Assets not in remote-repo"
-
           echo "Installing from local git clone (pre-built state)..."
           pnpm add -D "git+file://$(realpath ../../remote-repo)"
 
