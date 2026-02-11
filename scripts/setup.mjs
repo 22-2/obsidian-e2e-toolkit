@@ -89,6 +89,11 @@ async function main() {
   const appExtractDir = path.join(cacheDir, "app-extracted");
 
   try {
+    // If assets are already unpacked, skip the heavy download/unpack.
+    if (existsSync(obsidianUnpackedPath) && existsSync(path.join(obsidianUnpackedPath, "main.cjs"))) {
+      log.info("Obsidian assets already unpacked. Skipping setup.");
+      return;
+    }
     // --- Download Assets ---
     log.info("\nFetching Obsidian release assets...");
 

@@ -11,16 +11,24 @@ const cwd = process.cwd();
 const initCwd = process.env.INIT_CWD || '';
 const isDependencyInstall = initCwd && path.resolve(initCwd) !== path.resolve(cwd);
 
-// By default run the setup even when installed as a dependency so the
-// toolkit has required unpacked assets available at runtime. Consumers
-// that want to skip the heavy download can set
-// OBSIDIAN_E2E_TOOLKIT_SKIP_SETUP=1 in their environment.
+// When installed as a dependency, avoid running the heavy setup by default.
+// This prevents large downloads during `pnpm add`/install in consumer projects.
+// To force the setup during dependency install, set
+// `OBSIDIAN_E2E_TOOLKIT_RUN_SETUP=1` in the environment. For backward
+// compatibility, `OBSIDIAN_E2E_TOOLKIT_SKIP_SETUP=1` will also skip the setup.
 if (isDependencyInstall) {
   if (process.env.OBSIDIAN_E2E_TOOLKIT_SKIP_SETUP === '1') {
-    console.log('Skipping obsidian-e2e-toolkit postinstall (skipped by env)');
+    console.log('Skipping obsidian-e2e-toolkit postinstall (skipped by OBSIDIAN_E2E_TOOLKIT_SKIP_SETUP)');
     process.exit(0);
   }
-  console.log('Running obsidian-e2e-toolkit postinstall (installed as dependency)');
+
+  if (process.env.OBSIDIAN_E2E_TOOLKIT_RUN_SETUP === '1') {
+    console.log('Running obsidian-e2e-toolkit postinstall (forced by OBSIDIAN_E2E_TOOLKIT_RUN_SETUP)');
+    // continue to run setup
+  } else {
+    console.log('Skipping obsidian-e2e-toolkit postinstall (dependency install). Set OBSIDIAN_E2E_TOOLKIT_RUN_SETUP=1 to force.');
+    process.exit(0);
+  }
 }
 
 function run(nodePath, args, envOverrides = {}) {
