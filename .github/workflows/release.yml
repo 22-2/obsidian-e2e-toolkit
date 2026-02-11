@@ -55,29 +55,29 @@ jobs:
       - name: Create Release Branch and Push
         run: |
           # 1. 必要なアセットをすべて揃えるっす (Obsidian のバイナリ等)
-          # setup.mjs を実行して .obsidian-e2e-toolkit を作成するっす
           pnpm run postinstall
 
+          # 【重要】GitHub の 100MB 回避策：
+          # .obsidian-e2e-toolkit/cache にあるダウンロード済みの巨大な tar.gz や asar は削除するっす！
+          # インストール後に必要なのは unpacked された中身だけなので、これでサイズを大幅に削れるっす。
+          rm -rf .obsidian-e2e-toolkit/cache
+
           # 2. リリース用ブランチの準備
-          # すでにビルドされた dist と、setupで作成された .obsidian-e2e-toolkit を含めるっす
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
           
           # 3. 消費者側でのエラーを回避するために package.json を加工するっす
-          # prepare/postinstall を消すことで、インストール時の再ビルドを防止するっす
           node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); delete pkg.scripts.prepare; delete pkg.scripts.postinstall; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2))"
 
           # 4. 作業用の一時的なインデックスを作成して、配布に必要なファイルだけを入れるっす
-          # (ソースコードは gitignore で管理されているはずなので、必要なものだけ add -f するっす)
           git checkout -b release-temp
           git add -f dist/
           git add -f .obsidian-e2e-toolkit/
           git add package.json README.md LICENSE
           
-          git commit -m "Release version ${{ steps.tag_version.outputs.VERSION }} (pre-built)"
+          git commit -m "Release version ${{ steps.tag_version.outputs.VERSION }} (pre-built, cache cleaned)"
           
-          # 5. リリース用の特別なタグ（例: v1.0.0-dist）としてプッシュするか、
-          # あるいは既存のタグをビルド済み成果物で上書きするっす（ここでは既存タグを上書きする例にするっす）
+          # 5. タグを上書きプッシュするっす
           git tag -f ${{ steps.tag_version.outputs.TAG_NAME }}
           git push -f origin ${{ steps.tag_version.outputs.TAG_NAME }}
 
