@@ -4,6 +4,7 @@ import invariant from "tiny-invariant";
 import { CMD_ID_CLOSE_TAB, CMD_ID_UNDO_CLOSE_TAB } from "./internal/constants";
 import type { ObsidianPageTextContext, VaultOptions } from "./internal/types";
 import { getPluginHandleMap } from "./internal/utils";
+import { getActualPluginId } from "./internal/managers/PluginManager";
 
 interface ItemView {
   [key: string]: any;
@@ -275,7 +276,7 @@ export class ObsidianAPI {
   ): Promise<ObsidianPageTextContext> {
     const pluginHandleMap = await getPluginHandleMapFn(
       this.page,
-      vaultOptions.plugins || []
+      (vaultOptions.plugins || []).map((p) => ({...p, pluginId: getActualPluginId(p.path) })),
     );
     this.context = { ...this.context!, pluginHandleMap };
     return this.context;
