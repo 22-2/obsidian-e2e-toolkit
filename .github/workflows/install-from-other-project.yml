@@ -54,9 +54,8 @@ jobs:
           pnpm init
           
           echo "Installing from local git clone (with committed dist)..."
-          # --ignore-scriptsをつけても、distがGitに含まれていれば動くはずっす！
-          pnpm add -D "git+file://$(realpath ../../remote-repo)" --ignore-scripts
-          
+          pnpm add -D "git+file://$(realpath ../../remote-repo)"
+
           echo "Debug: checking node_modules content"
           ls -R node_modules/obsidian-e2e-toolkit/dist
           
