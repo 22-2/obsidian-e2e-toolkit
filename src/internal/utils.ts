@@ -23,7 +23,7 @@ export async function getPluginHandleMap(
         return pluginIds.every((id: string) => app.plugins.plugins[id]);
       },
       pluginIds,
-      { timeout: 10000 }
+      { timeout: 30000 }
     );
   } catch (err) {
     logger.error("getPluginHandleMap: timeout waiting for plugins to load", err && (err as Error).message);
