@@ -21,11 +21,14 @@ export class PageWaiter {
 
     await page.waitForFunction(
       async () => {
-        if ((window as any).app?.workspace?.onLayoutReady) {
-          return await new Promise<void>((resolve) => {
-            return app.workspace.onLayoutReady(() => resolve(undefined));
+        const workspace = (window as any).app?.workspace;
+        if (workspace?.onLayoutReady) {
+          await new Promise<void>((resolve) => {
+            workspace.onLayoutReady(() => resolve());
           });
+          return true;
         }
+        return false;
       },
       { timeout: 10000 }
     );

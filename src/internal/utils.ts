@@ -20,7 +20,8 @@ export async function getPluginHandleMap(
   try {
     await page.waitForFunction(
       (pluginIds) => {
-        return pluginIds.every((id: string) => app.plugins.plugins[id]);
+        const plugins = (window as any).app?.plugins?.plugins;
+        return !!plugins && pluginIds.every((id: string) => plugins[id]);
       },
       pluginIds,
       { timeout: 30000 }
