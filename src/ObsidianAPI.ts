@@ -153,7 +153,7 @@ export class ObsidianAPI {
   }
 
   async waitReady(): Promise<void> {
-    await this.page.waitForFunction(() => app.workspace.layoutReady);
+    await this.page.waitForFunction(() => app?.workspace?.layoutReady);
   }
 
   async waitForView<T extends ItemView>(
