@@ -31,6 +31,8 @@ export interface BrowserConsoleLoggingOptions {
     previewLength?: number;
     /** Case-insensitive regex patterns; matching messages are skipped entirely. */
     ignoredMessagePatterns?: string[];
+    /** Case-insensitive regex patterns; matching browser errors are downgraded to warn. */
+    demoteErrorMessagePatterns?: string[];
     /** Whether to include source URL/line/column for browser console entries. */
     includeLocation?: boolean;
     /** Whether to forward page-level runtime errors (pageerror event). */

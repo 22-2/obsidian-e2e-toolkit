@@ -155,6 +155,7 @@ export const DEFAULT_VAULT_OPTIONS: VaultOptions = {
         maxMessageLength: 300,
         previewLength: 160,
         ignoredMessagePatterns: ["Electron Security Warning"],
+        demoteErrorMessagePatterns: ["Timeout waiting for plugin .+ to load"],
         includeLocation: false,
         includePageErrors: true,
         includeRequestFailures: true,

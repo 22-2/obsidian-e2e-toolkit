@@ -132,6 +132,7 @@ const DEFAULT_BROWSER_CONSOLE_LOGGING_OPTIONS: Required<BrowserConsoleLoggingOpt
         maxMessageLength: 300,
         previewLength: 160,
         ignoredMessagePatterns: ["Electron Security Warning"],
+        demoteErrorMessagePatterns: ["Timeout waiting for plugin .+ to load"],
         includeLocation: false,
         includePageErrors: true,
         includeRequestFailures: true,
@@ -185,6 +186,18 @@ function abbreviateMessage(
     return `${normalized.slice(0, previewLength)}... [${normalized.length} chars; truncated at ${maxLength}]`;
 }
 
+function shouldDemoteError(
+    type: string,
+    message: string,
+    demoteErrorPatterns: RegExp[],
+): boolean {
+    if (!(["error", "assert"].includes(type) || type === "pageerror")) {
+        return false;
+    }
+
+    return demoteErrorPatterns.some((pattern) => pattern.test(message));
+}
+
 function toLogMethod(type: string): LogMethod {
     if (["error", "assert"].includes(type)) {
         return "error";
@@ -217,6 +230,9 @@ export function setupBrowserConsoleLogging(
     const ignoredMessagePatterns = options.ignoredMessagePatterns.map(
         (pattern) => new RegExp(pattern, "i"),
     );
+    const demoteErrorPatterns = options.demoteErrorMessagePatterns.map(
+        (pattern) => new RegExp(pattern, "i"),
+    );
 
     window.on("console", (msg: any) => {
         const type = msg.type().toLowerCase();
@@ -229,9 +245,12 @@ export function setupBrowserConsoleLogging(
             return;
         }
 
-        browserLogger[toLogMethod(type)](
-            `[BROWSER:${type.toUpperCase()}] ${abbreviateMessage(text, options)}`,
-        );
+        const abbreviated = abbreviateMessage(text, options);
+        const method = shouldDemoteError(type, abbreviated, demoteErrorPatterns)
+            ? "warn"
+            : toLogMethod(type);
+
+        browserLogger[method](`[BROWSER:${type.toUpperCase()}] ${abbreviated}`);
 
         const location = msg.location();
         if (
@@ -250,7 +269,15 @@ export function setupBrowserConsoleLogging(
             return;
         }
 
-        browserLogger.error(`[BROWSER:PAGEERROR] ${error.message}`);
+        const method = shouldDemoteError(
+            "pageerror",
+            error.message,
+            demoteErrorPatterns,
+        )
+            ? "warn"
+            : "error";
+
+        browserLogger[method](`[BROWSER:PAGEERROR] ${error.message}`);
         if (error.stack) {
             browserLogger.debug(`[BROWSER:STACK] ${error.stack}`);
         }
