@@ -63,10 +63,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
     try {
       toggleLoggerBy(vaultOptions.logLevel || "warn");
-      runLogger.info("Launching Obsidian");
-      await launcher.initialize();
-
-      runLogger.info("Creating Obsidian context");
+      runLogger.info("Launching Obsidian and creating context");
       const context = await createObsidianContext(launcher);
 
       runLogger.debug("Configuring browser console logging");

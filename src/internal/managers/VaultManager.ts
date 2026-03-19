@@ -8,6 +8,7 @@ import path from "path";
 import type { Page } from "playwright";
 import { PageWaiter } from "../PageWaiter";
 import type { IPCBridge } from "../ipc";
+import type { WindowManager } from "./WindowManager";
 import type { VaultOptions } from "../types";
 
 const logger = log.getLogger("VaultManager");
@@ -15,19 +16,24 @@ const logger = log.getLogger("VaultManager");
 export class VaultManager {
   constructor(
     private ipc: IPCBridge,
+    private windowManager: WindowManager,
     private options: VaultOptions,
     private vaultPath: string
   ) {}
 
-  async openSandboxVault(
-    executeAction: (
-      action: () => Promise<void>,
-      wait: (page: Page) => Promise<void>
-    ) => Promise<Page>
-  ): Promise<{ vaultPath: string; page: Page }> {
+  async openVault(options: VaultOptions): Promise<{ vaultPath: string; page: Page }> {
+    const useSandbox = !!(options.sandbox && !process.env.CI);
+    if (useSandbox) {
+      return this.openSandboxVault();
+    }
+
+    return this.openNormalVault(options);
+  }
+
+  async openSandboxVault(): Promise<{ vaultPath: string; page: Page }> {
     logger.debug(chalk.green("Opening sandbox vault..."));
 
-    const page = await executeAction(
+    const page = await this.windowManager.executeActionAndWaitForNewWindow(
       () => this.ipc.openSandbox(),
       PageWaiter.waitForPage
     );
@@ -39,27 +45,24 @@ export class VaultManager {
   }
 
   async openNormalVault(
-    executeAction: (
-      action: () => Promise<void>,
-      wait: (page: Page) => Promise<void>
-    ) => Promise<Page>
+    options: VaultOptions
   ): Promise<{ vaultPath: string; page: Page }> {
     logger.debug("Opening normal vault...");
 
-    const vaultPath = await this.resolveVaultPath();
+    const vaultPath = await this.resolveVaultPath(options);
 
-    if (this.options.fresh && existsSync(vaultPath)) {
+    if (options.fresh && existsSync(vaultPath)) {
       rmSync(vaultPath, { recursive: true });
     }
 
     // Ensure vault directory exists if not fresh
-    if (!this.options.fresh && !existsSync(vaultPath)) {
+    if (!options.fresh && !existsSync(vaultPath)) {
       logger.debug("Creating vault directory:", vaultPath);
       mkdirSync(vaultPath, { recursive: true });
     }
 
-    const page = await executeAction(async () => {
-      const result = await this.ipc.openVault(vaultPath, this.options.fresh);
+    const page = await this.windowManager.executeActionAndWaitForNewWindow(async () => {
+      const result = await this.ipc.openVault(vaultPath, !!options.fresh);
       if (result !== true) {
         throw new Error(`Failed to open vault: ${result}`);
       }
@@ -70,9 +73,9 @@ export class VaultManager {
     return { vaultPath, page };
   }
 
-  async resolveVaultPath(): Promise<string> {
-    if (this.options.name) {
-      return await this.getVaultPathByName(this.options.name);
+  async resolveVaultPath(options: VaultOptions = this.options): Promise<string> {
+    if (options.name) {
+      return await this.getVaultPathByName(options.name);
     }
 
     logger.debug("options.name not specified, create temp dir");

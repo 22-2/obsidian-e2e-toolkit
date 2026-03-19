@@ -92,6 +92,5 @@ export function handleTestError(testInfo: any): void {
 export async function createObsidianContext(
   launcher: ObsidianE2ELauncher
 ): Promise<any> {
-  const vaultOptions = launcher.getVaultOptions();
-  return launcher.launch(vaultOptions);
+  return launcher.launch();
 }

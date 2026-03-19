@@ -2,7 +2,6 @@
 // 6. ObsidianE2ELauncher.ts - メインのオーケストレーター
 // ===================================================================
 import chalk from "chalk";
-import log from "loglevel";
 import type { Page } from "playwright";
 import { DEFAULT_VAULT_OPTIONS } from "./constants";
 import { IPCBridge } from "./ipc";
@@ -22,8 +21,6 @@ import type {
 } from "./types";
 import { getPluginHandleMap } from "./utils";
 
-const logger = log.getLogger("ObsidianTestLauncher");
-
 export interface LauncherConfig {
   paths: ResolvedPaths;
   options: VaultOptions;
@@ -33,22 +30,21 @@ export interface LauncherConfig {
 
 export class ObsidianE2ELauncher {
   private electronManager: ElectronAppManager;
-  private windowManager!: WindowManager;
-  private vaultManager!: VaultManager;
-  private storageManager!: StorageManager;
-  private pluginManager!: PluginManager;
-  private ipc!: IPCBridge;
+  private windowManager: WindowManager | null = null;
+  private vaultManager: VaultManager | null = null;
+  private storageManager: StorageManager | null = null;
+  private pluginManager: PluginManager | null = null;
+  private ipc: IPCBridge | null = null;
   private paths: ResolvedPaths;
   private options: VaultOptions;
-  private tempUserDataDir: string;
   private tempVaultDir: string;
   private vaultPath: string | null = null;
+  private initialized = false;
   private scopedLogger;
 
   constructor({ paths, options, tempUserDataDir, runId }: LauncherConfig) {
     this.paths = paths;
     this.options = options;
-    this.tempUserDataDir = tempUserDataDir;
     this.tempVaultDir = `${tempUserDataDir}-vault`;
     this.electronManager = new ElectronAppManager(paths, tempUserDataDir);
     this.scopedLogger = createScopedLogger("ObsidianTestLauncher", {
@@ -57,7 +53,19 @@ export class ObsidianE2ELauncher {
     });
   }
 
+  /**
+   * Optional explicit bootstrap.
+   * launch() and openStarter() call this lazily, so callers usually do not need this.
+   */
   async initialize(): Promise<void> {
+    await this.ensureInitialized();
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+
     const electronApp = await this.electronManager.launch();
     this.scopedLogger.debug("Electron app launched");
 
@@ -85,12 +93,13 @@ export class ObsidianE2ELauncher {
     this.scopedLogger.debug("Starter page ready");
 
     this.ipc = new IPCBridge({
-      ensureSingleWindow: this.windowManager.ensureSingleWindow.bind(
-        this.windowManager
+      ensureSingleWindow: this.windowManager!.ensureSingleWindow.bind(
+        this.windowManager!
       ),
     });
     this.vaultManager = new VaultManager(
       this.ipc,
+      this.windowManager,
       this.options,
       this.tempVaultDir
     );
@@ -105,6 +114,8 @@ export class ObsidianE2ELauncher {
       })),
       this.vaultPath
     );
+
+    this.initialized = true;
   }
 
   private async initializePlaywrightMode(page: Page): Promise<void> {
@@ -116,27 +127,32 @@ export class ObsidianE2ELauncher {
 
   async cleanup(): Promise<void> {
     await this.electronManager.cleanup();
+    this.initialized = false;
+    this.windowManager = null;
+    this.storageManager = null;
+    this.pluginManager = null;
+    this.vaultManager = null;
+    this.ipc = null;
+    this.vaultPath = null;
     this.scopedLogger.debug("Launcher cleanup completed");
   }
 
   async launch(
     options: VaultOptions = DEFAULT_VAULT_OPTIONS
   ): Promise<ObsidianPageTextContext> {
-    this.validateInitialization();
+    await this.ensureInitialized();
+    const pluginManager = this.pluginManager!;
 
     this.scopedLogger.debug("Opening vault", options);
 
-    const shouldUseSandbox = options.sandbox && !process.env.CI;
-    const executeAction =
-      this.windowManager!.executeActionAndWaitForNewWindow.bind(
-        this.windowManager
-      );
+    const runOptions: VaultOptions = {
+      ...this.options,
+      ...options,
+    };
 
-    const { page } = shouldUseSandbox
-      ? await this.vaultManager!.openSandboxVault(executeAction)
-      : await this.vaultManager!.openNormalVault(executeAction);
+    const { page } = await this.vaultManager!.openVault(runOptions);
 
-    const configuredPlugins = this.pluginManager.getPlugins() || [];
+    const configuredPlugins = pluginManager.getPlugins() || [];
     this.scopedLogger.debug(
       "Configured plugins",
       configuredPlugins.map((p) => ({ path: p.path, pluginId: p.pluginId }))
@@ -145,15 +161,15 @@ export class ObsidianE2ELauncher {
       this.scopedLogger.debug("Installing configured plugins");
       await this.setupPlugins(page);
       this.scopedLogger.debug(
-        `${this.pluginManager.getPlugins().length} plugins setup completed`
+        `${pluginManager.getPlugins().length} plugins setup completed`
       );
     }
 
     this.scopedLogger.debug(
       "Creating vault context",
-      this.pluginManager.getPlugins().map((p) => p.pluginId)
+      pluginManager.getPlugins().map((p) => p.pluginId)
     );
-    const context = await this.createVaultContext(page, this.pluginManager.getPlugins());
+    const context = await this.createVaultContext(page, pluginManager.getPlugins());
     this.scopedLogger.debug("Vault context created", context.vaultName);
 
     // Remove all notices
@@ -166,19 +182,14 @@ export class ObsidianE2ELauncher {
     return context;
   }
 
-  private validateInitialization(): void {
-    if (!this.windowManager || !this.vaultManager || !this.ipc) {
-      throw new Error("Setup not initialized. Call initialize() first.");
-    }
-  }
-
   private async setupPlugins(page: Page): Promise<void> {
+    const pluginManager = this.pluginManager!;
     this.scopedLogger.debug("Installing plugins");
-    await this.pluginManager.installAll();
+    await pluginManager.installAll();
     this.scopedLogger.debug("Plugins installed");
 
     this.scopedLogger.debug("Enabling plugins");
-    await this.pluginManager.enableAll(page);
+    await pluginManager.enableAll(page);
     this.scopedLogger.debug("Plugins enabled");
 
     this.scopedLogger.debug(chalk.blue("Reloading vault to apply plugin changes"));
@@ -212,7 +223,7 @@ export class ObsidianE2ELauncher {
   }
 
   async openStarter(): Promise<TestContext> {
-    this.validateInitialization();
+    await this.ensureInitialized();
 
     const page = await this.windowManager!.executeActionAndWaitForNewWindow(
       async () => await this.ipc!.openStarter(),
