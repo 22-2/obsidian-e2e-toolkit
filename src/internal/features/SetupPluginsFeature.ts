@@ -1,4 +1,4 @@
-import { PageWaiter } from "../PageWaiter";
+import { PageWaiter } from "../managers/PageWaiter";
 import type { Page } from "playwright";
 import type { PluginManager } from "../managers/PluginManager";
 import type { ServiceContainer } from "../services/ServiceContainer";

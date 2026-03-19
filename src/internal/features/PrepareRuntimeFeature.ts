@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import { PageWaiter } from "../PageWaiter";
+import { PageWaiter } from "../managers/PageWaiter";
 import type { StorageManager } from "../managers/StorageManager";
 import type { WindowManager } from "../managers/WindowManager";
 import type { ServiceContainer } from "../services/ServiceContainer";

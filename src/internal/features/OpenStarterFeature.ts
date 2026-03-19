@@ -1,5 +1,5 @@
-import { PageWaiter } from "../PageWaiter";
-import type { IPCBridge } from "../ipc";
+import { PageWaiter } from "../managers/PageWaiter";
+import type { IPCBridge } from "../managers/ipc";
 import type { ElectronAppManager } from "../managers/ElectronAppManager";
 import type { WindowManager } from "../managers/WindowManager";
 import type { TestContext } from "../types";

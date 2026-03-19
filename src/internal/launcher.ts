@@ -7,7 +7,7 @@ import { OpenStarterFeature } from "./features/OpenStarterFeature";
 import { OpenVaultFeature } from "./features/OpenVaultFeature";
 import { PrepareRuntimeFeature } from "./features/PrepareRuntimeFeature";
 import { SetupPluginsFeature } from "./features/SetupPluginsFeature";
-import { IPCBridge } from "./ipc";
+import { IPCBridge } from "./managers/ipc";
 import { createScopedLogger } from "./logger";
 import { ElectronAppManager } from "./managers/ElectronAppManager";
 import { PluginManager, getActualPluginId } from "./managers/PluginManager";

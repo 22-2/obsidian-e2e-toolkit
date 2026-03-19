@@ -6,8 +6,8 @@ import { existsSync, mkdirSync, rmSync } from "fs";
 import log from "loglevel";
 import path from "path";
 import type { Page } from "playwright";
-import { PageWaiter } from "../PageWaiter";
-import type { IPCBridge } from "../ipc";
+import { PageWaiter } from "./PageWaiter";
+import type { IPCBridge } from "./ipc";
 import type { WindowManager } from "./WindowManager";
 import type { VaultOptions } from "../types";
 
