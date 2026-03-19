@@ -150,6 +150,17 @@ export const DEFAULT_VAULT_OPTIONS: VaultOptions = {
   sandbox: false,
   fresh: true,
   logLevel: "warn",
+  browserConsoleLogging: {
+    enabledTypes: ["warning", "warn", "error", "assert"],
+    maxMessageLength: 300,
+    previewLength: 160,
+    ignoredMessagePatterns: ["Electron Security Warning"],
+    includeLocation: false,
+    includePageErrors: true,
+    includeRequestFailures: true,
+    includeHttpErrors: true,
+    httpErrorThreshold: 400,
+  },
   plugins: [],
 };
 

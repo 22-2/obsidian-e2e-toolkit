@@ -9,10 +9,10 @@ export async function getPluginHandleMap(
 ): Promise<PluginHandleMap> {
   // Wait for plugins to be loaded
   const pluginIds = plugins.map((p) => p.pluginId).filter(Boolean);
-  logger.warn("getPluginHandleMap: waiting for plugin IDs:", pluginIds);
+  logger.debug("getPluginHandleMap: waiting for plugin IDs:", pluginIds);
 
   if (pluginIds.length === 0) {
-    logger.warn("getPluginHandleMap: no plugin IDs to wait for — returning empty map");
+    logger.debug("getPluginHandleMap: no plugin IDs to wait for — returning empty map");
     return page.evaluateHandle(() => new Map());
   }
   try {

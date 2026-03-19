@@ -124,7 +124,7 @@ export class ObsidianE2ELauncher {
   ): Promise<ObsidianPageTextContext> {
     this.validateInitialization();
 
-    this.scopedLogger.info("Opening vault", options);
+    this.scopedLogger.debug("Opening vault", options);
 
     const shouldUseSandbox = options.sandbox && !process.env.CI;
     const executeAction =
@@ -142,9 +142,9 @@ export class ObsidianE2ELauncher {
       configuredPlugins.map((p) => ({ path: p.path, pluginId: p.pluginId }))
     );
     if (configuredPlugins.length) {
-      this.scopedLogger.info("Installing configured plugins");
+      this.scopedLogger.debug("Installing configured plugins");
       await this.setupPlugins(page);
-      this.scopedLogger.info(
+      this.scopedLogger.debug(
         `${this.pluginManager.getPlugins().length} plugins setup completed`
       );
     }
@@ -154,7 +154,7 @@ export class ObsidianE2ELauncher {
       this.pluginManager.getPlugins().map((p) => p.pluginId)
     );
     const context = await this.createVaultContext(page, this.pluginManager.getPlugins());
-    this.scopedLogger.info("Vault context created", context.vaultName);
+    this.scopedLogger.debug("Vault context created", context.vaultName);
 
     // Remove all notices
     const notices = await context.page

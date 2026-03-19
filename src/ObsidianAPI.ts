@@ -1,4 +1,4 @@
-import type { JSHandle, Locator, Page } from "playwright";
+import type { JSHandle, Page } from "playwright";
 import { expect } from "playwright/test";
 import invariant from "tiny-invariant";
 import { CMD_ID_CLOSE_TAB, CMD_ID_UNDO_CLOSE_TAB } from "./internal/constants";
@@ -10,20 +10,25 @@ interface ItemView {
   [key: string]: any;
 }
 
+interface WorkspaceLeafState {
+  active: boolean;
+  viewType: string | null;
+  filePath: string | null;
+  title: string | null;
+}
+
+interface WorkspaceEditorState {
+  viewType: string | null;
+  filePath: string | null;
+  content: string;
+}
+
 /**
  * シンプルで直感的なObsidian APIクラス
  */
 export class ObsidianAPI {
   public page: Page;
   private context: ObsidianPageTextContext;
-
-  // よく使うセレクタ
-  private readonly sel = {
-    activeLeaf: ".workspace-leaf.mod-active",
-    activeTab: ".workspace-tab-header.mod-active.is-active",
-    activeEditor: ".cm-content",
-    tabContainer: ".mod-root .workspace-tab-header-container-inner",
-  };
 
   constructor(context: ObsidianPageTextContext) {
     invariant(context.page, "Page context is required");
@@ -39,43 +44,124 @@ export class ObsidianAPI {
   }
 
   // ========================================
-  // Locators - よく使うロケーター
+  // Workspace State - DOMを介さない状態参照
   // ========================================
 
-  get activeLeaf(): Locator {
-    return this.page.locator(this.sel.activeLeaf);
+  async activeLeaf(): Promise<WorkspaceLeafState | null> {
+    return this.appState(() => {
+      const leaf = app.workspace.activeLeaf as any;
+      if (!leaf) {
+        return null;
+      }
+
+      const view = leaf.view as any;
+      const file = view?.file ?? app.workspace.getActiveFile();
+      return {
+        active: true,
+        viewType: typeof view?.getViewType === "function" ? view.getViewType() : null,
+        filePath: file?.path ?? null,
+        title:
+          typeof view?.getDisplayText === "function"
+            ? view.getDisplayText() ?? file?.basename ?? null
+            : file?.basename ?? null,
+      } satisfies WorkspaceLeafState;
+    });
   }
 
-  get activeEditor(): Locator {
-    return this.page.locator(`${this.sel.activeLeaf} ${this.sel.activeEditor}`);
+  async activeEditor(): Promise<WorkspaceEditorState | null> {
+    return this.appState(() => {
+      const leaf = app.workspace.activeLeaf as any;
+      const editor = app.workspace.activeEditor?.editor;
+      if (!leaf || !editor) {
+        return null;
+      }
+
+      const view = leaf.view as any;
+      const file = view?.file ?? app.workspace.getActiveFile();
+      return {
+        viewType: typeof view?.getViewType === "function" ? view.getViewType() : null,
+        filePath: file?.path ?? null,
+        content: editor.getValue() ?? "",
+      } satisfies WorkspaceEditorState;
+    });
   }
 
-  get activeTab(): Locator {
-    return this.page.locator(this.sel.activeTab);
+  async activeTab(): Promise<WorkspaceLeafState | null> {
+    return this.activeLeaf();
   }
 
-  get allTabs(): Locator {
-    return this.page.locator(this.sel.tabContainer);
+  async allTabs(): Promise<WorkspaceLeafState[]> {
+    return this.appState(() => {
+      const leaves: any[] = [];
+      app.workspace.iterateAllLeaves((leaf: any) => leaves.push(leaf));
+
+      return leaves.map((leaf) => {
+        const view = leaf.view as any;
+        const file = view?.file ?? null;
+        return {
+          active: leaf === app.workspace.activeLeaf,
+          viewType: typeof view?.getViewType === "function" ? view.getViewType() : null,
+          filePath: file?.path ?? null,
+          title:
+            typeof view?.getDisplayText === "function"
+              ? view.getDisplayText() ?? file?.basename ?? null
+              : file?.basename ?? null,
+        } satisfies WorkspaceLeafState;
+      });
+    });
   }
 
-  view(viewType: string): Locator {
-    return this.page.locator(
-      `${this.sel.activeLeaf} > .workspace-leaf-content[data-type="${viewType}"]`
-    );
+  async view(viewType: string): Promise<WorkspaceLeafState | null> {
+    return this.appState((type: string) => {
+      const leaf = app.workspace.activeLeaf as any;
+      const view = leaf?.view as any;
+      if (!leaf || typeof view?.getViewType !== "function" || view.getViewType() !== type) {
+        return null;
+      }
+
+      const file = view?.file ?? app.workspace.getActiveFile();
+      return {
+        active: true,
+        viewType: view.getViewType(),
+        filePath: file?.path ?? null,
+        title:
+          typeof view?.getDisplayText === "function"
+            ? view.getDisplayText() ?? file?.basename ?? null
+            : file?.basename ?? null,
+      } satisfies WorkspaceLeafState;
+    }, viewType);
   }
 
   vaultName(): Promise<string> {
     return this.appState(() => app.vault.getName());
   }
 
-  title(viewType: string): Locator {
-    return this.page.locator(`${this.sel.activeTab}[data-type="${viewType}"]`);
+  async title(viewType: string): Promise<string | null> {
+    const view = await this.view(viewType);
+    return view?.title ?? null;
   }
 
-  allViews(viewType: string): Locator {
-    return this.page.locator(
-      `.workspace-leaf > .workspace-leaf-content[data-type="${viewType}"]`
-    );
+  async allViews(viewType: string): Promise<WorkspaceLeafState[]> {
+    return this.appState((type: string) => {
+      const leaves: any[] = [];
+      app.workspace.iterateAllLeaves((leaf: any) => leaves.push(leaf));
+
+      return leaves
+        .filter((leaf) => leaf?.view?.getViewType?.() === type)
+        .map((leaf) => {
+          const view = leaf.view as any;
+          const file = view?.file ?? null;
+          return {
+            active: leaf === app.workspace.activeLeaf,
+            viewType: view.getViewType(),
+            filePath: file?.path ?? null,
+            title:
+              typeof view?.getDisplayText === "function"
+                ? view.getDisplayText() ?? file?.basename ?? null
+                : file?.basename ?? null,
+          } satisfies WorkspaceLeafState;
+        });
+    }, viewType);
   }
 
   // ========================================
@@ -112,16 +198,21 @@ export class ObsidianAPI {
   }
 
   async closeTab(): Promise<void> {
-    await this.activeLeaf.focus();
-    await this.command(CMD_ID_CLOSE_TAB);
+    const closed = await this.appState((commandId: string) => {
+      const leaf = app.workspace.activeLeaf as any;
+      if (leaf && typeof leaf.detach === "function") {
+        leaf.detach();
+        return true;
+      }
+
+      return app.commands.executeCommandById(commandId);
+    }, CMD_ID_CLOSE_TAB);
+
+    expect(closed).toBe(true);
   }
 
   async clickClose(): Promise<void> {
-    const closeBtn = this.page.locator(
-      `${this.sel.activeTab} .workspace-tab-header-inner-close-button`
-    );
-    await expect(closeBtn).toBeVisible();
-    await closeBtn.click();
+    await this.closeTab();
   }
 
   async undoClose(): Promise<void> {
@@ -201,9 +292,9 @@ export class ObsidianAPI {
   // ========================================
 
   async clear(): Promise<void> {
-    await this.activeEditor.focus();
-    await this.page.keyboard.press("Control+A");
-    await this.page.keyboard.press("Backspace");
+    await this.appState(() => {
+      app.workspace.activeEditor?.editor?.setValue("");
+    });
   }
 
   async content(): Promise<string | undefined> {
@@ -237,8 +328,9 @@ export class ObsidianAPI {
   }
 
   async write(content: string): Promise<void> {
-    await this.activeEditor.focus();
-    await this.activeEditor.fill(content);
+    await this.appState((nextContent: string) => {
+      app.workspace.activeEditor?.editor?.setValue(nextContent);
+    }, content);
   }
 
   // ========================================
@@ -352,23 +444,23 @@ export class ObsidianAPI {
   // ========================================
 
   async expectViews(viewType: string, count: number): Promise<void> {
-    await expect(this.allViews(viewType)).toHaveCount(count);
+    expect((await this.allViews(viewType)).length).toBe(count);
   }
 
   async expectTitle(viewType: string, title: string): Promise<void> {
-    await expect(this.title(viewType)).toHaveText(title);
+    expect(await this.title(viewType)).toBe(title);
   }
 
   async expectTitleContains(viewType: string, text: string): Promise<void> {
-    await expect(this.title(viewType)).toContainText(text);
+    expect(await this.title(viewType)).toContain(text);
   }
 
   async expectActiveType(type: string): Promise<void> {
-    await expect(this.activeTab).toHaveAttribute("data-type", type);
+    expect((await this.activeTab())?.viewType).toBe(type);
   }
 
   async expectTabs(count: number): Promise<void> {
-    await expect(this.allTabs).toHaveCount(count);
+    expect((await this.allTabs()).length).toBe(count);
   }
 
   async expectExists(path: string): Promise<void> {
@@ -380,12 +472,12 @@ export class ObsidianAPI {
   }
 
   async expectContent(content: string): Promise<void> {
-    const value = await this.page.evaluate(() => app.workspace.activeEditor?.editor?.getValue());
+    const value = await this.content();
     expect(value).toBe(content);
   }
 
   async expectContentContains(text: string): Promise<void> {
-    const value = await this.page.evaluate(() => app.workspace.activeEditor?.editor?.getValue());
+    const value = await this.content();
     expect(value).toContain(text);
   }
 
@@ -394,15 +486,11 @@ export class ObsidianAPI {
   // ========================================
 
   async titleBarText(): Promise<string | null> {
-    return await this.page
-      .locator(".workspace-leaf.mod-active .view-header-title")
-      .textContent();
+    return this.tabTitle();
   }
 
   async tabHeaderText(): Promise<string | null> {
-    return await this.page
-      .locator(".workspace-tab-header.mod-active .workspace-tab-header-inner")
-      .textContent();
+    return this.tabTitle();
   }
 
   async measureTime(action: () => Promise<void>): Promise<number> {

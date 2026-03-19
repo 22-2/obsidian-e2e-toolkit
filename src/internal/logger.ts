@@ -1,12 +1,18 @@
 import chalk from "chalk";
 import log from "loglevel";
 import prefix from "loglevel-plugin-prefix";
+import type { BrowserConsoleLoggingOptions } from "./types";
 
 type LogMethod = "trace" | "debug" | "info" | "warn" | "error";
 
 export interface LogScope {
   runId?: string;
   phase?: string;
+}
+
+export interface BrowserConsoleLoggerConfig {
+  scope?: LogScope;
+  options?: BrowserConsoleLoggingOptions;
 }
 
 // 色の設定
@@ -34,7 +40,7 @@ prefix.apply(log, {
 });
 
 // デフォルトレベルを設定
-log.setDefaultLevel("trace");
+log.setDefaultLevel("warn");
 
 // Test Setup Factory
 // ===================================================================
@@ -115,28 +121,116 @@ export function createRunId(testTitle?: string): string {
   return `${normalized || "test"}-${Date.now().toString(36)}`;
 }
 
-export function setupBrowserConsoleLogging(window: any, scope?: LogScope): void {
+const DEFAULT_BROWSER_CONSOLE_LOGGING_OPTIONS: Required<BrowserConsoleLoggingOptions> = {
+  enabledTypes: ["warning", "warn", "error", "assert"],
+  maxMessageLength: 300,
+  previewLength: 160,
+  ignoredMessagePatterns: ["Electron Security Warning"],
+  includeLocation: false,
+  includePageErrors: true,
+  includeRequestFailures: true,
+  includeHttpErrors: true,
+  httpErrorThreshold: 400,
+};
+
+function resolveBrowserConsoleLoggerConfig(
+  configOrScope?: BrowserConsoleLoggerConfig | LogScope,
+  maybeOptions?: BrowserConsoleLoggingOptions
+): { scope?: LogScope; options: Required<BrowserConsoleLoggingOptions> } {
+  const isScopeOnly =
+    !!configOrScope &&
+    (Object.prototype.hasOwnProperty.call(configOrScope, "runId") ||
+      Object.prototype.hasOwnProperty.call(configOrScope, "phase"));
+
+  const scope = isScopeOnly
+    ? (configOrScope as LogScope)
+    : (configOrScope as BrowserConsoleLoggerConfig | undefined)?.scope;
+  const providedOptions = isScopeOnly
+    ? maybeOptions
+    : (configOrScope as BrowserConsoleLoggerConfig | undefined)?.options;
+
+  return {
+    scope,
+    options: {
+      ...DEFAULT_BROWSER_CONSOLE_LOGGING_OPTIONS,
+      ...providedOptions,
+    },
+  };
+}
+
+function abbreviateMessage(
+  text: string,
+  options: Required<BrowserConsoleLoggingOptions>
+): string {
+  const maxLength =
+    options.maxMessageLength > 0
+      ? options.maxMessageLength
+      : Number.MAX_SAFE_INTEGER;
+  const previewLength = Math.min(
+    options.previewLength > 0 ? options.previewLength : maxLength,
+    maxLength
+  );
+  const normalized = text.trim();
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, previewLength)}... [${normalized.length} chars; truncated at ${maxLength}]`;
+}
+
+function toLogMethod(type: string): LogMethod {
+  if (["error", "assert"].includes(type)) {
+    return "error";
+  }
+
+  if (["warning", "warn"].includes(type)) {
+    return "warn";
+  }
+
+  if (type === "debug") {
+    return "debug";
+  }
+
+  return "info";
+}
+
+export function setupBrowserConsoleLogging(
+  window: any,
+  configOrScope?: BrowserConsoleLoggerConfig | LogScope,
+  maybeOptions?: BrowserConsoleLoggingOptions
+): void {
+  const { scope, options } = resolveBrowserConsoleLoggerConfig(
+    configOrScope,
+    maybeOptions
+  );
   const browserLogger = createScopedLogger("BrowserConsole", scope);
+  const enabledTypes = new Set(options.enabledTypes.map((type) => type.toLowerCase()));
+  const ignoredMessagePatterns = options.ignoredMessagePatterns.map(
+    (pattern) => new RegExp(pattern, "i")
+  );
 
   window.on("console", (msg: any) => {
-    const type = msg.type();
-    const text = msg.text();
-
-    if (text.length > 500) {
-      browserLogger.info(
-        `[BROWSER:${type.toUpperCase()}] [長文のため省略: ${
-          text.length
-        }文字]`
-      );
+    const type = msg.type().toLowerCase();
+    if (!enabledTypes.has(type)) {
       return;
     }
 
-    browserLogger.info(
-      `[BROWSER:${type.toUpperCase()}] ${text.substring(0, 100)}`
+    const text = msg.text();
+    if (ignoredMessagePatterns.some((pattern) => pattern.test(text))) {
+      return;
+    }
+
+    browserLogger[toLogMethod(type)](
+      `[BROWSER:${type.toUpperCase()}] ${abbreviateMessage(text, options)}`
     );
 
     const location = msg.location();
-    if (location.url && location.url !== "about:blank") {
+    if (
+      options.includeLocation &&
+      location.url &&
+      location.url !== "about:blank"
+    ) {
       browserLogger.debug(
         `[BROWSER:LOCATION] ${location.url}:${location.lineNumber}:${location.columnNumber}`
       );
@@ -144,6 +238,10 @@ export function setupBrowserConsoleLogging(window: any, scope?: LogScope): void 
   });
 
   window.on("pageerror", (error: Error) => {
+    if (!options.includePageErrors) {
+      return;
+    }
+
     browserLogger.error(`[BROWSER:PAGEERROR] ${error.message}`);
     if (error.stack) {
       browserLogger.debug(`[BROWSER:STACK] ${error.stack}`);
@@ -151,6 +249,10 @@ export function setupBrowserConsoleLogging(window: any, scope?: LogScope): void 
   });
 
   window.on("requestfailed", (request: any) => {
+    if (!options.includeRequestFailures) {
+      return;
+    }
+
     browserLogger.warn(`[BROWSER:REQUESTFAILED] ${request.url()}`);
     const failure = request.failure();
     if (failure) {
@@ -159,7 +261,10 @@ export function setupBrowserConsoleLogging(window: any, scope?: LogScope): void 
   });
 
   window.on("response", (response: any) => {
-    if (!response.ok()) {
+    if (
+      options.includeHttpErrors &&
+      response.status() >= options.httpErrorThreshold
+    ) {
       browserLogger.warn(
         `[BROWSER:HTTP] ${response.status()} ${response.statusText()} - ${response.url()}`
       );

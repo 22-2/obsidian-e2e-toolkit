@@ -91,12 +91,12 @@ export class PluginManager {
 
   private validatePluginPath(plugin: PluginConfig): boolean {
     if (!existsSync(plugin.path)) {
-      console.warn(`Plugin path not found: ${plugin.path}`);
+      logger.warn(`Plugin path not found: ${plugin.path}`);
       return false;
     }
 
     if (!existsSync(path.join(plugin.path, "manifest.json"))) {
-      console.warn(`manifest.json not found in: ${plugin.path}`);
+      logger.warn(`manifest.json not found in: ${plugin.path}`);
       return false;
     }
 
@@ -118,7 +118,7 @@ export class PluginManager {
       logger.debug(`Created symlink: ${sourcePath} -> ${destDir}`);
       return true;
     } catch (error) {
-      console.error(`Failed to create symlink for ${pluginId}:`, error);
+      logger.error(`Failed to create symlink for ${pluginId}:`, error);
       return false;
     }
   }

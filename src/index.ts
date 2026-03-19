@@ -72,8 +72,11 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       runLogger.debug("Configuring browser console logging");
       if (vaultOptions.enableBrowserConsoleLogging) {
         setupBrowserConsoleLogging(context.page, {
-          runId,
-          phase: "browser",
+          scope: {
+            runId,
+            phase: "browser",
+          },
+          options: vaultOptions.browserConsoleLogging,
         });
       }
 
