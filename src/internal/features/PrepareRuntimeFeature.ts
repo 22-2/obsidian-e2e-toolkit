@@ -7,36 +7,37 @@ import type { ServiceContext } from "../services/IService";
 import { SERVICE_IDS } from "../services/serviceIds";
 import type { IFeature } from "./IFeature";
 
-export class PrepareRuntimeFeature
-  implements IFeature<{ initialPage: Page }, { starterPage: Page }>
-{
-  async run(
-    input: { initialPage: Page },
-    ctx: ServiceContext,
-    services: ServiceContainer
-  ): Promise<{ starterPage: Page }> {
-    const storageManager = services.getValue<StorageManager>(
-      SERVICE_IDS.storageManager
-    );
-    const windowManager = services.getValue<WindowManager>(
-      SERVICE_IDS.windowManager
-    );
+export class PrepareRuntimeFeature implements IFeature<
+    { initialPage: Page },
+    { starterPage: Page }
+> {
+    async run(
+        input: { initialPage: Page },
+        ctx: ServiceContext,
+        services: ServiceContainer,
+    ): Promise<{ starterPage: Page }> {
+        const storageManager = services.getValue<StorageManager>(
+            SERVICE_IDS.storageManager,
+        );
+        const windowManager = services.getValue<WindowManager>(
+            SERVICE_IDS.windowManager,
+        );
 
-    await input.initialPage.evaluate(() => {
-      (window as any).playwright = true;
-    });
-    await PageWaiter.waitForPage(input.initialPage);
+        await input.initialPage.evaluate(() => {
+            (window as any).playwright = true;
+        });
+        await PageWaiter.waitForPage(input.initialPage);
 
-    await storageManager.clearAll();
-    await input.initialPage.evaluate(() => {
-      localStorage.setItem("language", "en");
-    });
-    await input.initialPage.reload({ waitUntil: "domcontentloaded" });
+        await storageManager.clearAll();
+        await input.initialPage.evaluate(() => {
+            localStorage.setItem("language", "en");
+        });
+        await input.initialPage.reload({ waitUntil: "domcontentloaded" });
 
-    const starterPage = await windowManager.ensureSingleWindow();
-    await PageWaiter.waitForPage(starterPage);
+        const starterPage = await windowManager.ensureSingleWindow();
+        await PageWaiter.waitForPage(starterPage);
 
-    ctx.runtime.activePage = starterPage;
-    return { starterPage };
-  }
+        ctx.runtime.activePage = starterPage;
+        return { starterPage };
+    }
 }

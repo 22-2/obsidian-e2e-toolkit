@@ -12,55 +12,55 @@ import { SANDBOX_VAULT_NAME } from "../constants";
 const logger = log.getLogger("StorageManager");
 
 export class StorageManager {
-  constructor(private electronApp: ElectronApplication) {}
+    constructor(private electronApp: ElectronApplication) {}
 
-  async clearAll(): Promise<void> {
-    await this.deleteUserDataFiles();
-    await this.clearBrowserStorage();
-  }
-
-  private async deleteUserDataFiles(): Promise<void> {
-    const userDataDir = await this.electronApp.evaluate(({ app }) =>
-      app.getPath("userData")
-    );
-
-    const pathsToDelete = [
-      path.join(userDataDir, "obsidian.json"),
-      path.join(userDataDir, SANDBOX_VAULT_NAME),
-    ];
-
-    for (const p of pathsToDelete) {
-      logger.debug("delete", p);
-      rmSync(p, { force: true, recursive: true });
+    async clearAll(): Promise<void> {
+        await this.deleteUserDataFiles();
+        await this.clearBrowserStorage();
     }
-  }
 
-  private async clearBrowserStorage(): Promise<void> {
-    const win = this.electronApp.windows()[0];
-    if (!win) return;
+    private async deleteUserDataFiles(): Promise<void> {
+        const userDataDir = await this.electronApp.evaluate(({ app }) =>
+            app.getPath("userData"),
+        );
 
-    logger.debug(chalk.magenta("Clearing browser storage"));
+        const pathsToDelete = [
+            path.join(userDataDir, "obsidian.json"),
+            path.join(userDataDir, SANDBOX_VAULT_NAME),
+        ];
 
-    const success = await win.evaluate(async () => {
-      const webContents = (
-        window as any
-      ).electron.remote.BrowserWindow.getFocusedWindow()
-        ?.webContents as WebContents;
+        for (const p of pathsToDelete) {
+            logger.debug("delete", p);
+            rmSync(p, { force: true, recursive: true });
+        }
+    }
 
-      if (!webContents) return false;
+    private async clearBrowserStorage(): Promise<void> {
+        const win = this.electronApp.windows()[0];
+        if (!win) return;
 
-      webContents.session.flushStorageData();
-      await webContents.session.clearStorageData({
-        storages: ["indexdb", "localstorage", "websql"],
-      });
-      await webContents.session.clearCache();
-      return true;
-    });
+        logger.debug(chalk.magenta("Clearing browser storage"));
 
-    const message = success
-      ? chalk.magenta("localStorage cleared.")
-      : chalk.red("failed to clear localStorage");
+        const success = await win.evaluate(async () => {
+            const webContents = (
+                window as any
+            ).electron.remote.BrowserWindow.getFocusedWindow()
+                ?.webContents as WebContents;
 
-    logger.debug(message);
-  }
+            if (!webContents) return false;
+
+            webContents.session.flushStorageData();
+            await webContents.session.clearStorageData({
+                storages: ["indexdb", "localstorage", "websql"],
+            });
+            await webContents.session.clearCache();
+            return true;
+        });
+
+        const message = success
+            ? chalk.magenta("localStorage cleared.")
+            : chalk.red("failed to clear localStorage");
+
+        logger.debug(message);
+    }
 }
