@@ -59,6 +59,8 @@ export class ObsidianE2ELauncher {
 
     const initialPage = await electronApp.waitForEvent("window");
     logger.debug("initial window event received");
+
+    
     await this.initializePlaywrightMode(initialPage);
     await PageWaiter.waitForPage(initialPage);
 
@@ -67,6 +69,9 @@ export class ObsidianE2ELauncher {
     logger.debug("starter ready");
 
     await this.storageManager.clearAll();
+    await initialPage.evaluate(() => {
+      localStorage.setItem("language", "en")
+    });
     logger.debug("storage cleared");
     await initialPage.reload({ waitUntil: "domcontentloaded" });
     logger.debug("initial page reloaded");
