@@ -1,9 +1,5 @@
-import path from "node:path";
 import { expect, test } from "obsidian-e2e-toolkit";
-
-import { fileURLToPath } from "url";
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { externalPluginPath } from "./test-utils";
 
 test.use({
     vaultOptions: {
@@ -11,7 +7,7 @@ test.use({
         fresh: true,
         plugins: [
             {
-                path: path.resolve(__dirname, "..", "myfiles", "obsidian42-brat"),
+                path: externalPluginPath("obsidian42-brat"),
             },
         ],
     },

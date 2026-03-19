@@ -18,70 +18,88 @@ import "./internal/logger";
  */
 
 import { test as base } from "@playwright/test";
+import { merge } from "es-toolkit";
 import fs from "fs/promises";
 import log from "loglevel";
 import os from "os";
 import path from "path";
-import { ObsidianAPI } from "./ObsidianAPI";
 import { DEFAULT_VAULT_OPTIONS, getResolvedPaths } from "./internal/constants";
 import { ObsidianE2ELauncher } from "./internal/launcher";
-import { setupBrowserConsoleLogging, toggleLoggerBy } from "./internal/logger";
+import {
+    createRunId,
+    createScopedLogger,
+    setupBrowserConsoleLogging,
+    toggleLoggerBy
+} from "./internal/logger";
 import type { TestFixtures, WorkerFixtures } from "./internal/types";
 import { createObsidianContext, handleTestError } from "./internal/utils";
-import { merge } from "es-toolkit";
+import { ObsidianAPI } from "./ObsidianAPI";
 
 export const logger = log.getLogger("obsidianSetup");
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
-  tempDir: async ({}, use) => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "obsidian-e2e-"));
-    await use(dir);
-    // Clean up both user data dir and vault dir
-    await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
-    await fs.rm(`${dir}-vault`, { recursive: true, force: true }).catch(() => {});
-  },
-  vaultOptions: [DEFAULT_VAULT_OPTIONS, { option: true }],
-  obsidian: async ({ vaultOptions, tempDir }, use, testInfo) => {
-    const paths = getResolvedPaths();
+    tempDir: async ({}, use) => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), "obsidian-e2e-"));
+        await use(dir);
+        // Clean up both user data dir and vault dir
+        await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+        await fs
+            .rm(`${dir}-vault`, { recursive: true, force: true })
+            .catch(() => {});
+    },
+    vaultOptions: [DEFAULT_VAULT_OPTIONS, { option: true }],
+    obsidian: async ({ vaultOptions, tempDir }, use, testInfo) => {
+        const paths = getResolvedPaths();
+        const runId = createRunId(testInfo.title);
+        const runLogger = createScopedLogger("obsidianSetup", {
+            runId,
+            phase: "fixture",
+        });
 
-    const launcher = new ObsidianE2ELauncher({
-      paths,
-      options: merge(DEFAULT_VAULT_OPTIONS, vaultOptions),
-      tempUserDataDir: tempDir,
-    });
+        const launcher = new ObsidianE2ELauncher({
+            paths,
+            options: merge(DEFAULT_VAULT_OPTIONS, vaultOptions),
+            tempUserDataDir: tempDir,
+            runId,
+        });
 
-    try {
-      toggleLoggerBy(vaultOptions.logLevel || "warn");
-      logger.debug("Launching Obsidian");
-      await launcher.initialize();
+        try {
+            toggleLoggerBy(vaultOptions.logLevel || "warn");
+            runLogger.info("Launching Obsidian and creating context");
+            const context = await createObsidianContext(launcher);
 
-      logger.debug("Creating Obsidian context");
-      const context = await createObsidianContext(launcher);
+            runLogger.debug("Configuring browser console logging");
+            if (vaultOptions.enableBrowserConsoleLogging) {
+                setupBrowserConsoleLogging(context.page, {
+                    scope: {
+                        runId,
+                        phase: "browser",
+                    },
+                    options: vaultOptions.browserConsoleLogging,
+                });
+            }
 
-      logger.debug("Enabling browser console logging");
-      if (vaultOptions.enableBrowserConsoleLogging) {
-        setupBrowserConsoleLogging(context.page);
-      }
+            const api = new ObsidianAPI(context);
 
-      const api = new ObsidianAPI(context);
+            runLogger.info("Entering test body");
+            await use(api);
+            runLogger.info("Test body completed");
 
-      logger.debug("Entering test");
-      await use(api);
-      logger.debug("Test completed");
-
-      handleTestError(testInfo);
-    } catch (err: any) {
-      logger.error(`Error during test execution: ${err.message || err}`);
-      if (!process.env.CI) {
-        // Uncomment for debugging: await launcher.getCurrentPage()?.pause();
-      }
-      throw err;
-    } finally {
-      logger.debug("Cleaning up Obsidian");
-      await launcher.cleanup();
-      logger.debug("Cleanup completed");
-    }
-  },
+            handleTestError(testInfo);
+        } catch (err: any) {
+            runLogger.error(
+                `Error during test execution: ${err.message || err}`,
+            );
+            if (!process.env.CI) {
+                // Uncomment for debugging: await launcher.getCurrentPage()?.pause();
+            }
+            throw err;
+        } finally {
+            runLogger.info("Cleaning up Obsidian");
+            await launcher.cleanup();
+            runLogger.info("Cleanup completed");
+        }
+    },
 });
 
 // ===================================================================
@@ -89,6 +107,6 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 // ===================================================================
 
 export { expect } from "@playwright/test";
-export { ObsidianAPI } from "./ObsidianAPI";
-export type { VaultOptions } from "./internal/types";
 export { fetchPlugin } from "./fetchPlugin";
+export type { VaultOptions } from "./internal/types";
+export { ObsidianAPI } from "./ObsidianAPI";

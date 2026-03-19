@@ -1,7 +1,7 @@
 
 import path from "node:path";
 import { expect, test } from "obsidian-e2e-toolkit";
-import { ensureBuilt, pluginUnderTestId, repoRoot } from "./test-utils";
+import { ensureBuilt, externalPluginPath, pluginUnderTestId, repoRoot } from "./test-utils";
 
 const lineagePluginId = "lineage";
 
@@ -16,7 +16,7 @@ function useLineagePlugin() {
                     path: repoRoot,
                 },
                 {
-                    path: path.resolve(repoRoot, "myfiles", lineagePluginId),
+                    path: externalPluginPath(lineagePluginId),
                 },
             ],
         },

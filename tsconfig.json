@@ -1,30 +1,20 @@
 {
-  "compilerOptions": {
-    "target": "esnext",
-    "module": "ESNext",
-    "lib": [
-      "esnext",
-      "dom"
-    ],
-    "declaration": true,
-    "outDir": "./dist",
-    "rootDir": "src",
-    "declarationDir": "./dist/esm",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "types": [
-      "obsidian-typings"
-    ]
-  },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-  ]
+    "compilerOptions": {
+        "target": "esnext",
+        "module": "ESNext",
+        "lib": ["esnext", "dom"],
+        "declaration": true,
+        "outDir": "./dist",
+        "rootDir": "src",
+        "declarationDir": "./dist/esm",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "moduleResolution": "bundler",
+        "resolveJsonModule": true,
+        "isolatedModules": true
+    },
+    "include": ["src/**/*"],
+    "exclude": ["node_modules"]
 }

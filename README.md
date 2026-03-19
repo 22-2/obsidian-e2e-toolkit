@@ -65,6 +65,7 @@ test("plugin activation", async ({ obsidian }) => {
 - `fresh?: boolean` - 毎回クリーンなvaultを作るか
 - `logLevel?: "trace" | "debug" | "info" | "warn" | "error" | "silent"`
 - `enableBrowserConsoleLogging?: boolean`
+- `browserConsoleLogging?: { enabledTypes?: string[]; maxMessageLength?: number; previewLength?: number; ignoredMessagePatterns?: string[]; includeLocation?: boolean; includePageErrors?: boolean; includeRequestFailures?: boolean; includeHttpErrors?: boolean; httpErrorThreshold?: number }`
 - `plugins: Array<{ path: string; pluginId: string; symlink?: boolean }>`
 
 ## APIリファレンス
