@@ -1,7 +1,15 @@
 import * as asar from "@electron/asar";
 import chalk from "chalk";
 import { createReadStream, createWriteStream, existsSync } from "fs";
-import { copyFile, mkdir, rename, rm, cp } from "fs/promises";
+import {
+    copyFile,
+    mkdir,
+    rename,
+    rm,
+    cp,
+    readFile,
+    writeFile,
+} from "fs/promises";
 import { findDown } from "find-up";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -13,51 +21,73 @@ import * as tar from "tar";
 // Utility Functions
 // =============================================================================
 const log = {
-  info: (msg) => console.log(chalk.cyan(msg)),
-  success: (msg) => console.log(chalk.green(msg)),
-  warn: (msg) => console.log(chalk.yellow(msg)),
-  error: (msg) => console.error(chalk.red(msg)),
+    info: (msg) => console.log(chalk.cyan(msg)),
+    success: (msg) => console.log(chalk.green(msg)),
+    warn: (msg) => console.log(chalk.yellow(msg)),
+    error: (msg) => console.error(chalk.red(msg)),
 };
 
-// Download file from URL
-async function downloadFile(url, destPath) {
-  log.info(`Downloading from ${url}...`);
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Download failed: ${response.status} ${response.statusText}`);
-  }
+function getGitHubRequestHeaders() {
+    const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+    const headers = {
+        Accept: "application/vnd.github+json",
+        "User-Agent": "obsidian-e2e-toolkit-setup",
+    };
+    if (token) {
+        return {
+            ...headers,
+            Authorization: `Bearer ${token}`,
+        };
+    }
+    return headers;
+}
 
-  const writer = createWriteStream(destPath);
-  await pipeline(response.body, writer);
-  log.success(`Downloaded to ${destPath}`);
+// Download file from URL
+async function downloadFile(url, destPath, headers = undefined) {
+    log.info(`Downloading from ${url}...`);
+    const response = await fetch(url, {
+        headers,
+    });
+    if (!response.ok) {
+        throw new Error(
+            `Download failed: ${response.status} ${response.statusText}`,
+        );
+    }
+
+    const writer = createWriteStream(destPath);
+    await pipeline(response.body, writer);
+    log.success(`Downloaded to ${destPath}`);
 }
 
 // Get latest Obsidian release from GitHub API
-async function getLatestObsidianRelease() {
-  log.info("Fetching latest Obsidian release from GitHub...");
-  const response = await fetch(
-    "https://api.github.com/repos/obsidianmd/obsidian-releases/releases/latest"
-  );
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch release info: ${response.status} ${response.statusText}`
+async function getLatestObsidianRelease(headers) {
+    log.info("Fetching latest Obsidian release from GitHub...");
+    const response = await fetch(
+        "https://api.github.com/repos/obsidianmd/obsidian-releases/releases/latest",
+        {
+            headers,
+        },
     );
-  }
-  const data = await response.json();
-  return data;
+    if (!response.ok) {
+        throw new Error(
+            `Failed to fetch release info: ${response.status} ${response.statusText}`,
+        );
+    }
+    const data = await response.json();
+    return data;
 }
 
 // Find asset by name pattern
 function findAssetByName(assets, pattern) {
-  return assets.find((asset) => asset.name.match(pattern));
+    return assets.find((asset) => asset.name.match(pattern));
 }
 
 // Extract tar.gz file
 async function extractTarGz(tarGzPath, extractDir) {
-  await tar.extract({
-    file: tarGzPath,
-    cwd: extractDir,
-  });
+    await tar.extract({
+        file: tarGzPath,
+        cwd: extractDir,
+    });
 }
 
 // =============================================================================
@@ -65,157 +95,251 @@ async function extractTarGz(tarGzPath, extractDir) {
 // =============================================================================
 
 async function main() {
-  log.success("Starting E2E setup process...");
+    log.success("Starting E2E setup process...");
 
-  // --- Define Paths ---
-  const __filename = fileURLToPath(import.meta.url);
-  const scriptDir = path.dirname(__filename);
-  const repoRoot = path.resolve(scriptDir, "..");
+    // --- Define Paths ---
+    const __filename = fileURLToPath(import.meta.url);
+    const scriptDir = path.dirname(__filename);
+    const repoRoot = path.resolve(scriptDir, "..");
 
-  const initCwd = process.env.INIT_CWD || "";
-  const toolkitHome =
-    process.env.OBSIDIAN_E2E_TOOLKIT_HOME ||
-    (initCwd && path.resolve(initCwd) !== path.resolve(repoRoot)
-      ? initCwd
-      : repoRoot);
-  const toolkitCacheRoot = path.join(toolkitHome, "obsidian-e2e-toolkit-assets");
-
-  const obsidianUnpackedPath = path.join(toolkitCacheRoot, "obsidian-unpacked");
-  const cacheDir = path.join(toolkitCacheRoot, "cache");
-  const appAsarPath = path.join(cacheDir, "app.asar");
-  const obsidianAsarGzPath = path.join(cacheDir, "obsidian.asar.gz");
-  const obsidianAsarPath = path.join(cacheDir, "obsidian.asar");
-  const appTarGzPath = path.join(cacheDir, "app.tar.gz");
-  const appExtractDir = path.join(cacheDir, "app-extracted");
-
-  try {
-    // If assets are already unpacked, skip the heavy download/unpack.
-    if (existsSync(obsidianUnpackedPath) && existsSync(path.join(obsidianUnpackedPath, "main.cjs"))) {
-      log.info("Obsidian assets already unpacked. Skipping setup.");
-      return;
-    }
-    // --- Download Assets ---
-    log.info("\nFetching Obsidian release assets...");
-
-    // Create cache directory
-    await mkdir(cacheDir, { recursive: true });
-
-    // Get release info
-    const release = await getLatestObsidianRelease();
-    log.success(`Found Obsidian ${release.tag_name}`);
-
-    // Find and download app.tar.gz (Linux application archive)
-    const appTarAsset = findAssetByName(
-      release.assets,
-      /obsidian-[\d.]+\.tar\.gz$/
+    const initCwd = process.env.INIT_CWD || "";
+    const toolkitHome =
+        process.env.OBSIDIAN_E2E_TOOLKIT_HOME ||
+        (initCwd && path.resolve(initCwd) !== path.resolve(repoRoot)
+            ? initCwd
+            : repoRoot);
+    const toolkitCacheRoot = path.join(
+        toolkitHome,
+        "obsidian-e2e-toolkit-assets",
     );
-    if (!appTarAsset) {
-      throw new Error("Could not find obsidian-*.tar.gz in release assets");
-    }
 
-    if (!existsSync(appAsarPath)) {
-      if (!existsSync(appTarGzPath)) {
-        await downloadFile(appTarAsset.browser_download_url, appTarGzPath);
-      }
+    const obsidianUnpackedPath = path.join(
+        toolkitCacheRoot,
+        "obsidian-unpacked",
+    );
+    const cacheDir = path.join(toolkitCacheRoot, "cache");
+    const appAsarPath = path.join(cacheDir, "app.asar");
+    const obsidianAsarGzPath = path.join(cacheDir, "obsidian.asar.gz");
+    const obsidianAsarPath = path.join(cacheDir, "obsidian.asar");
+    const appTarGzPath = path.join(cacheDir, "app.tar.gz");
+    const appExtractDir = path.join(cacheDir, "app-extracted");
+    const releaseCachePath = path.join(cacheDir, "release-latest.json");
+    const githubHeaders = getGitHubRequestHeaders();
 
-      // Extract tar.gz to get app.asar from resources/app.asar
-      log.info("Extracting app.tar.gz to find app.asar...");
-      await mkdir(appExtractDir, { recursive: true });
-      await extractTarGz(appTarGzPath, appExtractDir);
+    try {
+        // If assets are already unpacked, skip the heavy download/unpack.
+        if (
+            existsSync(obsidianUnpackedPath) &&
+            existsSync(path.join(obsidianUnpackedPath, "main.cjs"))
+        ) {
+            log.info("Obsidian assets already unpacked. Skipping setup.");
+            return;
+        }
+        // --- Download Assets ---
+        log.info("\nFetching Obsidian release assets...");
 
-      // Find app.asar in extracted files (usually at obsidian-*/resources/app.asar)
-      try {
-          const findResult = await findDown("app.asar", { cwd: appExtractDir, depth: 10, type: 'file' });
+        // Create cache directory
+        await mkdir(cacheDir, { recursive: true });
 
-        if (!findResult) {
-          throw new Error("Could not find app.asar in extracted tar.gz archive");
+        const needAppTarAsset =
+            !existsSync(appAsarPath) && !existsSync(appTarGzPath);
+        const needObsidianAsarGzAsset =
+            !existsSync(obsidianAsarPath) && !existsSync(obsidianAsarGzPath);
+
+        let release;
+        const ensureRelease = async () => {
+            if (release) return release;
+
+            if (existsSync(releaseCachePath)) {
+                try {
+                    const cachedReleaseRaw = await readFile(
+                        releaseCachePath,
+                        "utf8",
+                    );
+                    const cachedRelease = JSON.parse(cachedReleaseRaw);
+                    if (cachedRelease?.assets?.length) {
+                        log.info(
+                            `Using cached release metadata (${cachedRelease.tag_name || "unknown"})`,
+                        );
+                        release = cachedRelease;
+                        return release;
+                    }
+                } catch (err) {
+                    log.warn(
+                        "Failed to read cached release metadata. Falling back to GitHub API.",
+                    );
+                }
+            }
+
+            release = await getLatestObsidianRelease(githubHeaders);
+            log.success(`Found Obsidian ${release.tag_name}`);
+
+            try {
+                await writeFile(
+                    releaseCachePath,
+                    JSON.stringify(release, null, 2),
+                    "utf8",
+                );
+            } catch (err) {
+                log.warn(
+                    "Failed to cache release metadata. Continuing without metadata cache.",
+                );
+            }
+
+            return release;
+        };
+
+        let appTarAsset;
+        if (needAppTarAsset) {
+            const rel = await ensureRelease();
+            appTarAsset = findAssetByName(
+                rel.assets,
+                /obsidian-[\d.]+\.tar\.gz$/,
+            );
+            if (!appTarAsset) {
+                throw new Error(
+                    "Could not find obsidian-*.tar.gz in release assets",
+                );
+            }
         }
 
-        log.info(`Found app.asar at ${findResult}`);
-        await copyFile(findResult, appAsarPath);
-        log.success("Copied app.asar to cache");
+        if (!existsSync(appAsarPath)) {
+            if (!existsSync(appTarGzPath)) {
+                await downloadFile(
+                    appTarAsset.browser_download_url,
+                    appTarGzPath,
+                    githubHeaders,
+                );
+            }
 
-        // If the archive had an accompanying unpacked directory, copy it too.
-        const srcUnpacked = `${findResult}.unpacked`;
-        const destUnpacked = `${appAsarPath}.unpacked`;
-        if (existsSync(srcUnpacked)) {
-          log.info("Copying app.asar.unpacked to cache...");
-          await cp(srcUnpacked, destUnpacked, { recursive: true });
-          log.success("Copied app.asar.unpacked to cache");
+            // Extract tar.gz to get app.asar from resources/app.asar
+            log.info("Extracting app.tar.gz to find app.asar...");
+            await mkdir(appExtractDir, { recursive: true });
+            await extractTarGz(appTarGzPath, appExtractDir);
+
+            // Find app.asar in extracted files (usually at obsidian-*/resources/app.asar)
+            try {
+                const findResult = await findDown("app.asar", {
+                    cwd: appExtractDir,
+                    depth: 10,
+                    type: "file",
+                });
+
+                if (!findResult) {
+                    throw new Error(
+                        "Could not find app.asar in extracted tar.gz archive",
+                    );
+                }
+
+                log.info(`Found app.asar at ${findResult}`);
+                await copyFile(findResult, appAsarPath);
+                log.success("Copied app.asar to cache");
+
+                // If the archive had an accompanying unpacked directory, copy it too.
+                const srcUnpacked = `${findResult}.unpacked`;
+                const destUnpacked = `${appAsarPath}.unpacked`;
+                if (existsSync(srcUnpacked)) {
+                    log.info("Copying app.asar.unpacked to cache...");
+                    await cp(srcUnpacked, destUnpacked, { recursive: true });
+                    log.success("Copied app.asar.unpacked to cache");
+                }
+
+                // Cleanup extracted directory
+                await rm(appExtractDir, { recursive: true, force: true });
+            } catch (err) {
+                log.error("Failed to extract app.asar from tar.gz");
+                throw err;
+            }
+        } else {
+            log.info(`Using cached ${appAsarPath}`);
         }
 
-        // Cleanup extracted directory
-        await rm(appExtractDir, { recursive: true, force: true });
-      } catch (err) {
-        log.error("Failed to extract app.asar from tar.gz");
-        throw err;
-      }
-    } else {
-      log.info(`Using cached ${appAsarPath}`);
-    }
+        // Find and download obsidian.asar.gz
+        let obsidianAsarAsset;
+        if (needObsidianAsarGzAsset) {
+            const rel = await ensureRelease();
+            obsidianAsarAsset = findAssetByName(rel.assets, /\.asar\.gz$/);
+        }
+        if (
+            obsidianAsarAsset ||
+            existsSync(obsidianAsarGzPath) ||
+            existsSync(obsidianAsarPath)
+        ) {
+            if (
+                !existsSync(obsidianAsarGzPath) &&
+                !existsSync(obsidianAsarPath)
+            ) {
+                await downloadFile(
+                    obsidianAsarAsset.browser_download_url,
+                    obsidianAsarGzPath,
+                    githubHeaders,
+                );
+            } else if (existsSync(obsidianAsarGzPath)) {
+                log.info(`Using cached ${obsidianAsarGzPath}`);
+            }
 
-    // Find and download obsidian.asar.gz
-    const obsidianAsarAsset = findAssetByName(release.assets, /\.asar\.gz$/);
-    if (obsidianAsarAsset) {
-      if (!existsSync(obsidianAsarGzPath)) {
-        await downloadFile(obsidianAsarAsset.browser_download_url, obsidianAsarGzPath);
-      } else {
-        log.info(`Using cached ${obsidianAsarGzPath}`);
-      }
+            // Decompress obsidian.asar.gz if not already decompressed
+            if (
+                !existsSync(obsidianAsarPath) &&
+                existsSync(obsidianAsarGzPath)
+            ) {
+                log.info("Decompressing obsidian.asar.gz...");
+                await pipeline(
+                    createReadStream(obsidianAsarGzPath),
+                    zlib.createGunzip(),
+                    createWriteStream(obsidianAsarPath),
+                );
+                log.success("Decompressed obsidian.asar");
+            } else if (existsSync(obsidianAsarPath)) {
+                log.info(`Using cached ${obsidianAsarPath}`);
+            }
+        } else {
+            throw new Error(
+                "Could not find obsidian.asar.gz in release assets",
+            );
+        }
 
-      // Decompress obsidian.asar.gz if not already decompressed
-      if (!existsSync(obsidianAsarPath)) {
-        log.info("Decompressing obsidian.asar.gz...");
-        await pipeline(
-          createReadStream(obsidianAsarGzPath),
-          zlib.createGunzip(),
-          createWriteStream(obsidianAsarPath)
+        // --- Unpack Assets ---
+        log.info("\nUnpacking Obsidian ASAR archives...");
+
+        // Clean up and create directory
+        log.info("Cleaning up previous unpack directory...");
+        if (existsSync(obsidianUnpackedPath)) {
+            await rm(obsidianUnpackedPath, { recursive: true, force: true });
+        }
+        await mkdir(obsidianUnpackedPath, { recursive: true });
+
+        // Extract app.asar
+        log.info(`Extracting ${appAsarPath} to ${obsidianUnpackedPath}`);
+        asar.extractAll(appAsarPath, obsidianUnpackedPath);
+
+        // Rename main.js to main.cjs
+        const mainJsPath = path.join(obsidianUnpackedPath, "main.js");
+        const mainCjsPath = path.join(obsidianUnpackedPath, "main.cjs");
+        if (existsSync(mainJsPath)) {
+            log.info("Renaming main.js to main.cjs...");
+            await rename(mainJsPath, mainCjsPath);
+            log.success("Renaming completed.");
+        } else {
+            log.warn(
+                "Warning: main.js not found after extraction. Skipping rename.",
+            );
+        }
+
+        // Copy obsidian.asar
+        log.info(`Copying ${obsidianAsarPath} to ${obsidianUnpackedPath}/`);
+        await copyFile(
+            obsidianAsarPath,
+            path.join(obsidianUnpackedPath, "obsidian.asar"),
         );
-        log.success("Decompressed obsidian.asar");
-      }
-    } else {
-      throw new Error("Could not find obsidian.asar.gz in release assets");
+
+        log.success("\nAsset unpacking completed.");
+        log.success("E2E setup process finished successfully.");
+    } catch (error) {
+        log.error("\nE2E setup process failed:");
+        log.error(error);
+        process.exit(1);
     }
-
-    // --- Unpack Assets ---
-    log.info("\nUnpacking Obsidian ASAR archives...");
-
-    // Clean up and create directory
-    log.info("Cleaning up previous unpack directory...");
-    if (existsSync(obsidianUnpackedPath)) {
-      await rm(obsidianUnpackedPath, { recursive: true, force: true });
-    }
-    await mkdir(obsidianUnpackedPath, { recursive: true });
-
-    // Extract app.asar
-    log.info(`Extracting ${appAsarPath} to ${obsidianUnpackedPath}`);
-    asar.extractAll(appAsarPath, obsidianUnpackedPath);
-
-    // Rename main.js to main.cjs
-    const mainJsPath = path.join(obsidianUnpackedPath, "main.js");
-    const mainCjsPath = path.join(obsidianUnpackedPath, "main.cjs");
-    if (existsSync(mainJsPath)) {
-      log.info("Renaming main.js to main.cjs...");
-      await rename(mainJsPath, mainCjsPath);
-      log.success("Renaming completed.");
-    } else {
-      log.warn("Warning: main.js not found after extraction. Skipping rename.");
-    }
-
-    // Copy obsidian.asar
-    log.info(`Copying ${obsidianAsarPath} to ${obsidianUnpackedPath}/`);
-    await copyFile(
-      obsidianAsarPath,
-      path.join(obsidianUnpackedPath, "obsidian.asar")
-    );
-
-    log.success("\nAsset unpacking completed.");
-    log.success("E2E setup process finished successfully.");
-  } catch (error) {
-    log.error("\nE2E setup process failed:");
-    log.error(error);
-    process.exit(1);
-  }
 }
 
 // =============================================================================

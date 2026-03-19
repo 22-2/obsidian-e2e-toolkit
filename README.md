@@ -21,6 +21,31 @@ pnpm add -D obsidian-e2e-toolkit
 node node_modules/obsidian-e2e-toolkit/setup.mjs
 ```
 
+## CI でのレートリミット対策
+
+`setup.mjs` は以下を満たす場合、GitHub API を呼ばずにキャッシュだけで処理します。
+
+- `obsidian-e2e-toolkit-assets/obsidian-unpacked/main.cjs` が存在する
+- または `obsidian-e2e-toolkit-assets/cache` 配下に必要な ASAR キャッシュが存在する
+
+GitHub Actions では、必要に応じて `GITHUB_TOKEN`（または `GH_TOKEN`）を環境変数に渡してください。
+
+```yaml
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+キャッシュ対象の例:
+
+```yaml
+- uses: actions/cache@v4
+  with:
+    path: |
+      obsidian-e2e-toolkit-assets
+      node_modules/obsidian-e2e-toolkit/obsidian-e2e-toolkit-assets
+    key: ${{ runner.os }}-obsidian-e2e-${{ hashFiles('pnpm-lock.yaml') }}
+```
+
 ## クイックスタート
 
 Playwright のテストはそのまま使い、import だけこのパッケージの `test` を使います（fixtureとして `obsidian: ObsidianAPI` が生えます）。
