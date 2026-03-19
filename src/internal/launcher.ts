@@ -7,17 +7,17 @@ import { OpenStarterFeature } from "./features/OpenStarterFeature";
 import { OpenVaultFeature } from "./features/OpenVaultFeature";
 import { PrepareRuntimeFeature } from "./features/PrepareRuntimeFeature";
 import { SetupPluginsFeature } from "./features/SetupPluginsFeature";
-import { IPCBridge } from "./managers/ipc";
 import { createScopedLogger } from "./logger";
-import { ElectronAppManager } from "./managers/ElectronAppManager";
-import { PluginManager, getActualPluginId } from "./managers/PluginManager";
-import { StorageManager } from "./managers/StorageManager";
-import { VaultManager } from "./managers/VaultManager";
-import { WindowManager } from "./managers/WindowManager";
 import type { ResolvedPaths } from "./path";
+import { ElectronAppManager } from "./services/ElectronAppManager";
+import { IPCBridge } from "./services/ipc";
 import type { ServiceContext } from "./services/IService";
+import { getActualPluginId, PluginManager } from "./services/PluginManager";
 import { ServiceContainer, ValueService } from "./services/ServiceContainer";
 import { SERVICE_IDS } from "./services/serviceIds";
+import { StorageManager } from "./services/StorageManager";
+import { VaultManager } from "./services/VaultManager";
+import { WindowManager } from "./services/WindowManager";
 import type { TestContext, VaultOptions } from "./types";
 
 export interface LauncherConfig {

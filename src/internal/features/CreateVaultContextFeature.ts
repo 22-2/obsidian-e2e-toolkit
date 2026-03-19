@@ -1,11 +1,11 @@
+import type { Page } from "playwright";
+import type { ElectronAppManager } from "../services/ElectronAppManager";
+import type { ServiceContext } from "../services/IService";
+import type { ServiceContainer } from "../services/ServiceContainer";
+import { SERVICE_IDS } from "../services/serviceIds";
 import type { ObsidianPageTextContext, PluginConfig } from "../types";
 import { getPluginHandleMap } from "../utils";
-import type { ElectronAppManager } from "../managers/ElectronAppManager";
-import type { ServiceContainer } from "../services/ServiceContainer";
-import type { ServiceContext } from "../services/IService";
-import { SERVICE_IDS } from "../services/serviceIds";
 import type { IFeature } from "./IFeature";
-import type { Page } from "playwright";
 
 export class CreateVaultContextFeature implements IFeature<
     { page: Page; plugins?: PluginConfig[] },

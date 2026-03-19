@@ -1,10 +1,10 @@
 import type { Page } from "playwright";
-import { PageWaiter } from "../managers/PageWaiter";
-import type { StorageManager } from "../managers/StorageManager";
-import type { WindowManager } from "../managers/WindowManager";
-import type { ServiceContainer } from "../services/ServiceContainer";
 import type { ServiceContext } from "../services/IService";
+import { PageWaiter } from "../services/PageWaiter";
+import type { ServiceContainer } from "../services/ServiceContainer";
 import { SERVICE_IDS } from "../services/serviceIds";
+import type { StorageManager } from "../services/StorageManager";
+import type { WindowManager } from "../services/WindowManager";
 import type { IFeature } from "./IFeature";
 
 export class PrepareRuntimeFeature implements IFeature<

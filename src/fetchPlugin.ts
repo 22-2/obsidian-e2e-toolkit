@@ -1,9 +1,7 @@
 import { spawnSync } from "child_process";
-import path from "path";
 import fs from "fs";
 import { writeFile } from "fs/promises";
-import os from "os";
-import extract from "extract-zip";
+import path from "path";
 import { createScopedLogger } from "./internal/logger";
 
 const logger = createScopedLogger("fetchPlugin");

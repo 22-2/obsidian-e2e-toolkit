@@ -1,9 +1,9 @@
 import type { Page } from "playwright";
-import type { VaultManager } from "../managers/VaultManager";
-import type { VaultOptions } from "../types";
-import type { ServiceContainer } from "../services/ServiceContainer";
 import type { ServiceContext } from "../services/IService";
+import type { ServiceContainer } from "../services/ServiceContainer";
 import { SERVICE_IDS } from "../services/serviceIds";
+import type { VaultManager } from "../services/VaultManager";
+import type { VaultOptions } from "../types";
 import type { IFeature } from "./IFeature";
 
 export class OpenVaultFeature implements IFeature<

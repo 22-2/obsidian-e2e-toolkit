@@ -1,16 +1,15 @@
 // ===================================================================
 // 1. ElectronAppManager.ts - Electronアプリケーションの起動と管理
 // ===================================================================
+import { existsSync } from "fs";
 import fs from "fs/promises";
 import log from "loglevel";
-import os from "os";
+import { createRequire } from "module";
 import path from "path";
 import type { ElectronApplication, Page } from "playwright";
 import { _electron as electron } from "playwright/test";
 import type { ResolvedPaths } from "../path";
 import { createLaunchOptions } from "../path";
-import { createRequire } from "module";
-import { existsSync } from "fs";
 
 const logger = log.getLogger("ElectronAppManager");
 

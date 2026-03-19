@@ -18,22 +18,22 @@ import "./internal/logger";
  */
 
 import { test as base } from "@playwright/test";
+import { merge } from "es-toolkit";
 import fs from "fs/promises";
 import log from "loglevel";
 import os from "os";
 import path from "path";
-import { ObsidianAPI } from "./ObsidianAPI";
 import { DEFAULT_VAULT_OPTIONS, getResolvedPaths } from "./internal/constants";
 import { ObsidianE2ELauncher } from "./internal/launcher";
 import {
     createRunId,
     createScopedLogger,
     setupBrowserConsoleLogging,
-    toggleLoggerBy,
+    toggleLoggerBy
 } from "./internal/logger";
 import type { TestFixtures, WorkerFixtures } from "./internal/types";
 import { createObsidianContext, handleTestError } from "./internal/utils";
-import { merge } from "es-toolkit";
+import { ObsidianAPI } from "./ObsidianAPI";
 
 export const logger = log.getLogger("obsidianSetup");
 
@@ -107,6 +107,6 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 // ===================================================================
 
 export { expect } from "@playwright/test";
-export { ObsidianAPI } from "./ObsidianAPI";
-export type { VaultOptions } from "./internal/types";
 export { fetchPlugin } from "./fetchPlugin";
+export type { VaultOptions } from "./internal/types";
+export { ObsidianAPI } from "./ObsidianAPI";

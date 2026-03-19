@@ -2,9 +2,9 @@ import type { JSHandle, Page } from "playwright";
 import { expect } from "playwright/test";
 import invariant from "tiny-invariant";
 import { CMD_ID_CLOSE_TAB, CMD_ID_UNDO_CLOSE_TAB } from "./internal/constants";
+import { getActualPluginId } from "./internal/services/PluginManager";
 import type { ObsidianPageTextContext, VaultOptions } from "./internal/types";
 import { getPluginHandleMap } from "./internal/utils";
-import { getActualPluginId } from "./internal/managers/PluginManager";
 
 interface ItemView {
     [key: string]: any;

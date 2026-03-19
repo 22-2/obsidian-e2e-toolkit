@@ -1,5 +1,5 @@
-import type { ServiceContainer } from "../services/ServiceContainer";
 import type { ServiceContext } from "../services/IService";
+import type { ServiceContainer } from "../services/ServiceContainer";
 
 export interface IFeature<TInput, TOutput> {
     run(

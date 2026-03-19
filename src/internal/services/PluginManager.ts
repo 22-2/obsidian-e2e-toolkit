@@ -10,7 +10,7 @@ import {
     readFileSync,
     statSync,
     symlinkSync,
-    writeFileSync,
+    writeFileSync
 } from "fs";
 import log from "loglevel";
 import path from "path";
