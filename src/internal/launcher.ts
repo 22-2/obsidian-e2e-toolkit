@@ -1,9 +1,12 @@
 // ===================================================================
 // 6. ObsidianE2ELauncher.ts - メインのオーケストレーター
 // ===================================================================
-import chalk from "chalk";
-import type { Page } from "playwright";
 import { DEFAULT_VAULT_OPTIONS } from "./constants";
+import { CreateVaultContextFeature } from "./features/CreateVaultContextFeature";
+import { OpenStarterFeature } from "./features/OpenStarterFeature";
+import { OpenVaultFeature } from "./features/OpenVaultFeature";
+import { PrepareRuntimeFeature } from "./features/PrepareRuntimeFeature";
+import { SetupPluginsFeature } from "./features/SetupPluginsFeature";
 import { IPCBridge } from "./ipc";
 import { createScopedLogger } from "./logger";
 import { ElectronAppManager } from "./managers/ElectronAppManager";
@@ -11,15 +14,11 @@ import { PluginManager, getActualPluginId } from "./managers/PluginManager";
 import { StorageManager } from "./managers/StorageManager";
 import { VaultManager } from "./managers/VaultManager";
 import { WindowManager } from "./managers/WindowManager";
-import { PageWaiter } from "./PageWaiter";
 import type { ResolvedPaths } from "./path";
-import type {
-  ObsidianPageTextContext,
-  PluginConfig,
-  TestContext,
-  VaultOptions,
-} from "./types";
-import { getPluginHandleMap } from "./utils";
+import type { ServiceContext } from "./services/IService";
+import { ServiceContainer, ValueService } from "./services/ServiceContainer";
+import { SERVICE_IDS } from "./services/serviceIds";
+import type { TestContext, VaultOptions } from "./types";
 
 export interface LauncherConfig {
   paths: ResolvedPaths;
@@ -30,15 +29,18 @@ export interface LauncherConfig {
 
 export class ObsidianE2ELauncher {
   private electronManager: ElectronAppManager;
-  private windowManager: WindowManager | null = null;
-  private vaultManager: VaultManager | null = null;
-  private storageManager: StorageManager | null = null;
-  private pluginManager: PluginManager | null = null;
-  private ipc: IPCBridge | null = null;
+  private services: ServiceContainer | null = null;
+  private serviceContext: ServiceContext | null = null;
+
+  private readonly prepareRuntimeFeature = new PrepareRuntimeFeature();
+  private readonly openVaultFeature = new OpenVaultFeature();
+  private readonly setupPluginsFeature = new SetupPluginsFeature();
+  private readonly createVaultContextFeature = new CreateVaultContextFeature();
+  private readonly openStarterFeature = new OpenStarterFeature();
+
   private paths: ResolvedPaths;
   private options: VaultOptions;
   private tempVaultDir: string;
-  private vaultPath: string | null = null;
   private initialized = false;
   private scopedLogger;
 
@@ -69,79 +71,111 @@ export class ObsidianE2ELauncher {
     const electronApp = await this.electronManager.launch();
     this.scopedLogger.debug("Electron app launched");
 
-    this.windowManager = new WindowManager(electronApp);
-    this.storageManager = new StorageManager(electronApp);
+    const windowManager = new WindowManager(electronApp);
+    const storageManager = new StorageManager(electronApp);
+
+    const services = new ServiceContainer();
+    services.register(
+      new ValueService(SERVICE_IDS.electronManager, this.electronManager, {
+        dispose: async () => {
+          await this.electronManager.cleanup();
+        },
+      })
+    );
+    services.register(new ValueService(SERVICE_IDS.windowManager, windowManager));
+    services.register(new ValueService(SERVICE_IDS.storageManager, storageManager));
+
+    const serviceContext: ServiceContext = {
+      paths: this.paths,
+      options: this.options,
+      tempVaultDir: this.tempVaultDir,
+      runtime: {
+        initialized: false,
+        electronApp,
+      },
+      logger: this.scopedLogger,
+    };
+
+    await services.setupAll(serviceContext);
 
     const initialPage = await electronApp.waitForEvent("window");
     this.scopedLogger.debug("Initial window event received");
 
-    await this.initializePlaywrightMode(initialPage);
-    await PageWaiter.waitForPage(initialPage);
+    const { starterPage } = await this.prepareRuntimeFeature.run(
+      { initialPage },
+      serviceContext,
+      services
+    );
+    this.scopedLogger.debug("Starter page ready", starterPage.url());
 
-    this.scopedLogger.debug("Initial page ready; clearing storage and reloading");
-
-    await this.storageManager.clearAll();
-    await initialPage.evaluate(() => {
-      localStorage.setItem("language", "en");
+    const ipcBridge = new IPCBridge({
+      ensureSingleWindow: windowManager.ensureSingleWindow.bind(windowManager),
     });
-    this.scopedLogger.debug("Storage cleared");
-    await initialPage.reload({ waitUntil: "domcontentloaded" });
-    this.scopedLogger.debug("Initial page reloaded");
+    services.register(new ValueService(SERVICE_IDS.ipcBridge, ipcBridge));
 
-    const currentPage = await this.windowManager.ensureSingleWindow();
-    await PageWaiter.waitForPage(currentPage);
-    this.scopedLogger.debug("Starter page ready");
-
-    this.ipc = new IPCBridge({
-      ensureSingleWindow: this.windowManager!.ensureSingleWindow.bind(
-        this.windowManager!
-      ),
-    });
-    this.vaultManager = new VaultManager(
-      this.ipc,
-      this.windowManager,
+    const vaultManager = new VaultManager(
+      ipcBridge,
+      windowManager,
       this.options,
       this.tempVaultDir
     );
+    services.register(new ValueService(SERVICE_IDS.vaultManager, vaultManager));
 
-    // Resolve vault path once and store it
-    this.vaultPath = await this.vaultManager.resolveVaultPath();
-    this.scopedLogger.debug("Vault path resolved", this.vaultPath);
-    this.pluginManager = new PluginManager(
+    const vaultPath = await vaultManager.resolveVaultPath();
+    this.scopedLogger.debug("Vault path resolved", vaultPath);
+
+    const pluginManager = new PluginManager(
       this.options.plugins.map((plugin) => ({
         ...plugin,
         pluginId: getActualPluginId(plugin.path),
       })),
-      this.vaultPath
+      vaultPath
     );
+    services.register(new ValueService(SERVICE_IDS.pluginManager, pluginManager));
 
+    serviceContext.runtime.vaultPath = vaultPath;
+    serviceContext.runtime.initialized = true;
+
+    this.services = services;
+    this.serviceContext = serviceContext;
     this.initialized = true;
   }
 
-  private async initializePlaywrightMode(page: Page): Promise<void> {
-    await page.evaluate(() => {
-      (window as any).playwright = true;
-    });
-    this.scopedLogger.debug("Enabled Playwright marker in renderer");
+  private requireServices(): ServiceContainer {
+    if (!this.services) {
+      throw new Error("Service container not initialized");
+    }
+
+    return this.services;
+  }
+
+  private requireServiceContext(): ServiceContext {
+    if (!this.serviceContext) {
+      throw new Error("Service context not initialized");
+    }
+
+    return this.serviceContext;
   }
 
   async cleanup(): Promise<void> {
-    await this.electronManager.cleanup();
+    if (this.services && this.serviceContext) {
+      await this.services.disposeAll(this.serviceContext);
+    } else {
+      await this.electronManager.cleanup();
+    }
+
     this.initialized = false;
-    this.windowManager = null;
-    this.storageManager = null;
-    this.pluginManager = null;
-    this.vaultManager = null;
-    this.ipc = null;
-    this.vaultPath = null;
+    this.services = null;
+    this.serviceContext = null;
     this.scopedLogger.debug("Launcher cleanup completed");
   }
 
-  async launch(
-    options: VaultOptions = DEFAULT_VAULT_OPTIONS
-  ): Promise<ObsidianPageTextContext> {
+  async launch(options: VaultOptions = DEFAULT_VAULT_OPTIONS) {
     await this.ensureInitialized();
-    const pluginManager = this.pluginManager!;
+
+    const services = this.requireServices();
+    const serviceContext = this.requireServiceContext();
+    const pluginManager = services.getValue<PluginManager>(SERVICE_IDS.pluginManager);
 
     this.scopedLogger.debug("Opening vault", options);
 
@@ -150,7 +184,11 @@ export class ObsidianE2ELauncher {
       ...options,
     };
 
-    const { page } = await this.vaultManager!.openVault(runOptions);
+    const { page } = await this.openVaultFeature.run(
+      { options: runOptions },
+      serviceContext,
+      services
+    );
 
     const configuredPlugins = pluginManager.getPlugins() || [];
     this.scopedLogger.debug(
@@ -159,7 +197,7 @@ export class ObsidianE2ELauncher {
     );
     if (configuredPlugins.length) {
       this.scopedLogger.debug("Installing configured plugins");
-      await this.setupPlugins(page);
+      await this.setupPluginsFeature.run({ page }, serviceContext, services);
       this.scopedLogger.debug(
         `${pluginManager.getPlugins().length} plugins setup completed`
       );
@@ -169,7 +207,11 @@ export class ObsidianE2ELauncher {
       "Creating vault context",
       pluginManager.getPlugins().map((p) => p.pluginId)
     );
-    const context = await this.createVaultContext(page, pluginManager.getPlugins());
+    const context = await this.createVaultContextFeature.run(
+      { page, plugins: pluginManager.getPlugins() },
+      serviceContext,
+      services
+    );
     this.scopedLogger.debug("Vault context created", context.vaultName);
 
     // Remove all notices
@@ -182,60 +224,13 @@ export class ObsidianE2ELauncher {
     return context;
   }
 
-  private async setupPlugins(page: Page): Promise<void> {
-    const pluginManager = this.pluginManager!;
-    this.scopedLogger.debug("Installing plugins");
-    await pluginManager.installAll();
-    this.scopedLogger.debug("Plugins installed");
-
-    this.scopedLogger.debug("Enabling plugins");
-    await pluginManager.enableAll(page);
-    this.scopedLogger.debug("Plugins enabled");
-
-    this.scopedLogger.debug(chalk.blue("Reloading vault to apply plugin changes"));
-    await page.reload();
-    await PageWaiter.waitForPage(page);
-    this.scopedLogger.debug(chalk.blue("Vault reloaded"));
-  }
-
-  private async createVaultContext(
-    page: Page,
-    plugins?: PluginConfig[]
-  ): Promise<ObsidianPageTextContext> {
-    const vaultName = await page.evaluate(() => app?.vault?.getName());
-    this.scopedLogger.debug("Vault name", vaultName);
-
-    let pluginHandleMap;
-    if (!plugins || plugins.length === 0) {
-      this.scopedLogger.warn("No plugins configured; skipping plugin wait");
-      pluginHandleMap = await page.evaluateHandle(() => new Map());
-    } else {
-      pluginHandleMap = await getPluginHandleMap(page, plugins || []);
-    }
-
-    return {
-      electronApp: this.electronManager.getApp(),
-      page,
-      pluginHandleMap,
-      vaultName,
-      paths: this.paths,
-    };
-  }
-
   async openStarter(): Promise<TestContext> {
     await this.ensureInitialized();
-
-    const page = await this.windowManager!.executeActionAndWaitForNewWindow(
-      async () => await this.ipc!.openStarter(),
-      PageWaiter.waitForPage
+    return this.openStarterFeature.run(
+      undefined,
+      this.requireServiceContext(),
+      this.requireServices()
     );
-
-    await PageWaiter.waitForPage(page);
-
-    return {
-      electronApp: this.electronManager.getApp(),
-      page,
-    };
   }
 
   getVaultOptions(): VaultOptions {
