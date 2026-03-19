@@ -60,10 +60,10 @@ try {
   const defaultConfig = getDefaultConfig();
   RESOLVED_PATHS = resolveConfig(defaultConfig);
 
-  logger.log("Plugin Directory:", RESOLVED_PATHS.pluginDir);
-  logger.log("Dist Directory:", RESOLVED_PATHS.distDir);
-  logger.log("Toolkit Root:", dirname);
-  logger.log("App Main Path:", RESOLVED_PATHS.appMainJsPath);
+  logger.debug("Plugin Directory:", RESOLVED_PATHS.pluginDir);
+  logger.debug("Dist Directory:", RESOLVED_PATHS.distDir);
+  logger.debug("Toolkit Root:", dirname);
+  logger.debug("App Main Path:", RESOLVED_PATHS.appMainJsPath);
 
   // --- Pre-flight checks ---
   invariant(existsSync(dirname), `Toolkit root not found at: ${dirname}.`);
@@ -150,13 +150,7 @@ export const DEFAULT_VAULT_OPTIONS: VaultOptions = {
   sandbox: false,
   fresh: true,
   logLevel: "warn",
-  plugins: [
-    {
-      path: DIST_DIR,
-      pluginId: PLUGIN_ID,
-      symlink: false,
-    },
-  ],
+  plugins: [],
 };
 
 // ===================================================================

@@ -12,3 +12,9 @@ playwright-report/
 .obsidian-unpacked/
 .obsidian-cache/
 pnpm-lock.yaml
+
+# 作業中だけ
+dist/
+example/
+cache/
+obsidian-unpacked/

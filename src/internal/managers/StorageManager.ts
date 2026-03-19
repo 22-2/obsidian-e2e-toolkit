@@ -39,7 +39,7 @@ export class StorageManager {
     const win = this.electronApp.windows()[0];
     if (!win) return;
 
-    logger.log(chalk.magenta("clearing..."));
+    logger.debug(chalk.magenta("Clearing browser storage"));
 
     const success = await win.evaluate(async () => {
       const webContents = (
@@ -61,6 +61,6 @@ export class StorageManager {
       ? chalk.magenta("localStorage cleared.")
       : chalk.red("failed to clear localStorage");
 
-    logger.log(message);
+    logger.debug(message);
   }
 }

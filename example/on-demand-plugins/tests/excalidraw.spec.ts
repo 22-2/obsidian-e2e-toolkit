@@ -38,28 +38,18 @@ test("opening .excalidraw.md triggers lazy load and shows Excalidraw view", asyn
     });
 
     // wait for plugin to be enabled
-    const deadline = Date.now() + 10000;
-    let enabled = false;
-    while (Date.now() < deadline) {
-        if (await obsidian.isPluginEnabled(excalidrawPluginId)) {
-            enabled = true;
-            break;
-        }
-        await new Promise((r) => setTimeout(r, 300));
-    }
-
-    expect(enabled).toBe(true);
+    await obsidian.waitForPluginEnabled(excalidrawPluginId, 10000);
+    expect(await obsidian.isPluginEnabled(excalidrawPluginId)).toBe(true);
 
     // assert an excalidraw view exists (poll because view registration is async)
-    const viewDeadline = Date.now() + 10000;
-    let hasView = false;
-    while (Date.now() < viewDeadline) {
-        hasView = await obsidian.page.evaluate(() => {
-            return app.workspace.getLeavesOfType("excalidraw").length > 0;
-        });
-        if (hasView) break;
-        await new Promise((r) => setTimeout(r, 300));
-    }
+    await obsidian.waitForApp(
+        () => app.workspace.getLeavesOfType("excalidraw").length > 0,
+        undefined,
+        10000,
+    );
+    const hasView = await obsidian.page.evaluate(() => {
+        return app.workspace.getLeavesOfType("excalidraw").length > 0;
+    });
 
     expect(hasView).toBe(true);
 });
@@ -97,28 +87,18 @@ test("layout-restore triggers lazy load for already-open Excalidraw file", async
         workspace.trigger && workspace.trigger("layout-ready");
     });
 
-    const deadline2 = Date.now() + 10000;
-    let enabled2 = false;
-    while (Date.now() < deadline2) {
-        if (await obsidian.isPluginEnabled(excalidrawPluginId)) {
-            enabled2 = true;
-            break;
-        }
-        await new Promise((r) => setTimeout(r, 300));
-    }
-
-    expect(enabled2).toBe(true);
+    await obsidian.waitForPluginEnabled(excalidrawPluginId, 10000);
+    expect(await obsidian.isPluginEnabled(excalidrawPluginId)).toBe(true);
 
     // poll for excalidraw view (view registration is async after plugin load)
-    const viewDeadline2 = Date.now() + 10000;
-    let hasView2 = false;
-    while (Date.now() < viewDeadline2) {
-        hasView2 = await obsidian.page.evaluate(() => {
-            return app.workspace.getLeavesOfType("excalidraw").length > 0;
-        });
-        if (hasView2) break;
-        await new Promise((r) => setTimeout(r, 300));
-    }
+    await obsidian.waitForApp(
+        () => app.workspace.getLeavesOfType("excalidraw").length > 0,
+        undefined,
+        10000,
+    );
+    const hasView2 = await obsidian.page.evaluate(() => {
+        return app.workspace.getLeavesOfType("excalidraw").length > 0;
+    });
 
     expect(hasView2).toBe(true);
 });

@@ -26,13 +26,7 @@ export class IPCBridge {
 
   private async ensurePageLoaded(): Promise<void> {
     const page = await this.setup.ensureSingleWindow();
-    await page.waitForLoadState("domcontentloaded");
-
-    // スターターページでない場合はappオブジェクトを待つ
-    const isStarter = page.url().includes("starter");
-    if (!isStarter) {
-      return PageWaiter.waitForPage(page);
-    }
+    await PageWaiter.waitForPage(page);
   }
 
   async openVault(vaultPath: string, forceNew = false): Promise<true | string> {

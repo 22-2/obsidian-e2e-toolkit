@@ -29,26 +29,22 @@ test("manual enable/disable is stable for lazy (command)", async ({ obsidian }) 
 
     // Try to manually enable plugin (do not fail test immediately if it doesn't become enabled)
     await obsidian.page.evaluate((id) => app.plugins.enablePlugin(id), targetPluginId);
-    const deadline = Date.now() + 15000;
     let enabled = false;
-    while (Date.now() < deadline) {
-        if (await obsidian.isPluginEnabled(targetPluginId)) {
-            enabled = true;
-            break;
-        }
-        await new Promise((r) => setTimeout(r, 200));
+    try {
+        await obsidian.waitForPluginEnabled(targetPluginId, 15000);
+        enabled = true;
+    } catch {
+        enabled = false;
     }
 
     // Attempt to disable (ensure call completes)
     await obsidian.page.evaluate((id) => app.plugins.disablePlugin(id), targetPluginId);
-    const deadline2 = Date.now() + 8000;
     let disabled = false;
-    while (Date.now() < deadline2) {
-        if (!(await obsidian.isPluginEnabled(targetPluginId))) {
-            disabled = true;
-            break;
-        }
-        await new Promise((r) => setTimeout(r, 200));
+    try {
+        await obsidian.waitForPluginDisabled(targetPluginId, 8000);
+        disabled = true;
+    } catch {
+        disabled = false;
     }
 
     // Ensure the test environment is still responsive
@@ -57,14 +53,12 @@ test("manual enable/disable is stable for lazy (command)", async ({ obsidian }) 
     // If wrapper command exists, invoking it should re-enable the plugin
     if (commandId) {
         await obsidian.page.evaluate((cmd) => app.commands.executeCommandById(cmd), commandId as string);
-        const deadline3 = Date.now() + 15000;
         let reenabled = false;
-        while (Date.now() < deadline3) {
-            if (await obsidian.isPluginEnabled(targetPluginId)) {
-                reenabled = true;
-                break;
-            }
-            await new Promise((r) => setTimeout(r, 200));
+        try {
+            await obsidian.waitForPluginEnabled(targetPluginId, 15000);
+            reenabled = true;
+        } catch {
+            reenabled = false;
         }
         if (reenabled) {
             expect(reenabled).toBe(true);
@@ -94,27 +88,15 @@ test("manual enable/disable is stable for lazyOnView", async ({ obsidian }) => {
 
     // Manually enable plugin
     await obsidian.page.evaluate((id) => app.plugins.enablePlugin(id), targetPluginId);
-    const deadline = Date.now() + 8000;
-    let enabled = false;
-    while (Date.now() < deadline) {
-        if (await obsidian.isPluginEnabled(targetPluginId)) {
-            enabled = true;
-            break;
-        }
-        await new Promise((r) => setTimeout(r, 200));
-    }
-    expect(enabled).toBe(true);
+    await obsidian.waitForPluginEnabled(targetPluginId, 8000);
+    expect(await obsidian.isPluginEnabled(targetPluginId)).toBe(true);
 
     // Manually disable plugin
     await obsidian.page.evaluate((id) => app.plugins.disablePlugin(id), targetPluginId);
-    const deadline2 = Date.now() + 8000;
-    let disabled = false;
-    while (Date.now() < deadline2) {
-        if (!(await obsidian.isPluginEnabled(targetPluginId))) {
-            disabled = true;
-            break;
-        }
-        await new Promise((r) => setTimeout(r, 200));
+    try {
+        await obsidian.waitForPluginDisabled(targetPluginId, 8000);
+    } catch {
+        // Some environments do not complete disable synchronously here.
     }
     // If disable didn't complete in this environment, continue — we'll verify load via view trigger below.
 
@@ -125,14 +107,6 @@ test("manual enable/disable is stable for lazyOnView", async ({ obsidian }) => {
         workspace.trigger("active-leaf-change", leaf);
     });
 
-    const deadline3 = Date.now() + 8000;
-    let loaded = false;
-    while (Date.now() < deadline3) {
-        if (await obsidian.isPluginEnabled(targetPluginId)) {
-            loaded = true;
-            break;
-        }
-        await new Promise((r) => setTimeout(r, 200));
-    }
-    expect(loaded).toBe(true);
+    await obsidian.waitForPluginEnabled(targetPluginId, 8000);
+    expect(await obsidian.isPluginEnabled(targetPluginId)).toBe(true);
 });

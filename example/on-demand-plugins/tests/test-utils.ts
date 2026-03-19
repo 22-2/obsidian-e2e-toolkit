@@ -11,39 +11,35 @@ const pluginUnderTestId = "on-demand-plugins";
 const targetPluginId = "obsidian42-brat";
 const excalidrawPluginId = "obsidian-excalidraw-plugin";
 
+export function externalPluginPath(pluginId: string): string {
+    return path.resolve(repoRoot, "myfiles", pluginId);
+}
+
+export function createOnDemandVaultOptions(pluginIds: string[] = [targetPluginId]) {
+    return {
+        enableBrowserConsoleLogging: true,
+        logLevel: "info" as const,
+        fresh: true,
+        plugins: [
+            {
+                path: repoRoot,
+            },
+            ...pluginIds.map((pluginId) => ({
+                path: externalPluginPath(pluginId),
+            })),
+        ],
+    };
+}
+
 export function useOnDemandPlugins() {
     test.use({
-        vaultOptions: {
-            enableBrowserConsoleLogging: true,
-            logLevel: "info",
-            fresh: true,
-            plugins: [
-                {
-                    path: repoRoot,
-                },
-                {
-                    path: path.resolve(repoRoot, "myfiles", targetPluginId),
-                },
-            ],
-        },
+        vaultOptions: createOnDemandVaultOptions(),
     });
 }
 
 export function useOnDemandPluginsWithExcalidraw() {
     test.use({
-        vaultOptions: {
-            enableBrowserConsoleLogging: true,
-            logLevel: "info",
-            fresh: true,
-            plugins: [
-                {
-                    path: repoRoot,
-                },
-                {
-                    path: path.resolve(repoRoot, "myfiles", excalidrawPluginId),
-                },
-            ],
-        },
+        vaultOptions: createOnDemandVaultOptions([excalidrawPluginId]),
     });
 }
 

@@ -25,7 +25,12 @@ import path from "path";
 import { ObsidianAPI } from "./ObsidianAPI";
 import { DEFAULT_VAULT_OPTIONS, getResolvedPaths } from "./internal/constants";
 import { ObsidianE2ELauncher } from "./internal/launcher";
-import { setupBrowserConsoleLogging, toggleLoggerBy } from "./internal/logger";
+import {
+  createRunId,
+  createScopedLogger,
+  setupBrowserConsoleLogging,
+  toggleLoggerBy,
+} from "./internal/logger";
 import type { TestFixtures, WorkerFixtures } from "./internal/types";
 import { createObsidianContext, handleTestError } from "./internal/utils";
 import { merge } from "es-toolkit";
@@ -43,43 +48,52 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
   vaultOptions: [DEFAULT_VAULT_OPTIONS, { option: true }],
   obsidian: async ({ vaultOptions, tempDir }, use, testInfo) => {
     const paths = getResolvedPaths();
+    const runId = createRunId(testInfo.title);
+    const runLogger = createScopedLogger("obsidianSetup", {
+      runId,
+      phase: "fixture",
+    });
 
     const launcher = new ObsidianE2ELauncher({
       paths,
       options: merge(DEFAULT_VAULT_OPTIONS, vaultOptions),
       tempUserDataDir: tempDir,
+      runId,
     });
 
     try {
       toggleLoggerBy(vaultOptions.logLevel || "warn");
-      logger.debug("Launching Obsidian");
+      runLogger.info("Launching Obsidian");
       await launcher.initialize();
 
-      logger.debug("Creating Obsidian context");
+      runLogger.info("Creating Obsidian context");
       const context = await createObsidianContext(launcher);
 
-      logger.debug("Enabling browser console logging");
+      runLogger.debug("Configuring browser console logging");
       if (vaultOptions.enableBrowserConsoleLogging) {
-        setupBrowserConsoleLogging(context.page);
+        setupBrowserConsoleLogging(context.page, {
+          runId,
+          phase: "browser",
+        });
       }
 
       const api = new ObsidianAPI(context);
 
-      logger.debug("Entering test");
+      runLogger.info("Entering test body");
       await use(api);
-      logger.debug("Test completed");
+      runLogger.info("Test body completed");
 
       handleTestError(testInfo);
     } catch (err: any) {
-      logger.error(`Error during test execution: ${err.message || err}`);
+      runLogger.error(`Error during test execution: ${err.message || err}`);
       if (!process.env.CI) {
         // Uncomment for debugging: await launcher.getCurrentPage()?.pause();
       }
       throw err;
     } finally {
-      logger.debug("Cleaning up Obsidian");
+      runLogger.info("Cleaning up Obsidian");
       await launcher.cleanup();
-      logger.debug("Cleanup completed");
+      runLogger.info("Cleanup completed");
     }
   },
 });

@@ -1,6 +1,5 @@
-import path from "node:path";
 import { expect, test } from "obsidian-e2e-toolkit";
-import { ensureBuilt, repoRoot } from "./test-utils";
+import { ensureBuilt, externalPluginPath, repoRoot } from "./test-utils";
 
 test.use({
     vaultOptions: {
@@ -8,7 +7,7 @@ test.use({
         fresh: true,
         plugins: [
             { path: repoRoot },
-            { path: path.resolve(repoRoot, "myfiles", "lineage") },
+            { path: externalPluginPath("lineage") },
         ],
     },
 });

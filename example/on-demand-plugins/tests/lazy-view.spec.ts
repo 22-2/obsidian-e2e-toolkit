@@ -39,15 +39,6 @@ test("lazyOnView loads plugin on view activation", async ({ obsidian }) => {
         workspace.trigger("active-leaf-change", leaf);
     });
 
-    const deadline = Date.now() + 8000;
-    let enabled = false;
-    while (Date.now() < deadline) {
-        if (await obsidian.isPluginEnabled(targetPluginId)) {
-            enabled = true;
-            break;
-        }
-        await new Promise((r) => setTimeout(r, 300));
-    }
-
-    expect(enabled).toBe(true);
+    await obsidian.waitForPluginEnabled(targetPluginId, 8000);
+    expect(await obsidian.isPluginEnabled(targetPluginId)).toBe(true);
 });

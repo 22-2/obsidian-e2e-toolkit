@@ -3,9 +3,13 @@ import { access, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { promisify } from "node:util";
 import { exec } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { fetchPlugin } from "obsidian-e2e-toolkit";
 
 const execP = promisify(exec);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const exampleRoot = path.resolve(__dirname, "..");
 
 /**
  * Utility to check if a file or directory exists asynchronously.
@@ -70,17 +74,16 @@ async function setupExternalPlugin(pluginId, ownerRepo, baseDir) {
  * Main global setup function for Playwright/E2E testing.
  */
 export default async function globalSetup() {
-    const repoRoot = process.cwd();
+    const repoRoot = exampleRoot;
 
     // 1. Ensure the main project is built
     const mainJsPath = path.resolve(repoRoot, "main.js");
     if (!(await fileExists(mainJsPath))) {
-        console.log("[global-setup] main.js missing, running build:nocheck");
-        await runSafeCommand("pnpm run build:nocheck --silent", repoRoot, "main build");
+        throw new Error(`[global-setup] ${mainJsPath} not found`);
     }
 
     // 2. Load plugin mapping
-    const repoMapPath = path.resolve(repoRoot, "tests", "plugin-sources.json");
+    const repoMapPath = path.resolve(__dirname, "plugin-sources.json");
     if (!existsSync(repoMapPath)) {
         console.warn("[global-setup] No plugin-sources.json found; skipping external plugins");
         return;

@@ -2,6 +2,13 @@ import chalk from "chalk";
 import log from "loglevel";
 import prefix from "loglevel-plugin-prefix";
 
+type LogMethod = "trace" | "debug" | "info" | "warn" | "error";
+
+export interface LogScope {
+  runId?: string;
+  phase?: string;
+}
+
 // 色の設定
 const colors = {
   TRACE: chalk.magenta,
@@ -18,8 +25,9 @@ prefix.apply(log, {
   format(level, name, timestamp) {
     const color =
       colors[level.toUpperCase() as keyof typeof colors] || chalk.white;
+    const paddedLevel = level.toUpperCase().padEnd(5, " ");
     const nameStr = name ? `[${name}]` : "";
-    return `${chalk.gray(`[${timestamp}]`)} ${color(level)} ${chalk.green(
+    return `${chalk.gray(`[${timestamp}]`)} ${color(paddedLevel)} ${chalk.green(
       nameStr
     )}`;
   },
@@ -28,7 +36,6 @@ prefix.apply(log, {
 // デフォルトレベルを設定
 log.setDefaultLevel("trace");
 
-console.log("✅ Log level set to 'trace' with prefix plugin."); // ===================================================================
 // Test Setup Factory
 // ===================================================================
 /**
@@ -65,51 +72,96 @@ console.log("✅ Log level set to 'trace' with prefix plugin."); // ============
 // ===================================================================
 // Console Logging Helpers
 // ===================================================================
-export function setupBrowserConsoleLogging(window: any): void {
+function formatScope(scope?: LogScope): string {
+  if (!scope) {
+    return "";
+  }
+
+  const entries = [
+    scope.runId ? `run=${scope.runId}` : "",
+    scope.phase ? `phase=${scope.phase}` : "",
+  ].filter(Boolean);
+
+  return entries.length ? `[${entries.join(" ")}] ` : "";
+}
+
+export function formatLogMessage(message: string, scope?: LogScope): string {
+  return `${formatScope(scope)}${message}`;
+}
+
+export function createScopedLogger(name: string, scope?: LogScope) {
+  const scoped = log.getLogger(name);
+
+  const invoke = (method: LogMethod, message: string, ...args: unknown[]) => {
+    scoped[method](formatLogMessage(message, scope), ...args);
+  };
+
+  return {
+    trace: (message: string, ...args: unknown[]) => invoke("trace", message, ...args),
+    debug: (message: string, ...args: unknown[]) => invoke("debug", message, ...args),
+    info: (message: string, ...args: unknown[]) => invoke("info", message, ...args),
+    warn: (message: string, ...args: unknown[]) => invoke("warn", message, ...args),
+    error: (message: string, ...args: unknown[]) => invoke("error", message, ...args),
+  };
+}
+
+export function createRunId(testTitle?: string): string {
+  const normalized = (testTitle || "test")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 24);
+
+  return `${normalized || "test"}-${Date.now().toString(36)}`;
+}
+
+export function setupBrowserConsoleLogging(window: any, scope?: LogScope): void {
+  const browserLogger = createScopedLogger("BrowserConsole", scope);
+
   window.on("console", (msg: any) => {
     const type = msg.type();
     const text = msg.text();
 
     if (text.length > 500) {
-      console.log(
-        `🖥️ BROWSER [${type.toUpperCase()}]: [長文のため省略: ${
+      browserLogger.info(
+        `[BROWSER:${type.toUpperCase()}] [長文のため省略: ${
           text.length
         }文字]`
       );
       return;
     }
 
-    console.log(
-      `🖥️ BROWSER [${type.toUpperCase()}]: ${text.substring(0, 100)}`
+    browserLogger.info(
+      `[BROWSER:${type.toUpperCase()}] ${text.substring(0, 100)}`
     );
 
     const location = msg.location();
     if (location.url && location.url !== "about:blank") {
-      console.log(
-        `   📍 Location: ${location.url}:${location.lineNumber}:${location.columnNumber}`
+      browserLogger.debug(
+        `[BROWSER:LOCATION] ${location.url}:${location.lineNumber}:${location.columnNumber}`
       );
     }
   });
 
   window.on("pageerror", (error: Error) => {
-    console.log(`🖥️ PAGE ERROR: ${error.message}`);
+    browserLogger.error(`[BROWSER:PAGEERROR] ${error.message}`);
     if (error.stack) {
-      console.log(`   📚 Stack: ${error.stack}`);
+      browserLogger.debug(`[BROWSER:STACK] ${error.stack}`);
     }
   });
 
   window.on("requestfailed", (request: any) => {
-    console.log(`🖥️ REQUEST FAILED: ${request.url()}`);
+    browserLogger.warn(`[BROWSER:REQUESTFAILED] ${request.url()}`);
     const failure = request.failure();
     if (failure) {
-      console.log(`   ❌ Failure: ${failure.errorText}`);
+      browserLogger.warn(`[BROWSER:FAILURE] ${failure.errorText}`);
     }
   });
 
   window.on("response", (response: any) => {
     if (!response.ok()) {
-      console.log(
-        `🖥️ HTTP ERROR: ${response.status()} ${response.statusText()} - ${response.url()}`
+      browserLogger.warn(
+        `[BROWSER:HTTP] ${response.status()} ${response.statusText()} - ${response.url()}`
       );
     }
   });
@@ -125,6 +177,5 @@ export function toggleLoggerBy(
 		.forEach((logger) => {
 			logger.setLevel(level);
 		});
-	console.log("log level changed ->", level);
 	log.setLevel(level);
 }

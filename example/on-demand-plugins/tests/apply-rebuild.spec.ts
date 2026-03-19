@@ -97,17 +97,8 @@ test("lazyOnView loads plugin on view activation", async ({ obsidian }) => {
         workspace.trigger("active-leaf-change", leaf);
     });
 
-    const deadline = Date.now() + 8000;
-    let enabled = false;
-    while (Date.now() < deadline) {
-        if (await obsidian.isPluginEnabled(targetPluginId)) {
-            enabled = true;
-            break;
-        }
-        await new Promise((r) => setTimeout(r, 300));
-    }
-
-    expect(enabled).toBe(true);
+    await obsidian.waitForPluginEnabled(targetPluginId, 8000);
+    expect(await obsidian.isPluginEnabled(targetPluginId)).toBe(true);
 });
 
 test("enabling disabled plugin syncs settings to keepEnabled", async ({ obsidian }) => {
@@ -133,11 +124,7 @@ test("enabling disabled plugin syncs settings to keepEnabled", async ({ obsidian
     await obsidian.page.evaluate((id) => app.plugins.enablePlugin(id), targetPluginId);
 
     // Wait for enable to complete
-    const enableDeadline = Date.now() + 8000;
-    while (Date.now() < enableDeadline) {
-        if (await obsidian.isPluginEnabled(targetPluginId)) break;
-        await new Promise((r) => setTimeout(r, 200));
-    }
+    await obsidian.waitForPluginEnabled(targetPluginId, 8000);
 
     // 3. Verify settings synced to "keepEnabled"
     const result = await pluginHandle.evaluate(async (plugin, pluginId) => {

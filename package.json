@@ -35,6 +35,7 @@
     "build": "tsup",
     "prepublishOnly": "pnpm run build",
     "test:e2e:example": "pnpm playwright test example/example.spec.ts",
+    "test:e2e:on-demand": "pnpm playwright test example/on-demand-plugins/tests",
     "test:e2e:vfe": "pnpm playwright test example/drag-and-drop.spec.ts",
     "postinstall": "node ./scripts/postinstall.cjs"
   },

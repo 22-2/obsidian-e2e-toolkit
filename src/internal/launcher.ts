@@ -6,6 +6,7 @@ import log from "loglevel";
 import type { Page } from "playwright";
 import { DEFAULT_VAULT_OPTIONS } from "./constants";
 import { IPCBridge } from "./ipc";
+import { createScopedLogger } from "./logger";
 import { ElectronAppManager } from "./managers/ElectronAppManager";
 import { PluginManager, getActualPluginId } from "./managers/PluginManager";
 import { StorageManager } from "./managers/StorageManager";
@@ -27,6 +28,7 @@ export interface LauncherConfig {
   paths: ResolvedPaths;
   options: VaultOptions;
   tempUserDataDir: string;
+  runId?: string;
 }
 
 export class ObsidianE2ELauncher {
@@ -41,44 +43,46 @@ export class ObsidianE2ELauncher {
   private tempUserDataDir: string;
   private tempVaultDir: string;
   private vaultPath: string | null = null;
+  private scopedLogger;
 
-  constructor({ paths, options, tempUserDataDir }: LauncherConfig) {
+  constructor({ paths, options, tempUserDataDir, runId }: LauncherConfig) {
     this.paths = paths;
     this.options = options;
     this.tempUserDataDir = tempUserDataDir;
     this.tempVaultDir = `${tempUserDataDir}-vault`;
     this.electronManager = new ElectronAppManager(paths, tempUserDataDir);
+    this.scopedLogger = createScopedLogger("ObsidianTestLauncher", {
+      runId,
+      phase: "launcher",
+    });
   }
 
   async initialize(): Promise<void> {
     const electronApp = await this.electronManager.launch();
-    logger.debug("Electron app launched");
+    this.scopedLogger.debug("Electron app launched");
 
     this.windowManager = new WindowManager(electronApp);
     this.storageManager = new StorageManager(electronApp);
 
     const initialPage = await electronApp.waitForEvent("window");
-    logger.debug("initial window event received");
+    this.scopedLogger.debug("Initial window event received");
 
-    
     await this.initializePlaywrightMode(initialPage);
     await PageWaiter.waitForPage(initialPage);
 
-    logger.debug("initial page ready; clearing storage and reloading");
-
-    logger.debug("starter ready");
+    this.scopedLogger.debug("Initial page ready; clearing storage and reloading");
 
     await this.storageManager.clearAll();
     await initialPage.evaluate(() => {
-      localStorage.setItem("language", "en")
+      localStorage.setItem("language", "en");
     });
-    logger.debug("storage cleared");
+    this.scopedLogger.debug("Storage cleared");
     await initialPage.reload({ waitUntil: "domcontentloaded" });
-    logger.debug("initial page reloaded");
+    this.scopedLogger.debug("Initial page reloaded");
 
     const currentPage = await this.windowManager.ensureSingleWindow();
     await PageWaiter.waitForPage(currentPage);
-    logger.debug("init start page");
+    this.scopedLogger.debug("Starter page ready");
 
     this.ipc = new IPCBridge({
       ensureSingleWindow: this.windowManager.ensureSingleWindow.bind(
@@ -93,7 +97,7 @@ export class ObsidianE2ELauncher {
 
     // Resolve vault path once and store it
     this.vaultPath = await this.vaultManager.resolveVaultPath();
-    logger.debug("vaultPath resolved:", this.vaultPath);
+    this.scopedLogger.debug("Vault path resolved", this.vaultPath);
     this.pluginManager = new PluginManager(
       this.options.plugins.map((plugin) => ({
         ...plugin,
@@ -107,12 +111,12 @@ export class ObsidianE2ELauncher {
     await page.evaluate(() => {
       (window as any).playwright = true;
     });
-    logger.debug("enable obsidian debug mode");
+    this.scopedLogger.debug("Enabled Playwright marker in renderer");
   }
 
   async cleanup(): Promise<void> {
     await this.electronManager.cleanup();
-    logger.debug("[ObsidianTestSetup] cleaned All");
+    this.scopedLogger.debug("Launcher cleanup completed");
   }
 
   async launch(
@@ -120,7 +124,7 @@ export class ObsidianE2ELauncher {
   ): Promise<ObsidianPageTextContext> {
     this.validateInitialization();
 
-    logger.debug("open vault", options);
+    this.scopedLogger.info("Opening vault", options);
 
     const shouldUseSandbox = options.sandbox && !process.env.CI;
     const executeAction =
@@ -133,23 +137,31 @@ export class ObsidianE2ELauncher {
       : await this.vaultManager!.openNormalVault(executeAction);
 
     const configuredPlugins = this.pluginManager.getPlugins() || [];
-    logger.debug("configured plugins:", configuredPlugins.map(p => ({ path: p.path, pluginId: p.pluginId })));
+    this.scopedLogger.debug(
+      "Configured plugins",
+      configuredPlugins.map((p) => ({ path: p.path, pluginId: p.pluginId }))
+    );
     if (configuredPlugins.length) {
-      logger.debug("Installing plugins...");
+      this.scopedLogger.info("Installing configured plugins");
       await this.setupPlugins(page);
-      logger.debug(`${this.pluginManager.getPlugins().length} Plugins setup completed.`);
+      this.scopedLogger.info(
+        `${this.pluginManager.getPlugins().length} plugins setup completed`
+      );
     }
 
-    logger.debug("creating vault context with plugins:", this.pluginManager.getPlugins().map(p => p.pluginId));
+    this.scopedLogger.debug(
+      "Creating vault context",
+      this.pluginManager.getPlugins().map((p) => p.pluginId)
+    );
     const context = await this.createVaultContext(page, this.pluginManager.getPlugins());
-    logger.debug("vault context created; vaultName:", context.vaultName);
+    this.scopedLogger.info("Vault context created", context.vaultName);
 
     // Remove all notices
     const notices = await context.page
       .locator(".notice-container .notice")
       .all();
 
-    logger.debug("remove all notices");
+    this.scopedLogger.debug("Removing notices");
     await Promise.all(notices.map((notice: any) => notice.click()));
     return context;
   }
@@ -161,18 +173,18 @@ export class ObsidianE2ELauncher {
   }
 
   private async setupPlugins(page: Page): Promise<void> {
-    logger.debug("Installing plugins...");
+    this.scopedLogger.debug("Installing plugins");
     await this.pluginManager.installAll();
-    logger.debug("Plugins installed.");
+    this.scopedLogger.debug("Plugins installed");
 
-    logger.debug("Enabling plugins...");
+    this.scopedLogger.debug("Enabling plugins");
     await this.pluginManager.enableAll(page);
-    logger.debug("Plugins enabled.");
+    this.scopedLogger.debug("Plugins enabled");
 
-    logger.debug(chalk.blue("Reloading vault to apply plugin changes..."));
+    this.scopedLogger.debug(chalk.blue("Reloading vault to apply plugin changes"));
     await page.reload();
     await PageWaiter.waitForPage(page);
-    logger.debug(chalk.blue("Vault reloaded."));
+    this.scopedLogger.debug(chalk.blue("Vault reloaded"));
   }
 
   private async createVaultContext(
@@ -180,11 +192,11 @@ export class ObsidianE2ELauncher {
     plugins?: PluginConfig[]
   ): Promise<ObsidianPageTextContext> {
     const vaultName = await page.evaluate(() => app?.vault?.getName());
-    logger.debug("Vault name:", vaultName);
+    this.scopedLogger.debug("Vault name", vaultName);
 
     let pluginHandleMap;
     if (!plugins || plugins.length === 0) {
-      logger.warn("createVaultContext: no plugins configured — skipping wait");
+      this.scopedLogger.warn("No plugins configured; skipping plugin wait");
       pluginHandleMap = await page.evaluateHandle(() => new Map());
     } else {
       pluginHandleMap = await getPluginHandleMap(page, plugins || []);

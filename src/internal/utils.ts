@@ -10,11 +10,9 @@ export async function getPluginHandleMap(
   // Wait for plugins to be loaded
   const pluginIds = plugins.map((p) => p.pluginId).filter(Boolean);
   logger.warn("getPluginHandleMap: waiting for plugin IDs:", pluginIds);
-  console.warn("[getPluginHandleMap] waiting for plugin IDs:", pluginIds);
 
   if (pluginIds.length === 0) {
     logger.warn("getPluginHandleMap: no plugin IDs to wait for — returning empty map");
-    console.warn("[getPluginHandleMap] no plugin IDs to wait for — returning empty map");
     return page.evaluateHandle(() => new Map());
   }
   try {
@@ -28,14 +26,11 @@ export async function getPluginHandleMap(
     );
   } catch (err) {
     logger.error("getPluginHandleMap: timeout waiting for plugins to load", err && (err as Error).message);
-    console.error("[getPluginHandleMap] timeout waiting for plugins to load", err && (err as Error).message);
     try {
       const available = await page.evaluate(() => Object.keys((window as any).app?.plugins?.plugins || {}));
       logger.error("getPluginHandleMap: available app.plugins.plugins keys:", available);
-      console.error("[getPluginHandleMap] available app.plugins.plugins keys:", available);
     } catch (e) {
       logger.error("getPluginHandleMap: failed to enumerate app.plugins.plugins", e && (e as Error).message);
-      console.error("[getPluginHandleMap] failed to enumerate app.plugins.plugins", e && (e as Error).message);
     }
     throw err;
   }
@@ -73,18 +68,18 @@ export function handleTestError(testInfo: any): void {
 
   if (testInfo.error) {
     const separator = "=".repeat(20);
-    console.error(`\n${separator} TEST FAILED ${separator}`);
-    console.error(testInfo.error.message);
+    logger.error(`\n${separator} TEST FAILED ${separator}`);
+    logger.error(testInfo.error.message);
 
     if (testInfo.error.stack) {
       const firstNewlineIndex = testInfo.error.stack.indexOf("\n");
       const stackWithoutMessage = testInfo.error.stack.substring(
         firstNewlineIndex + 1
       );
-      console.error(stackWithoutMessage);
+      logger.error(stackWithoutMessage);
     }
 
-    console.error("=".repeat(53) + "\n");
+    logger.error("=".repeat(53) + "\n");
   }
 
   if (!process.env.CI) {

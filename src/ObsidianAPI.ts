@@ -31,6 +31,13 @@ export class ObsidianAPI {
     this.context = context;
   }
 
+  private appState<T, Arg = undefined>(
+    callback: (arg: Arg) => T | Promise<T>,
+    arg?: Arg
+  ): Promise<T> {
+    return this.page.evaluate(callback as any, arg as any);
+  }
+
   // ========================================
   // Locators - よく使うロケーター
   // ========================================
@@ -58,7 +65,7 @@ export class ObsidianAPI {
   }
 
   vaultName(): Promise<string> {
-    return this.page.evaluate(() => app.vault.getName());
+    return this.appState(() => app.vault.getName());
   }
 
   title(viewType: string): Locator {
@@ -76,7 +83,7 @@ export class ObsidianAPI {
   // ========================================
 
   async command(commandId: string): Promise<void> {
-    const success = await this.page.evaluate((id) => {
+    const success = await this.appState((id: string) => {
       if (app.commands.executeCommandById(id)) {
         return true;
       }
@@ -98,7 +105,7 @@ export class ObsidianAPI {
   async split(
     direction: "vertical" | "horizontal" = "vertical"
   ): Promise<void> {
-    await this.page.evaluate(
+    await this.appState(
       (dir) => app.workspace.duplicateLeaf(app.workspace.activeLeaf!, dir),
       direction
     );
@@ -122,15 +129,15 @@ export class ObsidianAPI {
   }
 
   async back(): Promise<void> {
-    await this.page.evaluate(() => app.workspace.activeLeaf?.history.back());
+    await this.appState(() => app.workspace.activeLeaf?.history.back());
   }
 
   async forward(): Promise<void> {
-    await this.page.evaluate(() => app.workspace.activeLeaf?.history.forward());
+    await this.appState(() => app.workspace.activeLeaf?.history.forward());
   }
 
   async switchToLeaf(index: number): Promise<void> {
-    await this.page.evaluate((i) => {
+    await this.appState((i: number) => {
       const leaves = app.workspace.getLeavesOfType("markdown");
       if (leaves[i]) {
         app.workspace.setActiveLeaf(leaves[i], { focus: true });
@@ -139,21 +146,32 @@ export class ObsidianAPI {
   }
 
   async activeViewType(): Promise<string | null> {
-    return this.page.evaluate(
+    return this.appState(
       () => app.workspace.activeLeaf?.view.getViewType() ?? null
     );
   }
 
   async openingFiles(): Promise<string[]> {
-    return this.page.evaluate(() =>
+    return this.appState(() =>
       app.workspace
         .getLeavesOfType("markdown")
         .map((leaf: any) => leaf.view.file?.path ?? "")
     );
   }
 
-  async waitReady(): Promise<void> {
-    await this.page.waitForFunction(() => app?.workspace?.layoutReady);
+  async waitReady(timeout = 15000): Promise<void> {
+    await this.page.waitForFunction(
+      () => !!app?.workspace && (app.workspace.layoutReady === true || !!app.workspace.activeLeaf),
+      { timeout }
+    );
+  }
+
+  async waitForApp<Arg = undefined>(
+    predicate: (arg: Arg) => boolean,
+    arg?: Arg,
+    timeout = 5000
+  ): Promise<void> {
+    await this.page.waitForFunction(predicate as any, arg as any, { timeout });
   }
 
   async waitForView<T extends ItemView>(
@@ -189,21 +207,33 @@ export class ObsidianAPI {
   }
 
   async content(): Promise<string | undefined> {
-    return this.page.evaluate(() =>
+    return this.appState(() =>
       app.workspace.activeEditor?.editor?.getValue()
     );
   }
 
   async filePath(): Promise<string | null> {
-    return this.page.evaluate(
+    return this.appState(
       () => app.workspace.getActiveFile()?.path ?? null
     );
   }
 
   async tabTitle(): Promise<string | null> {
-    return this.page.evaluate(
-      () => app.workspace.activeLeaf?.tabHeaderInnerTitleEl.textContent ?? null
-    );
+    return this.appState(() => {
+      const leaf = app.workspace.activeLeaf as any;
+      const view = leaf?.view as any;
+      const activeFile = app.workspace.getActiveFile();
+
+      if (activeFile?.basename) {
+        return activeFile.basename;
+      }
+
+      if (typeof view?.getDisplayText === "function") {
+        return view.getDisplayText() ?? null;
+      }
+
+      return leaf?.tabHeaderInnerTitleEl?.textContent?.trim() ?? null;
+    });
   }
 
   async write(content: string): Promise<void> {
@@ -216,26 +246,26 @@ export class ObsidianAPI {
   // ========================================
 
   async exists(path: string): Promise<boolean> {
-    return this.page.evaluate((p) => app.vault.adapter.exists(p), path);
+    return this.appState((p: string) => app.vault.adapter.exists(p), path);
   }
 
   async read(path: string): Promise<string> {
-    return this.page.evaluate((p) => app.vault.adapter.read(p), path);
+    return this.appState((p: string) => app.vault.adapter.read(p), path);
   }
 
   async save(path: string, content: string): Promise<void> {
-    await this.page.evaluate(([p, c]) => app.vault.adapter.write(p, c), [
+    await this.appState(([p, c]) => app.vault.adapter.write(p, c), [
       path,
       content,
     ] as const);
   }
 
   async delete(path: string): Promise<void> {
-    await this.page.evaluate((p) => app.vault.adapter.remove(p), path);
+    await this.appState((p: string) => app.vault.adapter.remove(p), path);
   }
 
   async open(path: string): Promise<void> {
-    await this.page.evaluate(async (p) => {
+    await this.appState(async (p: string) => {
       const file = app.vault.getAbstractFileByPath(p);
       if (file) {
         await app.workspace.getLeaf().openFile(file as any);
@@ -264,8 +294,39 @@ export class ObsidianAPI {
   }
 
   async isPluginEnabled(pluginId: string): Promise<boolean> {
-    return this.page.evaluate(
+    return this.appState(
       (id) => !!app.plugins.enabledPlugins.has(id),
+      pluginId
+    );
+  }
+
+  async waitForPluginEnabled(pluginId: string, timeout = 8000): Promise<void> {
+    await this.waitForApp(
+      (id: string) => !!app?.plugins?.enabledPlugins?.has(id),
+      pluginId,
+      timeout
+    );
+  }
+
+  async waitForPluginDisabled(pluginId: string, timeout = 8000): Promise<void> {
+    await this.waitForApp(
+      (id: string) => !app?.plugins?.enabledPlugins?.has(id),
+      pluginId,
+      timeout
+    );
+  }
+
+  async pluginState(pluginId: string): Promise<{
+    enabled: boolean;
+    loaded: boolean;
+    registered: boolean;
+  }> {
+    return this.appState(
+      (id: string) => ({
+        enabled: !!app?.plugins?.enabledPlugins?.has(id),
+        loaded: !!app?.plugins?.plugins?.[id]?._loaded,
+        registered: !!app?.plugins?.plugins?.[id],
+      }),
       pluginId
     );
   }
@@ -319,11 +380,13 @@ export class ObsidianAPI {
   }
 
   async expectContent(content: string): Promise<void> {
-    await expect(this.activeEditor).toHaveText(content);
+    const value = await this.page.evaluate(() => app.workspace.activeEditor?.editor?.getValue());
+    expect(value).toBe(content);
   }
 
   async expectContentContains(text: string): Promise<void> {
-    await expect(this.activeEditor).toContainText(text);
+    const value = await this.page.evaluate(() => app.workspace.activeEditor?.editor?.getValue());
+    expect(value).toContain(text);
   }
 
   // ========================================
