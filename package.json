@@ -58,12 +58,12 @@
     ],
     "peerDependencies": {
         "@playwright/test": "^1.56.0",
+        "electron": "^41.0.3",
         "playwright": "^1.56.0"
     },
     "dependencies": {
         "@electron/asar": "^4.1.0",
         "chalk": "^5.6.2",
-        "electron": "^41.0.3",
         "es-toolkit": "^1.45.1",
         "extract-zip": "^2.0.1",
         "find-up": "^8.0.0",
