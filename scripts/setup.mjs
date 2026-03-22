@@ -28,11 +28,32 @@ const log = {
     error: (msg) => console.error(chalk.red(msg)),
 };
 
+function resolveRequestedRelease() {
+    const raw = (
+        process.env.OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION ||
+        process.env.OBSIDIAN_VERSION ||
+        "latest"
+    ).trim();
+
+    if (!raw || raw.toLowerCase() === "latest") {
+        return {
+            key: "latest",
+            tag: null,
+        };
+    }
+
+    const normalized = raw.startsWith("v") ? raw : `v${raw}`;
+    return {
+        key: normalized,
+        tag: normalized,
+    };
+}
+
 // =============================================================================
 // Paths
 // =============================================================================
 
-function resolvePaths() {
+function resolvePaths(requestedRelease) {
     const __filename = fileURLToPath(import.meta.url);
     const scriptDir = path.dirname(__filename);
     const repoRoot = path.resolve(scriptDir, "..");
@@ -55,7 +76,9 @@ function resolvePaths() {
         appExtractDir: path.join(cacheDir, "app-extracted"),
         obsidianAsarGzPath: path.join(cacheDir, "obsidian.asar.gz"),
         obsidianAsarPath: path.join(cacheDir, "obsidian.asar"),
-        releaseCachePath: path.join(cacheDir, "release-latest.json"),
+        releaseCachePath: path.join(cacheDir, `release-${requestedRelease.key}.json`),
+        cacheVersionPath: path.join(cacheDir, ".cache-version"),
+        unpackedVersionPath: path.join(unpackedDir, ".obsidian-version"),
     };
 }
 
@@ -86,7 +109,21 @@ async function fetchLatestRelease(headers) {
     return res.json();
 }
 
-async function loadRelease(releaseCachePath, headers) {
+async function fetchReleaseByTag(tag, headers) {
+    log.info(`Fetching Obsidian release ${tag} from GitHub...`);
+    const res = await fetch(
+        `https://api.github.com/repos/obsidianmd/obsidian-releases/releases/tags/${encodeURIComponent(tag)}`,
+        { headers },
+    );
+    if (!res.ok) {
+        throw new Error(
+            `Failed to fetch release ${tag}: ${res.status} ${res.statusText}`,
+        );
+    }
+    return res.json();
+}
+
+async function loadRelease(releaseCachePath, headers, requestedRelease) {
     if (existsSync(releaseCachePath)) {
         try {
             const raw = await readFile(releaseCachePath, "utf8");
@@ -104,7 +141,9 @@ async function loadRelease(releaseCachePath, headers) {
         }
     }
 
-    const release = await fetchLatestRelease(headers);
+    const release = requestedRelease.tag
+        ? await fetchReleaseByTag(requestedRelease.tag, headers)
+        : await fetchLatestRelease(headers);
     log.success(`Found Obsidian ${release.tag_name}`);
 
     try {
@@ -118,6 +157,70 @@ async function loadRelease(releaseCachePath, headers) {
     }
 
     return release;
+}
+
+async function readMarker(markerPath) {
+    if (!existsSync(markerPath)) {
+        return null;
+    }
+    try {
+        return (await readFile(markerPath, "utf8")).trim() || null;
+    } catch {
+        return null;
+    }
+}
+
+async function purgeVersionedCache(paths) {
+    const files = [
+        paths.appAsarPath,
+        paths.appTarGzPath,
+        `${paths.appAsarPath}.unpacked`,
+        paths.appExtractDir,
+        paths.obsidianAsarPath,
+        paths.obsidianAsarGzPath,
+    ];
+
+    for (const target of files) {
+        if (existsSync(target)) {
+            await rm(target, { recursive: true, force: true });
+        }
+    }
+}
+
+async function ensureVersionState(paths, requestedRelease) {
+    const desired = requestedRelease.key;
+    const cachedVersion = await readMarker(paths.cacheVersionPath);
+    const unpackedVersion = await readMarker(paths.unpackedVersionPath);
+
+    const hasCacheArtifacts =
+        existsSync(paths.appAsarPath) ||
+        existsSync(paths.appTarGzPath) ||
+        existsSync(paths.obsidianAsarPath) ||
+        existsSync(paths.obsidianAsarGzPath);
+
+    if (cachedVersion && cachedVersion !== desired) {
+        log.info(
+            `Cached Obsidian assets are for ${cachedVersion}, refreshing for ${desired}.`,
+        );
+        await purgeVersionedCache(paths);
+    } else if (!cachedVersion && requestedRelease.tag && hasCacheArtifacts) {
+        log.info(
+            "Cache version marker is missing. Clearing cache to avoid cross-version reuse.",
+        );
+        await purgeVersionedCache(paths);
+    }
+
+    if (unpackedVersion && unpackedVersion !== desired) {
+        log.info(
+            `Unpacked Obsidian is ${unpackedVersion}, rebuilding for ${desired}.`,
+        );
+        await rm(paths.unpackedDir, { recursive: true, force: true });
+    } else if (!unpackedVersion && requestedRelease.tag && existsSync(paths.unpackedDir)) {
+        log.info(
+            "Unpacked version marker is missing. Rebuilding to ensure requested version.",
+        );
+        await rm(paths.unpackedDir, { recursive: true, force: true });
+    }
 }
 
 function findReleaseAsset(assets, pattern) {
@@ -270,20 +373,30 @@ async function unpackAssets({ unpackedDir, appAsarPath, obsidianAsarPath }) {
 async function main() {
     log.success("Starting E2E setup process...");
 
-    const paths = resolvePaths();
+    const requestedRelease = resolveRequestedRelease();
+    const paths = resolvePaths(requestedRelease);
     const headers = getGitHubHeaders();
+
+    log.info(
+        requestedRelease.tag
+            ? `Requested Obsidian version: ${requestedRelease.tag}`
+            : "Requested Obsidian version: latest",
+    );
+
+    await mkdir(paths.cacheDir, { recursive: true });
+    await ensureVersionState(paths, requestedRelease);
 
     // Skip if already unpacked
     if (
         existsSync(paths.unpackedDir) &&
-        existsSync(path.join(paths.unpackedDir, "main.cjs"))
+        existsSync(path.join(paths.unpackedDir, "main.cjs")) &&
+        (await readMarker(paths.unpackedVersionPath)) === requestedRelease.key
     ) {
         log.info("Obsidian assets already unpacked. Skipping setup.");
         return;
     }
 
     log.info("\nFetching Obsidian release assets...");
-    await mkdir(paths.cacheDir, { recursive: true });
 
     const needRelease =
         (!existsSync(paths.appAsarPath) && !existsSync(paths.appTarGzPath)) ||
@@ -291,12 +404,14 @@ async function main() {
             !existsSync(paths.obsidianAsarGzPath));
 
     const release = needRelease
-        ? await loadRelease(paths.releaseCachePath, headers)
+        ? await loadRelease(paths.releaseCachePath, headers, requestedRelease)
         : null;
 
     await ensureAppAsar(paths, release, headers);
     await ensureObsidianAsar(paths, release, headers);
     await unpackAssets(paths);
+    await writeFile(paths.cacheVersionPath, `${requestedRelease.key}\n`, "utf8");
+    await writeFile(paths.unpackedVersionPath, `${requestedRelease.key}\n`, "utf8");
 
     log.success("\nAsset unpacking completed.");
     log.success("E2E setup process finished successfully.");

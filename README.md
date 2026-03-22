@@ -21,6 +21,20 @@ pnpm add -D obsidian-e2e-toolkit electron playwright @playwright/test
 node node_modules/obsidian-e2e-toolkit/setup.mjs
 ```
 
+### Obsidian バージョン指定
+
+`setup.mjs` は環境変数で取得バージョンを切り替えられます。
+
+- `OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION=latest`（デフォルト）: 最新版
+- `OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION=1.12.4`: 指定
+
+互換のため `OBSIDIAN_VERSION` も参照しますが、推奨は `OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION` です。
+
+```yaml
+env:
+  OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION: 1.12.4
+```
+
 ### pnpm 設定（必須）
 
 `pnpm` を使用する場合は、`package.json` に以下の設定を追加してください：
