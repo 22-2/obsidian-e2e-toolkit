@@ -1,88 +1,87 @@
 {
-    "name": "obsidian-e2e-toolkit",
-    "version": "1.0.3",
-    "description": "Reusable E2E testing utilities for Obsidian plugins using Playwright",
-    "type": "module",
-    "main": "./dist/index.cjs",
-    "types": "./dist/index.d.ts",
-    "exports": {
-        ".": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.mjs",
-            "require": "./dist/index.cjs",
-            "default": "./dist/index.mjs"
-        },
-        "./esm": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.mjs",
-            "default": "./dist/index.mjs"
-        },
-        "./cjs": {
-            "types": "./dist/index.d.ts",
-            "require": "./dist/index.cjs",
-            "default": "./dist/index.cjs"
-        }
+  "name": "obsidian-e2e-toolkit",
+  "version": "1.0.3",
+  "description": "Reusable E2E testing utilities for Obsidian plugins using Playwright",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.mjs"
     },
-    "files": [
-        "dist",
-        "scripts",
-        "README.md",
-        "LICENSE"
-    ],
-    "scripts": {
-        "prepare": "pnpm run build",
-        "prebuild": "rimraf dist",
-        "build": "tsup",
-        "prepublishOnly": "pnpm run build",
-        "test:e2e:example": "pnpm playwright test example/example.spec.ts",
-        "test:e2e:on-demand": "pnpm playwright test example/on-demand-plugins/tests",
-        "test:e2e:vfe": "pnpm playwright test example/drag-and-drop.spec.ts",
-        "postinstall": "node ./scripts/postinstall.cjs"
+    "./esm": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
     },
-    "author": "22-2",
-    "license": "MIT",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/22-2/obsidian-e2e-toolkit.git"
-    },
-    "bugs": {
-        "url": "https://github.com/22-2/obsidian-e2e-toolkit/issues"
-    },
-    "homepage": "https://github.com/22-2/obsidian-e2e-toolkit#readme",
-    "keywords": [
-        "obsidian",
-        "e2e",
-        "testing",
-        "playwright",
-        "plugin"
-    ],
-    "peerDependencies": {
-        "@playwright/test": "^1.56.0",
-        "electron": "^41.0.3",
-        "playwright": "^1.56.0"
-    },
-    "dependencies": {
-        "@electron/asar": "^4.1.0",
-        "chalk": "^5.6.2",
-        "es-toolkit": "^1.45.1",
-        "extract-zip": "^2.0.1",
-        "find-up": "^8.0.0",
-        "loglevel": "^1.9.2",
-        "loglevel-plugin-prefix": "^0.8.4",
-        "tar": "^7.5.11",
-        "tiny-invariant": "^1.3.3"
-    },
-    "devDependencies": {
-        "@types/node": "^25.5.0",
-        "esbuild": "^0.27.4",
-        "glob": "^13.0.6",
-        "obsidian": "^1.12.3",
-        "playwright": "^1.58.2",
-        "rimraf": "^6.1.3",
-        "tsup": "^8.5.1",
-        "typescript": "^5.9.3"
-    },
-    "engines": {
-        "node": ">=23.0.0"
+    "./cjs": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.cjs"
     }
+  },
+  "files": [
+    "dist",
+    "scripts",
+    "README.md",
+    "LICENSE",
+    "obsidian-e2e-toolkit-assets"
+  ],
+  "scripts": {
+    "prebuild": "rimraf dist",
+    "build": "tsup",
+    "prepublishOnly": "pnpm run build",
+    "test:e2e:example": "pnpm playwright test example/example.spec.ts",
+    "test:e2e:on-demand": "pnpm playwright test example/on-demand-plugins/tests",
+    "test:e2e:vfe": "pnpm playwright test example/drag-and-drop.spec.ts"
+  },
+  "author": "22-2",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/22-2/obsidian-e2e-toolkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/22-2/obsidian-e2e-toolkit/issues"
+  },
+  "homepage": "https://github.com/22-2/obsidian-e2e-toolkit#readme",
+  "keywords": [
+    "obsidian",
+    "e2e",
+    "testing",
+    "playwright",
+    "plugin"
+  ],
+  "peerDependencies": {
+    "@playwright/test": "^1.56.0",
+    "electron": "^41.0.3",
+    "playwright": "^1.56.0"
+  },
+  "dependencies": {
+    "@electron/asar": "^4.1.0",
+    "chalk": "^5.6.2",
+    "es-toolkit": "^1.45.1",
+    "extract-zip": "^2.0.1",
+    "find-up": "^8.0.0",
+    "loglevel": "^1.9.2",
+    "loglevel-plugin-prefix": "^0.8.4",
+    "tar": "^7.5.11",
+    "tiny-invariant": "^1.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "esbuild": "^0.27.4",
+    "glob": "^13.0.6",
+    "obsidian": "^1.12.3",
+    "playwright": "^1.58.2",
+    "rimraf": "^6.1.3",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=23.0.0"
+  }
 }
