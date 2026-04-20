@@ -29,12 +29,22 @@ export class PluginManager {
         const pluginsDir = this.ensurePluginsDirectory();
         const installedIds: string[] = [];
         const installedPlugins: PluginConfig[] = [];
+        const failedPlugins: string[] = [];
 
         for (const plugin of this.getPlugins()) {
             if (await this.installSingle(pluginsDir, plugin)) {
                 installedIds.push(plugin.pluginId);
                 installedPlugins.push(plugin);
+            } else {
+                failedPlugins.push(`${plugin.pluginId} (${plugin.path})`);
             }
+        }
+
+        // Fail fast so missing build artifacts do not become opaque waitForFunction timeouts later.
+        if (failedPlugins.length > 0) {
+            throw new Error(
+                `Failed to install plugin fixtures: ${failedPlugins.join(", ")}. Ensure each plugin path contains manifest.json and main.js.`,
+            );
         }
 
         // Replace the managed plugin list with only those that were successfully installed
@@ -104,6 +114,11 @@ export class PluginManager {
 
         if (!existsSync(path.join(plugin.path, "manifest.json"))) {
             logger.warn(`manifest.json not found in: ${plugin.path}`);
+            return false;
+        }
+
+        if (!existsSync(path.join(plugin.path, "main.js"))) {
+            logger.warn(`main.js not found in: ${plugin.path}`);
             return false;
         }
 

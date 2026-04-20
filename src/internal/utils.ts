@@ -34,14 +34,39 @@ export async function getPluginHandleMap(
             err && (err as Error).message,
         );
         try {
-            const available = await page.evaluate(() =>
-                Object.keys((window as any).app?.plugins?.plugins || {}),
-            );
+            const diagnostics = await page.evaluate((requestedPluginIds) => {
+                const appPlugins = (window as any).app?.plugins;
+                const loadedPluginIds = Object.keys(appPlugins?.plugins || {});
+                const enabledPluginIds = Array.from(
+                    appPlugins?.enabledPlugins || [],
+                );
+                const manifestPluginIds = Object.keys(appPlugins?.manifests || {});
+                const missingPluginIds = requestedPluginIds.filter(
+                    (id: string) => !loadedPluginIds.includes(id),
+                );
+
+                return {
+                    loadedPluginIds,
+                    enabledPluginIds,
+                    manifestPluginIds,
+                    missingPluginIds,
+                };
+            }, pluginIds);
+
             logger.error(
-                "getPluginHandleMap: available app.plugins.plugins keys:",
-                available,
+                "getPluginHandleMap: plugin diagnostics:",
+                diagnostics,
+            );
+
+            // Throw a focused error so callers can immediately see that plugins were enabled
+            // but never registered into app.plugins.plugins.
+            throw new Error(
+                `Timed out waiting for plugins to load. missing=${diagnostics.missingPluginIds.join(",") || "(none)"} loaded=${diagnostics.loadedPluginIds.join(",") || "(none)"} enabled=${diagnostics.enabledPluginIds.join(",") || "(none)"}`,
             );
         } catch (e) {
+            if (e instanceof Error && e.message.includes("Timed out waiting")) {
+                throw e;
+            }
             logger.error(
                 "getPluginHandleMap: failed to enumerate app.plugins.plugins",
                 e && (e as Error).message,
