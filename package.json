@@ -4,21 +4,25 @@
     "description": "Reusable E2E testing utilities for Obsidian plugins using Playwright",
     "type": "module",
     "main": "./dist/index.cjs",
-    "types": "./dist/index.d.ts",
+    "types": "./dist/index.d.cts",
     "exports": {
         ".": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.mjs",
-            "require": "./dist/index.cjs",
-            "default": "./dist/index.mjs"
+            "import": {
+                "types": "./dist/index.d.mts",
+                "default": "./dist/index.mjs"
+            },
+            "require": {
+                "types": "./dist/index.d.cts",
+                "default": "./dist/index.cjs"
+            }
         },
         "./esm": {
-            "types": "./dist/index.d.ts",
+            "types": "./dist/index.d.mts",
             "import": "./dist/index.mjs",
             "default": "./dist/index.mjs"
         },
         "./cjs": {
-            "types": "./dist/index.d.ts",
+            "types": "./dist/index.d.cts",
             "require": "./dist/index.cjs",
             "default": "./dist/index.cjs"
         }
@@ -31,8 +35,7 @@
     ],
     "scripts": {
         "prepare": "pnpm run build",
-        "prebuild": "rimraf dist",
-        "build": "tsup",
+        "build": "tsdown",
         "prepublishOnly": "pnpm run build",
         "test:e2e:example": "pnpm playwright test example/example.spec.ts",
         "test:e2e:on-demand": "pnpm playwright test example/on-demand-plugins/tests",
@@ -78,8 +81,7 @@
         "glob": "^13.0.6",
         "obsidian": "^1.12.3",
         "playwright": "^1.58.2",
-        "rimraf": "^6.1.3",
-        "tsup": "^8.5.1",
+        "tsdown": "^0.22.2",
         "typescript": "^5.9.3"
     },
     "engines": {
