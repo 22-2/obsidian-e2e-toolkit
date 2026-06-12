@@ -65,20 +65,20 @@ jobs:
           # 2. リリース用ブランチの準備
           git config user.email "action@github.com"
           git config user.name "GitHub Action"
-          
+
           # 3. 消費者側でのエラーを回避するために package.json を加工するっす
           # - prepare/postinstall を消すことで再ビルドを防止
           # - obsidian-e2e-toolkit-assets を files に追加して、インストール時に消されないようにするっす！
-          node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); delete pkg.scripts.prepare; delete pkg.scripts.postinstall; if (pkg.files && !pkg.files.includes('obsidian-e2e-toolkit-assets')) { pkg.files.push('obsidian-e2e-toolkit-assets') }; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2))"
+          node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); delete pkg.scripts.prepare; delete pkg.scripts.postinstall; if (pkg.files && !pkg.files.includes('obsidian-e2e-toolkit-assets')) { pkg.files.push('obsidian-e2e-toolkit-assets') }; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 4))"
 
           # 4. 作業用の一時的なインデックスを作成して、配布に必要なファイルだけを入れるっす
           git checkout -b release-temp
           git add -f dist/
           git add -f obsidian-e2e-toolkit-assets/
           git add package.json README.md LICENSE
-          
+
           git commit -m "Release version ${{ steps.tag_version.outputs.VERSION }} (pre-built, cache cleaned)"
-          
+
           # 5. タグを上書きプッシュするっす
           git tag -f ${{ steps.tag_version.outputs.TAG_NAME }}
           git push -f origin ${{ steps.tag_version.outputs.TAG_NAME }}
