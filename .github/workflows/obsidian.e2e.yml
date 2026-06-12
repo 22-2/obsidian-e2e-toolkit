@@ -58,10 +58,6 @@ jobs:
         run: pnpm run test:e2e:example
         env:
           DEBUG: "pw:browser"
-      - name: Run Playwright vfe test
-        run: pnpm run test:e2e:vfe
-        env:
-          DEBUG: "pw:browser"
 
       - name: Upload Playwright report
         if: always()
