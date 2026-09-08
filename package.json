@@ -36,6 +36,7 @@
     "scripts": {
         "prepare": "pnpm run build",
         "build": "tsdown",
+        "test": "node --test scripts/*.test.mjs",
         "prepublishOnly": "pnpm run build",
         "test:e2e:example": "pnpm playwright test example/example.spec.ts",
         "test:e2e:on-demand": "pnpm playwright test example/on-demand-plugins/tests",
