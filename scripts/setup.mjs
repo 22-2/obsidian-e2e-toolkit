@@ -16,6 +16,12 @@ import { fileURLToPath } from "url";
 import { pipeline } from "stream/promises";
 import zlib from "zlib";
 import * as tar from "tar";
+import {
+    DESKTOP_TAR_GZ_PATTERN,
+    findLatestDesktopRelease,
+    hasRequiredDesktopAssets,
+    OBSIDIAN_ASAR_GZ_PATTERN,
+} from "./release-assets.mjs";
 
 // =============================================================================
 // Logger
@@ -106,7 +112,61 @@ async function fetchLatestRelease(headers) {
             `Failed to fetch release info: ${res.status} ${res.statusText}`,
         );
     }
-    return res.json();
+    const latest = await res.json();
+
+    if (hasRequiredDesktopAssets(latest)) {
+        return latest;
+    }
+
+    // Obsidian can publish a mobile-only release after the latest desktop
+    // build. E2E needs both desktop archives, so search published releases for
+    // the newest compatible one instead of failing on the mobile release.
+    log.warn(
+        `Latest Obsidian release ${latest.tag_name ?? "unknown"} does not include desktop assets.`,
+    );
+    return fetchLatestDesktopRelease(headers);
+}
+
+async function fetchLatestDesktopRelease(headers) {
+    const perPage = 100;
+    let page = 1;
+
+    while (true) {
+        log.info(
+            `Searching Obsidian releases for desktop assets (page ${page})...`,
+        );
+        const res = await fetch(
+            `https://api.github.com/repos/obsidianmd/obsidian-releases/releases?per_page=${perPage}&page=${page}`,
+            { headers },
+        );
+        if (!res.ok) {
+            throw new Error(
+                `Failed to fetch release list: ${res.status} ${res.statusText}`,
+            );
+        }
+
+        const releases = await res.json();
+        const desktopRelease = findLatestDesktopRelease(releases);
+        if (desktopRelease) {
+            log.success(
+                `Using latest desktop-compatible Obsidian release ${desktopRelease.tag_name}`,
+            );
+            return desktopRelease;
+        }
+
+        if (
+            !Array.isArray(releases) ||
+            releases.length < perPage ||
+            !res.headers.get("link")?.includes('rel="next"')
+        ) {
+            break;
+        }
+        page += 1;
+    }
+
+    throw new Error(
+        "Could not find a published Obsidian release with desktop tar.gz and asar.gz assets",
+    );
 }
 
 async function fetchReleaseByTag(tag, headers) {
@@ -128,11 +188,24 @@ async function loadRelease(releaseCachePath, headers, requestedRelease) {
         try {
             const raw = await readFile(releaseCachePath, "utf8");
             const cached = JSON.parse(raw);
-            if (cached?.assets?.length) {
+            const cacheMatchesRequest =
+                !requestedRelease.tag ||
+                !cached.tag_name ||
+                cached.tag_name === requestedRelease.tag;
+            if (
+                cached?.assets?.length &&
+                cacheMatchesRequest &&
+                hasRequiredDesktopAssets(cached)
+            ) {
                 log.info(
                     `Using cached release metadata (${cached.tag_name ?? "unknown"})`,
                 );
                 return cached;
+            }
+            if (cached?.assets?.length) {
+                log.warn(
+                    "Cached release metadata does not match the requested desktop assets. Refreshing metadata.",
+                );
             }
         } catch {
             log.warn(
@@ -276,7 +349,7 @@ async function ensureAppAsar(
     if (!existsSync(appTarGzPath)) {
         const asset = findReleaseAsset(
             release.assets,
-            /obsidian-[\d.]+\.tar\.gz$/,
+            DESKTOP_TAR_GZ_PATTERN,
         );
         await downloadFile(asset.browser_download_url, appTarGzPath, headers);
     }
@@ -323,7 +396,7 @@ async function ensureObsidianAsar(
     }
 
     if (!existsSync(obsidianAsarGzPath)) {
-        const asset = findReleaseAsset(release.assets, /\.asar\.gz$/);
+        const asset = findReleaseAsset(release.assets, OBSIDIAN_ASAR_GZ_PATTERN);
         await downloadFile(
             asset.browser_download_url,
             obsidianAsarGzPath,

@@ -28,6 +28,9 @@ node node_modules/obsidian-e2e-toolkit/setup.mjs
 - `OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION=latest`（デフォルト）: 最新版
 - `OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION=1.12.4`: 指定
 
+`latest` でモバイル専用リリースが選ばれた場合は、デスクトップ用の
+`tar.gz` と `asar.gz` を含む直近の公開リリースを自動的に使用します。
+
 互換のため `OBSIDIAN_VERSION` も参照しますが、推奨は `OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION` です。
 
 ```yaml
