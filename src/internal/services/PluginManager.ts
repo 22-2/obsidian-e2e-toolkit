@@ -210,7 +210,27 @@ export class PluginManager {
             return;
         }
 
-        logger.debug("Attempting to enable community plugins...");
+        logger.debug("Enabling community plugins without opening settings...");
+        const enabledWithoutReload = await page.evaluate(() => {
+            const app = (window as any).app;
+            const appId = app?.appId;
+
+            if (typeof appId !== "string" || appId.length === 0) {
+                return false;
+            }
+
+            // Obsidian stores restricted-mode state in this localStorage flag. Using it directly avoids
+            // the settings button's reload path, which can race the temporary config JSON cleanup in E2E.
+            localStorage.setItem(`enable-plugin-${appId}`, "true");
+            return app.plugins.isEnabled?.() === true;
+        });
+
+        if (enabledWithoutReload) {
+            return;
+        }
+
+        // Keep the UI flow as a compatibility fallback for Obsidian builds whose internal storage key differs.
+        logger.debug("Falling back to the community plugins settings UI...");
         await this.openCommunityPluginsSettings(page);
         await this.clickEnableButtons(page);
         await this.closeCommunityPluginsSettings(page);
