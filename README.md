@@ -134,7 +134,15 @@ test("plugin activation", async ({ obsidian }) => {
 - `logLevel?: "trace" | "debug" | "info" | "warn" | "error" | "silent"`
 - `enableBrowserConsoleLogging?: boolean`
 - `browserConsoleLogging?: { enabledTypes?: string[]; maxMessageLength?: number; previewLength?: number; ignoredMessagePatterns?: string[]; includeLocation?: boolean; includePageErrors?: boolean; includeRequestFailures?: boolean; includeHttpErrors?: boolean; httpErrorThreshold?: number }`
+- `obsidianCli?: "off" | "auto" | "required"` - CLI利用モード（デフォルトは `auto`）
 - `plugins: Array<{ path: string; pluginId: string; symlink?: boolean }>`
+
+`auto` では、CLI が利用可能で対象 Vault のパスが一致した場合だけ、
+`plugins:restrict off` と `plugin:enable` を実行します。CLI が未インストール、
+対象 Vault が別、または対象アプリに接続できない場合は Playwright 経路へ
+自動フォールバックするため、CI に Obsidian CLI をインストールする必要はありません。
+
+CLI の実行ファイルを明示する場合は `OBSIDIAN_CLI_PATH` を指定できます。
 
 ## APIリファレンス
 

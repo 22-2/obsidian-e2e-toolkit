@@ -162,6 +162,7 @@ export const DEFAULT_VAULT_OPTIONS: VaultOptions = {
         includeHttpErrors: true,
         httpErrorThreshold: 400,
     },
+    obsidianCli: "auto",
     plugins: [],
 };
 

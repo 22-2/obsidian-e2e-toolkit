@@ -58,9 +58,13 @@ export interface VaultOptions {
     enableBrowserConsoleLogging?: boolean;
     /** Fine-grained browser console logging behavior (filtering/truncation/threshold). */
     browserConsoleLogging?: BrowserConsoleLoggingOptions;
+    /** Use the official Obsidian CLI when it targets the same vault. */
+    obsidianCli?: ObsidianCliMode;
     /** Plugin fixtures to install into the test vault. */
     plugins: TestPlugin[];
 }
+
+export type ObsidianCliMode = "off" | "auto" | "required";
 
 export interface TestPlugin {
     path: string;

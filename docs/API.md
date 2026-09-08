@@ -205,6 +205,7 @@ interface VaultOptions {
   logLevel?: log.LogLevelDesc;
   enableBrowserConsoleLogging?: boolean;
   browserConsoleLogging?: BrowserConsoleLoggingOptions;
+  obsidianCli?: "off" | "auto" | "required";
   plugins: TestPlugin[];
 }
 ```
@@ -223,6 +224,8 @@ interface VaultOptions {
   - browser 側 console をロガーへ転送するか
 - `browserConsoleLogging?: BrowserConsoleLoggingOptions`
   - browser console の詳細制御
+- `obsidianCli?: "off" | "auto" | "required"`
+  - 同じ vault を CLI が操作できる場合だけ CLI を利用し、それ以外は Playwright へフォールバックするモード
 - `plugins: TestPlugin[]`
   - テスト開始時に vault へ投入するプラグイン一覧
 

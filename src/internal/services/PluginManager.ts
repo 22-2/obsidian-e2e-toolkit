@@ -15,7 +15,8 @@ import {
 import log from "loglevel";
 import path from "path";
 import type { Page } from "playwright";
-import type { PluginConfig } from "../types";
+import type { ObsidianCliMode, PluginConfig } from "../types";
+import { ObsidianCli } from "./ObsidianCli";
 
 const logger = log.getLogger("PluginManager");
 
@@ -23,7 +24,12 @@ export class PluginManager {
     constructor(
         private plugins: PluginConfig[],
         private vaultPath: string,
-    ) {}
+        cliMode: ObsidianCliMode = "auto",
+    ) {
+        this.obsidianCli = new ObsidianCli(cliMode);
+    }
+
+    private readonly obsidianCli: ObsidianCli;
 
     async installAll(): Promise<void> {
         const pluginsDir = this.ensurePluginsDirectory();
@@ -185,8 +191,55 @@ export class PluginManager {
     }
 
     async enableAll(page: Page): Promise<void> {
-        await this.disableRestrictedMode(page);
         const pluginIds = this.plugins.map((p) => p.pluginId);
+
+        const vaultName = await page.evaluate(() => {
+            const app = (window as any).app;
+            return app?.vault?.getName?.() || "";
+        });
+        const handledByCli = await this.obsidianCli.tryEnablePlugins(
+            this.vaultPath,
+            vaultName,
+            pluginIds,
+        );
+
+        if (handledByCli) {
+            let allEnabled = false;
+            try {
+                await page.waitForFunction(
+                    (ids) => {
+                        const app = (window as any).app;
+                        return ids.every((id) =>
+                            app?.plugins?.enabledPlugins?.has(id),
+                        );
+                    },
+                    pluginIds,
+                    { timeout: 5000 },
+                );
+                allEnabled = true;
+            } catch (error) {
+                logger.warn(
+                    "Obsidian CLI completed, but plugin state could not be observed in Playwright:",
+                    error,
+                );
+            }
+
+            if (allEnabled) {
+                return;
+            }
+
+            if (this.obsidianCli.isRequired()) {
+                throw new Error(
+                    "Obsidian CLI completed, but the Playwright app did not observe all plugins.",
+                );
+            }
+
+            logger.warn(
+                "Obsidian CLI completed, but the Playwright app did not observe all plugins. Falling back to Playwright.",
+            );
+        }
+
+        await this.disableRestrictedMode(page);
         const enabledIds = await page.evaluate(async (ids) => {
             const app = (window as any).app;
             const enabled: string[] = [];

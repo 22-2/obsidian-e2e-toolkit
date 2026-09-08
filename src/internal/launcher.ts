@@ -142,6 +142,7 @@ export class ObsidianE2ELauncher {
                 pluginId: getActualPluginId(plugin.path),
             })),
             vaultPath,
+            this.options.obsidianCli,
         );
         services.register(
             new ValueService(SERVICE_IDS.pluginManager, pluginManager),
