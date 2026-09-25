@@ -21,7 +21,7 @@ pnpm add -D obsidian-e2e-toolkit electron playwright @playwright/test
 pnpm release -- --dry-run --ci
 ```
 
-確認後に `pnpm release` を実行すると、`package.json` と `CHANGELOG.md` を更新して、バージョン更新コミットと `1.2.0` のような `v` なしタグを push します。タグ push で既存の GitHub Actions がビルド済み成果物と GitHub Release を作成します。npm には publish しません。
+確認後に `pnpm release` を実行すると、`package.json` と `CHANGELOG.md` を更新して、バージョン更新コミットと `1.2.0` のような `v` なしタグを push します。タグはソース履歴上に維持し、GitHub Actions はビルド済みの npm 互換 tarball を Release asset として作成します。インストール URL は各 Release の説明に表示されます。npm には publish しません。
 
 インストール後に `postinstall` で `setup.mjs` が実行され、同梱されている Obsidian の ASAR アセットを `.obsidian-unpacked/` に展開します。
 

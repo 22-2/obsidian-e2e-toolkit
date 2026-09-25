@@ -4,12 +4,6 @@ on:
   push:
     tags:
       - "*.*.*"
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to release (e.g., 1.0.0)"
-        required: true
-        type: string
 
 jobs:
   release:
@@ -42,67 +36,56 @@ jobs:
       - name: Get version
         id: tag_version
         run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            TAG_NAME="${GITHUB_REF#refs/tags/}"
-            VERSION="${GITHUB_REF#refs/tags/}"
-          else
-            TAG_NAME="${{ github.event.inputs.version }}"
-            VERSION="${{ github.event.inputs.version }}"
+          TAG_NAME="${GITHUB_REF#refs/tags/}"
+          VERSION="$TAG_NAME"
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          if [[ "$PACKAGE_VERSION" != "$VERSION" ]]; then
+            echo "Tag version $VERSION does not match package.json version $PACKAGE_VERSION" >&2
+            exit 1
           fi
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Create Release Branch and Push
+      - name: Prepare prebuilt package and release archives
         run: |
-          # 1. 必要なアセットをすべて揃えるっす (Obsidian のバイナリ等)
+          # Build the setup assets into the release package, then remove downloads not needed at runtime.
           pnpm run postinstall
-
-          # 【重要】GitHub の 100MB 回避策：
-          # obsidian-e2e-toolkit-assets/cache にあるダウンロード済みの巨大な tar.gz や asar は削除するっす！
-          # インストール後に必要なのは unpacked された中身だけなので、これでサイズを大幅に削れるっす。
           rm -rf obsidian-e2e-toolkit-assets/cache
 
-          # 2. リリース用ブランチの準備
-          git config user.email "action@github.com"
-          git config user.name "GitHub Action"
+          mkdir -p release-package release-artifacts
+          cp -R dist scripts obsidian-e2e-toolkit-assets release-package/
+          cp README.md LICENSE package.json release-package/
 
-          # 3. 消費者側でのエラーを回避するために package.json を加工するっす
-          # - prepare/postinstall を消すことで再ビルドを防止
-          # - obsidian-e2e-toolkit-assets を files に追加して、インストール時に消されないようにするっす！
-          node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); delete pkg.scripts.prepare; delete pkg.scripts.postinstall; if (pkg.files && !pkg.files.includes('obsidian-e2e-toolkit-assets')) { pkg.files.push('obsidian-e2e-toolkit-assets') }; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 4))"
+          # Keep release-only lifecycle changes inside the tarball so source tags stay on main's history.
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const path = 'release-package/package.json';
+          const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+          delete pkg.scripts.prepare;
+          delete pkg.scripts.postinstall;
+          if (!pkg.files.includes('obsidian-e2e-toolkit-assets')) {
+            pkg.files.push('obsidian-e2e-toolkit-assets');
+          }
+          fs.writeFileSync(path, JSON.stringify(pkg, null, 4) + '\n');
+          NODE
 
-          # 4. 作業用の一時的なインデックスを作成して、配布に必要なファイルだけを入れるっす
-          git checkout -b release-temp
-          git add -f dist/
-          git add -f obsidian-e2e-toolkit-assets/
-          git add package.json README.md LICENSE
-
-          git commit -m "Release version ${{ steps.tag_version.outputs.VERSION }} (pre-built, cache cleaned)"
-
-          # 5. タグを上書きプッシュするっす
-          git tag -f ${{ steps.tag_version.outputs.TAG_NAME }}
-          git push -f origin ${{ steps.tag_version.outputs.TAG_NAME }}
-
-      - name: Create Release Archive
-        # 成果物（dist 等）が含まれた状態でアーカイブを作成するように cd して実行するっす
-        run: |
-          mkdir -p release-artifacts
-          tar -czf release-artifacts/obsidian-e2e-toolkit-${{ steps.tag_version.outputs.VERSION }}.tar.gz \
-            dist/ \
-            obsidian-e2e-toolkit-assets/ \
-            README.md \
-            LICENSE \
-            package.json
-
+          npm pack ./release-package --pack-destination ./release-artifacts
+          tar -czf "release-artifacts/obsidian-e2e-toolkit-${{ steps.tag_version.outputs.VERSION }}.tar.gz" -C release-package .
           cd release-artifacts
-          sha256sum obsidian-e2e-toolkit-${{ steps.tag_version.outputs.VERSION }}.tar.gz > checksums.txt
+          sha256sum *.tgz *.tar.gz > checksums.txt
 
       - name: Generate Release Notes
         id: release_notes
         run: |
           TAG_NAME="${{ steps.tag_version.outputs.TAG_NAME }}"
-          # Get the previous tag
-          PREV_TAG=$(git describe --tags --abbrev=0 "${TAG_NAME}^" 2>/dev/null || echo "")
+          VERSION="${{ steps.tag_version.outputs.VERSION }}"
+          # Version tags can include an older prebuilt tag whose commit is not on main.
+          PREV_TAG=$(git tag --sort=-version:refname | awk -v current="$TAG_NAME" '
+            $0 ~ /^[0-9]+\.[0-9]+\.[0-9]+$/ {
+              if (found) { print; exit }
+              if ($0 == current) found = 1
+            }
+          ')
 
           if [ -z "$PREV_TAG" ]; then
             echo "NOTES<<EOF" >> $GITHUB_OUTPUT
@@ -118,23 +101,24 @@ jobs:
             echo "### Installation (Pre-built)" >> $GITHUB_OUTPUT
             echo "ビルド済みの成果物が含まれているため、追加の設定なしでインストールできるっす！" >> $GITHUB_OUTPUT
             echo '```bash' >> $GITHUB_OUTPUT
-            echo "pnpm add github:22-2/obsidian-e2e-toolkit#${TAG_NAME}" >> $GITHUB_OUTPUT
+            echo "pnpm add -D https://github.com/${{ github.repository }}/releases/download/${TAG_NAME}/obsidian-e2e-toolkit-${VERSION}.tgz" >> $GITHUB_OUTPUT
             echo '```' >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           else
+            PREV_BASE=$(git merge-base "$PREV_TAG" "$TAG_NAME")
             echo "NOTES<<EOF" >> $GITHUB_OUTPUT
             echo "## What's Changed" >> $GITHUB_OUTPUT
             echo "" >> $GITHUB_OUTPUT
-            git log "$PREV_TAG..$TAG_NAME" --pretty=format:"- %s (%h)" --no-merges >> $GITHUB_OUTPUT
+            git log "$PREV_BASE..$TAG_NAME" --pretty=format:"- %s (%h)" --no-merges >> $GITHUB_OUTPUT
             echo "" >> $GITHUB_OUTPUT
             echo "" >> $GITHUB_OUTPUT
             echo "### Installation (Pre-built)" >> $GITHUB_OUTPUT
             echo "ビルド済みの成果物が含まれているため、追加の設定なしでインストールできるっす！" >> $GITHUB_OUTPUT
             echo '```bash' >> $GITHUB_OUTPUT
-            echo "pnpm add github:${{ github.repository }}#${TAG_NAME}" >> $GITHUB_OUTPUT
+            echo "pnpm add -D https://github.com/${{ github.repository }}/releases/download/${TAG_NAME}/obsidian-e2e-toolkit-${VERSION}.tgz" >> $GITHUB_OUTPUT
             echo '```' >> $GITHUB_OUTPUT
             echo "" >> $GITHUB_OUTPUT
-            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREV_TAG...$TAG_NAME" >> $GITHUB_OUTPUT
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$PREV_BASE...$TAG_NAME" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           fi
 
@@ -144,6 +128,7 @@ jobs:
           name: Release ${{ steps.tag_version.outputs.TAG_NAME }}
           body: ${{ steps.release_notes.outputs.NOTES }}
           files: |
+            release-artifacts/*.tgz
             release-artifacts/*.tar.gz
             release-artifacts/checksums.txt
           draft: false
@@ -158,9 +143,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "#### Installation (Pre-built)" >> $GITHUB_STEP_SUMMARY
           echo '```bash' >> $GITHUB_STEP_SUMMARY
-          echo "pnpm add github:${{ github.repository }}#${{ steps.tag_version.outputs.TAG_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "pnpm add -D https://github.com/${{ github.repository }}/releases/download/${{ steps.tag_version.outputs.TAG_NAME }}/obsidian-e2e-toolkit-${{ steps.tag_version.outputs.VERSION }}.tgz" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "#### Links" >> $GITHUB_STEP_SUMMARY
           echo "- [Release Page](https://github.com/${{ github.repository }}/releases/tag/${{ steps.tag_version.outputs.TAG_NAME }})" >> $GITHUB_STEP_SUMMARY
-          echo "- [Source Code (Pre-built tag)](https://github.com/${{ github.repository }}/tree/${{ steps.tag_version.outputs.TAG_NAME }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Source Code](https://github.com/${{ github.repository }}/tree/${{ steps.tag_version.outputs.TAG_NAME }})" >> $GITHUB_STEP_SUMMARY

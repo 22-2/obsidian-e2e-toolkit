@@ -7,6 +7,7 @@
     },
     "git": {
         "tagName": "${version}",
+        "getLatestTagFromAllRefs": true,
         "commitMessage": "chore: Bump version to ${version}\n\n- Update the package version for the GitHub release\n- Regenerate the changelog from Conventional Commits"
     },
     "hooks": {
