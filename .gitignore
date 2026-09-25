@@ -8,6 +8,8 @@ test-results/
 playwright-report/
 # Build output is attached to GitHub Releases as a prebuilt package.
 dist/
+# Setup downloads and extracted app assets are regenerated and copied into the release tarball by CI.
+/obsidian-e2e-toolkit-assets/
 .obsidian-unpacked/
 .obsidian-cache/
 pnpm-lock.yaml
