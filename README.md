@@ -13,6 +13,16 @@ Obsidian（Electron）を Playwright でE2Eテストするためのユーティ�
 pnpm add -D obsidian-e2e-toolkit electron playwright @playwright/test
 ```
 
+## リリース
+
+リリースには Conventional Commits の履歴を使います。まず変更をコミットしてから、次のコマンドでバージョン更新と CHANGELOG の内容を確認してください。
+
+```bash
+pnpm release -- --dry-run --ci
+```
+
+確認後に `pnpm release` を実行すると、`package.json` と `CHANGELOG.md` を更新して、バージョン更新コミットと `1.2.0` のような `v` なしタグを push します。タグ push で既存の GitHub Actions がビルド済み成果物と GitHub Release を作成します。npm には publish しません。
+
 インストール後に `postinstall` で `setup.mjs` が実行され、同梱されている Obsidian の ASAR アセットを `.obsidian-unpacked/` に展開します。
 
 再実行したい場合:

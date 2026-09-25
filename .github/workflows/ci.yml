@@ -36,5 +36,6 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Run tests (if available)
-        run: pnpm test || true
+      # Let test failures block the build so broken releases cannot pass CI.
+      - name: Run tests
+        run: pnpm test

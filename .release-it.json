@@ -1,0 +1,32 @@
+{
+    "npm": {
+        "publish": false
+    },
+    "github": {
+        "release": false
+    },
+    "git": {
+        "tagName": "${version}",
+        "commitMessage": "chore: Bump version to ${version}\n\n- Update the package version for the GitHub release\n- Regenerate the changelog from Conventional Commits"
+    },
+    "hooks": {
+        "before:init": "pnpm test"
+    },
+    "plugins": {
+        "@release-it/conventional-changelog": {
+            "infile": "CHANGELOG.md",
+            "preset": {
+                "name": "conventionalcommits",
+                "types": [
+                    { "type": "feat", "section": "Features" },
+                    { "type": "fix", "section": "Bug Fixes" },
+                    { "type": "perf", "section": "Performance Improvements" },
+                    { "type": "revert", "section": "Reverts" },
+                    { "type": "docs", "section": "Documentation", "effect": "changelog" },
+                    { "type": "chore", "section": "Maintenance", "effect": "changelog" },
+                    { "type": "test", "section": "Tests", "effect": "hidden" }
+                ]
+            }
+        }
+    }
+}
