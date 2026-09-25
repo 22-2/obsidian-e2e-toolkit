@@ -61,7 +61,7 @@
     ],
     "peerDependencies": {
         "@playwright/test": "^1.56.0",
-        "electron": "^41.0.3",
+        "electron": "*",
         "playwright": "^1.56.0"
     },
     "dependencies": {
