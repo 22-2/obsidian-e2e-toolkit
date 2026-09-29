@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.2.0...1.2.1) (2026-09-29)
+
+### Bug Fixes
+
+* bind the page fixture to the Obsidian renderer ([25ca015](https://github.com/22-2/obsidian-e2e-toolkit/commit/25ca0156d7cd4b8bfc111407179b4aec65f3bb51))
+* ensure plugin styles are ready after reload ([850bf7e](https://github.com/22-2/obsidian-e2e-toolkit/commit/850bf7e4e19a18c2d361405ac6be8b78023449cb))
+* respect readiness wait timeouts ([f331dd8](https://github.com/22-2/obsidian-e2e-toolkit/commit/f331dd81bb18a384a8d83db9f0d0c0951dd41203))
+
 ## [1.2.0](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.1.0...1.2.0) (2026-09-26)
 
 ### Features
