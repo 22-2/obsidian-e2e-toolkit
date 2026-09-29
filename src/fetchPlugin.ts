@@ -19,6 +19,16 @@ function parseRepoUrl(repo: string) {
     throw new Error(`Unsupported repo url: ${repo}`);
 }
 
+function getGitHubApiHeaders(): Record<string, string> {
+    // setup と同じトークンを使い、外部プラグインの取得だけ未認証になるのを防ぐ。
+    const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+    const headers = {
+        Accept: "application/vnd.github+json",
+        "User-Agent": "obsidian-e2e-toolkit",
+    };
+    return token ? { ...headers, Authorization: `Bearer ${token}` } : headers;
+}
+
 async function downloadToFile(url: string, destPath: string) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Failed to download ${url}: ${res.status}`);
@@ -49,7 +59,7 @@ export async function fetchPlugin(
         const latestApi = `https://api.github.com/repos/${owner}/${repoName}/releases/latest`;
         logger.debug(`checking latest release: ${latestApi}`);
         let res = await fetch(latestApi, {
-            headers: { "User-Agent": "obsidian-e2e-toolkit" },
+            headers: getGitHubApiHeaders(),
         });
         if (res.ok) {
             const rel = await res.json();
@@ -70,7 +80,7 @@ export async function fetchPlugin(
             const listApi = `https://api.github.com/repos/${owner}/${repoName}/releases?per_page=20`;
             logger.debug(`listing releases: ${listApi}`);
             const listRes = await fetch(listApi, {
-                headers: { "User-Agent": "obsidian-e2e-toolkit" },
+                headers: getGitHubApiHeaders(),
             });
             if (listRes.ok) {
                 const list = await listRes.json();
