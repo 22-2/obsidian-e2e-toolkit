@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.2.1...1.2.2) (2026-09-29)
+
+### Bug Fixes
+
+* authenticate plugin release lookups ([32ca1c4](https://github.com/22-2/obsidian-e2e-toolkit/commit/32ca1c40e226e3fd7f725d3c252405c726e4c780))
+* pass GitHub tokens to setup workflows ([bce57d8](https://github.com/22-2/obsidian-e2e-toolkit/commit/bce57d87a4211ba7e1373583c6fabdd803fa8807))
+
 ## [1.2.1](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.2.0...1.2.1) (2026-09-29)
 
 ### Bug Fixes
