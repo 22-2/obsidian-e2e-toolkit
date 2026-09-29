@@ -48,6 +48,11 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
             .catch(() => {});
     },
     vaultOptions: [DEFAULT_VAULT_OPTIONS, { option: true }],
+    // 意図: Playwright 標準の別ページではなく、fixture が準備した Obsidian の
+    // vault レンダラーを page として渡し、操作先の取り違えを防ぐ。
+    page: async ({ obsidian }, use) => {
+        await use(obsidian.page);
+    },
     obsidian: async ({ vaultOptions, tempDir }, use, testInfo) => {
         const paths = getResolvedPaths();
         const runId = createRunId(testInfo.title);
