@@ -128,6 +128,19 @@ test("plugin activation", async ({ obsidian }) => {
 });
 ```
 
+fixture はリロード後にプラグインのロード状態と、`styles.css` がある場合はスタイルの読み込みも確認します。未適用の CSS は Obsidian の `loadCSS()` で一度だけ再読み込みし、復旧できなければセットアップエラーになります。CSS を持たないプラグインも利用できます。プラグイン固有の非同期データや画面の描画完了は、各テストで待機してください。
+
+`page` fixture は `obsidian.page` と同じ vault の Page を返すため、次の書き方でも Obsidian を操作できます。別ウィンドウで開く設定画面は、そのウィンドウの Page を取得して操作してください。
+
+```ts
+test("vault renderer", async ({ obsidian, page }) => {
+  expect(page).toBe(obsidian.page);
+  await expect(page.locator(".workspace")).toBeVisible();
+});
+```
+
+toolkit 自体の準備完了と `page` fixture の E2E 検証は `pnpm test:e2e:readiness` で実行できます。この検証では、外部のコミュニティプラグインを取得せず、一時的なテストプラグインを使用します。
+
 ## `vaultOptions`（fixture）
 
 `test.use({ vaultOptions: ... })` で vault の挙動を調整できます。
