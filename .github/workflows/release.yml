@@ -11,6 +11,10 @@ jobs:
     permissions:
       contents: write
 
+    # install とリリース用アセット準備の両方が GitHub API を呼ぶため、ジョブ全体で渡す。
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

@@ -15,6 +15,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
 
+    # postinstall とテスト準備の子プロセスにも認証を渡し、未認証の API 制限を避ける。
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4

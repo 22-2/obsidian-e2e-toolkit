@@ -9,6 +9,9 @@ on:
 jobs:
   install-from-other:
     runs-on: ubuntu-latest
+    # 検証パッケージの postinstall にも認証を継承し、ランナーの共有 IP に依存しない。
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
