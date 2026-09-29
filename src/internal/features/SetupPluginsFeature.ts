@@ -20,5 +20,8 @@ export class SetupPluginsFeature implements IFeature<{ page: Page }, void> {
         await pluginManager.enableAll(input.page);
         await input.page.reload();
         await PageWaiter.waitForPage(input.page);
+        // 意図: vault のレイアウト完了後もプラグインと CSS のロードは続くため、
+        // テストへ制御を渡す前に fixture の準備完了を確認する。
+        await pluginManager.waitForReady(input.page);
     }
 }
