@@ -35,6 +35,8 @@ export class PageWaiter {
                     (workspace.layoutReady === true || !!workspace.activeLeaf)
                 );
             },
+            // 意図: 第2引数はブラウザー関数への引数なので、待機設定は第3引数へ渡す。
+            undefined,
             { timeout },
         );
     }

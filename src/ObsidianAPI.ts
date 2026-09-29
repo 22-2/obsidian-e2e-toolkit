@@ -274,6 +274,8 @@ export class ObsidianAPI {
                 !!app?.workspace &&
                 (app.workspace.layoutReady === true ||
                     !!app.workspace.activeLeaf),
+            // 意図: timeout を評価関数の引数にせず、Playwright の待機設定として使う。
+            undefined,
             { timeout },
         );
     }
