@@ -10,6 +10,7 @@ import type { ElectronApplication, Page } from "playwright";
 import { _electron as electron } from "playwright/test";
 import type { ResolvedPaths } from "../path";
 import { createLaunchOptions } from "../path";
+import { createElectronBootstrap } from "./electronBootstrap";
 
 const logger = log.getLogger("ElectronAppManager");
 
@@ -54,10 +55,16 @@ export class ElectronAppManager {
             throw err;
         }
         const baseLaunchOptions = createLaunchOptions(this.paths);
+        // Guard protocol registration before Obsidian runs, including with cached assets.
+        const bootstrapDir = await createElectronBootstrap(
+            this.paths.appMainJsPath,
+            this.tempUserDataDir,
+        );
         const launchOptions = {
             ...baseLaunchOptions,
             args: [
-                ...baseLaunchOptions.args,
+                bootstrapDir,
+                ...baseLaunchOptions.args.slice(1),
                 `--user-data-dir=${this.tempUserDataDir}`,
             ],
             env: {

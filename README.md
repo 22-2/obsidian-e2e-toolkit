@@ -13,6 +13,12 @@ Obsidian（Electron）を Playwright でE2Eテストするためのユーティ�
 pnpm add -D obsidian-e2e-toolkit electron playwright @playwright/test
 ```
 
+Electron のバイナリが未取得で E2E を起動できない場合は、`pnpm exec node node_modules/electron/install.js` で取得できます。
+E2E 用 Obsidian は起動時に `obsidian://` の既定アプリを登録・解除しないため、通常の Obsidian の関連付けを維持します。
+旧バージョンの E2E 起動ですでに関連付けが変わっている場合は、Windows のレジストリ
+`HKEY_CURRENT_USER\Software\Classes\obsidian\shell\open\command` の既定値を
+`"実際にインストールした Obsidian.exe のフルパス" "%1"` に戻してください。
+
 ## リリース
 
 リリースには Conventional Commits の履歴を使います。まず変更をコミットしてから、次のコマンドでバージョン更新と CHANGELOG の内容を確認してください。
