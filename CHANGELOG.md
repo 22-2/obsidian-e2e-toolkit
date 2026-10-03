@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.3](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.2.2...1.2.3) (2026-10-03)
+
+### Bug Fixes
+
+* preserve Obsidian protocol association during E2E ([aa1a4cc](https://github.com/22-2/obsidian-e2e-toolkit/commit/aa1a4cced4eeb5c759d075c7f83de9e3d9127bb3))
+
 ## [1.2.2](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.2.1...1.2.2) (2026-09-29)
 
 ### Bug Fixes
