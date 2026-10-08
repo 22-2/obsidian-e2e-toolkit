@@ -13,7 +13,10 @@ Obsidian（Electron）を Playwright でE2Eテストするためのユーティ�
 pnpm add -D obsidian-e2e-toolkit electron playwright @playwright/test
 ```
 
-> **注意:** 最近の Electron は、インストール後にバイナリが自動で取得されない場合があります。その場合は、インストール後に次のコマンドを**手動で実行**してください。実行しないと、E2E の起動時に Electron のバイナリが見つからず失敗します。
+> **注意:** pnpm v10 以降は、セキュリティ強化のため依存パッケージの `postinstall` などのライフサイクルスクリプトがデフォルトでは実行されません。Electron のバイナリ取得（`install.js`）も `postinstall` で行われるため、許可していないと取得されません。次のどちらかで対処してください。
+>
+> - 下の「pnpm 設定（必須）」のとおり `onlyBuiltDependencies` に `electron` と `obsidian-e2e-toolkit` を追加する（または `pnpm approve-builds`）
+> - 許可しない場合は、インストール後に次のコマンドを**手動で実行**する実行しないと、E2E の起動時に Electron のバイナリが見つからず失敗します。
 >
 > ```bash
 > node node_modules/electron/install.js
