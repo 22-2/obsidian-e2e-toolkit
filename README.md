@@ -45,7 +45,11 @@ pnpm exec obsidian-e2e-toolkit   # playwright.config.ts と e2e/example.spec.ts 
 
 ## Linux / CI で実行する
 
-ディスプレイのない環境（Linux サーバー、コンテナ、CI）では仮想ディスプレイが必要です。
+このツールキットは実際の Obsidian（Electron）ウィンドウを起動するため、**ディスプレイ（X サーバー）が必要**です。ディスプレイのない環境（Linux サーバー、コンテナ、CI）では起動できません。
+
+- **ディスプレイのある環境**（Windows / macOS / デスクトップの Linux）: そのまま動作します。
+- **ディスプレイのない Linux**: 仮想ディスプレイ（Xvfb）を用意すれば動作します。`xvfb-run` は Xvfb を起動して、その上でコマンドを実行します。動作を確認できた例は、Linux コンテナでの `xvfb-run -a` です（Node 24）。
+- **GitHub Actions**: 現時点では**動作しません**（非対応として扱ってください）。下記のとおり未解決です。
 
 ```bash
 xvfb-run -a pnpm exec playwright test
