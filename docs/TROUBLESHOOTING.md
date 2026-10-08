@@ -23,7 +23,16 @@ test.use({
 xvfb-run -a pnpm exec playwright test
 ```
 
-GitHub Actions の Ubuntu では `electron.launch` が `Process failed to launch` で失敗する既知の問題があります（[microsoft/playwright#11932](https://github.com/microsoft/playwright/issues/11932)）。`xvfb-run` 付きで実行してください。このツールキットのメンテナ環境では GitHub Actions 上での動作は未検証です。
+### GitHub Actions（未解決）
+
+GitHub Actions の Ubuntu ランナーでは、`electron.launch` が `Process failed to launch` で失敗する既知の問題があり（[microsoft/playwright#11932](https://github.com/microsoft/playwright/issues/11932)）、**現時点で動作する構成は確認できていません**。実際に Actions で `xvfb-run` などを含めて試しましたが、解決しませんでした。
+
+分かっていること:
+
+- 同じ `xvfb-run -a pnpm exec playwright test` は、ローカルの Linux コンテナでは動作しました（Node 24）。
+- そのため、E2E は当面ローカル（または自前の Linux 環境）で実行し、Actions では単体テストとビルドのみを実行する運用が現実的です。
+
+解決に向けて、Actions で失敗したときのログ全文（`Process failed to launch` の前後、Electron の stderr、`DEBUG=pw:browser*` 付きの出力）を残すと、原因の切り分けに役立ちます。
 
 ## Electron のバイナリがない / ダウンロードを省きたい
 

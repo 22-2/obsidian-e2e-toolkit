@@ -43,7 +43,7 @@ xvfb-run -a pnpm exec playwright test
 - テストが失敗すると、Obsidian ウィンドウのスクリーンショット（`obsidian-screenshot`）と DOM（`obsidian-dom`）が Playwright のレポートと `test-results/` に添付されます。
 - 単体テスト用の Vitest などが `e2e/` の spec を拾わないよう、テスト対象を `src/**` などに限定してください。
 - E2E を実行しないジョブでは `ELECTRON_SKIP_BINARY_DOWNLOAD=1` を設定すると、Electron のダウンロードを省略できます。
-- GitHub Actions の Ubuntu で `electron.launch` が `Process failed to launch` で失敗する既知の問題があります（[microsoft/playwright#11932](https://github.com/microsoft/playwright/issues/11932)）。CI では `xvfb-run -a pnpm exec playwright test` のように仮想ディスプレイ付きで実行し、手元の環境と同じ手順で通るか確認してください。なお、このツールキットのメンテナ環境では GitHub Actions 上での動作は未検証です。
+- **GitHub Actions の Ubuntu では、現時点で動作しません。** `electron.launch` が `Process failed to launch` で失敗する既知の問題があり（[microsoft/playwright#11932](https://github.com/microsoft/playwright/issues/11932)）、`xvfb-run` を含めいくつか試しても解決していません。ローカルやコンテナ内の `xvfb-run` では動作を確認できた例があります。詳細は [トラブルシューティング](docs/TROUBLESHOOTING.md) を参照してください。
 
 ## リリース
 
