@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.2.3...1.3.0) (2026-10-08)
+
+### Features
+
+* add createNote, evaluateApp, plugin data helpers, plugin data fixtures and init CLI ([2a4ae2e](https://github.com/22-2/obsidian-e2e-toolkit/commit/2a4ae2ebf5db58cbf45a35562455fb935a34abf4))
+* attach failure artifacts, accept readonly plugins, document Linux/CI usage ([e570b35](https://github.com/22-2/obsidian-e2e-toolkit/commit/e570b35e4af9b74f3ecd64ee9bfc234842508c82))
+
+### Documentation
+
+* link Playwright electron.launch issue on Ubuntu CI ([5197853](https://github.com/22-2/obsidian-e2e-toolkit/commit/5197853c52915c58efa2c36abd19a5a1abb19498))
+* state that GitHub Actions is currently unresolved ([660dfa6](https://github.com/22-2/obsidian-e2e-toolkit/commit/660dfa6aa730183e9b4c3280178b28f729ca7563))
+* update API reference, add troubleshooting guide ([578c7a0](https://github.com/22-2/obsidian-e2e-toolkit/commit/578c7a044ae92f58b0498caa7e9f9de6799804bc))
+
 ## [1.2.3](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.2.2...1.2.3) (2026-10-03)
 
 ### Bug Fixes
