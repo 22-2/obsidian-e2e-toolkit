@@ -19,6 +19,19 @@ E2E 用 Obsidian は起動時に `obsidian://` の既定アプリを登録・解
 `HKEY_CURRENT_USER\Software\Classes\obsidian\shell\open\command` の既定値を
 `"実際にインストールした Obsidian.exe のフルパス" "%1"` に戻してください。
 
+## Linux / CI で実行する
+
+ディスプレイのない環境（Linux サーバー、コンテナ、CI）では仮想ディスプレイが必要です。
+
+```bash
+xvfb-run -a pnpm exec playwright test
+```
+
+- テストが失敗すると、Obsidian ウィンドウのスクリーンショット（`obsidian-screenshot`）と DOM（`obsidian-dom`）が Playwright のレポートと `test-results/` に添付されます。
+- 単体テスト用の Vitest などが `e2e/` の spec を拾わないよう、テスト対象を `src/**` などに限定してください。
+- E2E を実行しないジョブでは `ELECTRON_SKIP_BINARY_DOWNLOAD=1` を設定すると、Electron のダウンロードを省略できます。
+- GitHub Actions の Ubuntu では `electron.launch` が失敗する既知の問題があります。`xvfb-run` 付きで動作確認してください。
+
 ## リリース
 
 リリースには Conventional Commits の履歴を使います。まず変更をコミットしてから、次のコマンドでバージョン更新と CHANGELOG の内容を確認してください。

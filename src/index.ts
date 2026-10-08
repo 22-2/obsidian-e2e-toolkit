@@ -37,6 +37,28 @@ import { ObsidianAPI } from "./ObsidianAPI";
 
 export const logger = log.getLogger("obsidianSetup");
 
+/** Attach a screenshot and the visible DOM of the Obsidian window to a failed test. */
+async function attachFailureArtifacts(
+    testInfo: import("@playwright/test").TestInfo,
+    page: import("@playwright/test").Page | undefined,
+): Promise<void> {
+    if (!page || testInfo.status === "passed" || testInfo.status === "skipped") {
+        return;
+    }
+    try {
+        await testInfo.attach("obsidian-screenshot", {
+            body: await page.screenshot(),
+            contentType: "image/png",
+        });
+        await testInfo.attach("obsidian-dom", {
+            body: await page.content(),
+            contentType: "text/html",
+        });
+    } catch (err: any) {
+        logger.warn(`Could not capture failure artifacts: ${err?.message ?? err}`);
+    }
+}
+
 export const test = base.extend<TestFixtures, WorkerFixtures>({
     tempDir: async ({}, use) => {
         const dir = await fs.mkdtemp(path.join(os.tmpdir(), "obsidian-e2e-"));
@@ -91,6 +113,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
             runLogger.info("Test body completed");
 
             handleTestError(testInfo);
+            await attachFailureArtifacts(testInfo, context.page);
         } catch (err: any) {
             runLogger.error(
                 `Error during test execution: ${err.message || err}`,

@@ -61,7 +61,7 @@ export interface VaultOptions {
     /** Use the official Obsidian CLI when it targets the same vault. */
     obsidianCli?: ObsidianCliMode;
     /** Plugin fixtures to install into the test vault. */
-    plugins: TestPlugin[];
+    plugins: readonly TestPlugin[];
 }
 
 export type ObsidianCliMode = "off" | "auto" | "required";
