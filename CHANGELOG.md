@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.0](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.3.0...1.4.0) (2026-10-08)
+
+### Features
+
+* add reloadPlugin and document waiter semantics, no-browser and postinstall notes ([bf2b1f9](https://github.com/22-2/obsidian-e2e-toolkit/commit/bf2b1f9f0c9ee4cb07f204ed0be06c144d46d601))
+
+### Bug Fixes
+
+* include background tabs missed by iterateAllLeaves in allTabs/allViews ([652c560](https://github.com/22-2/obsidian-e2e-toolkit/commit/652c560940ca3f06ddda113fa65c4734e68e98f7))
+* read background (deferred) tabs from the saved view state in allTabs/allViews ([8945be2](https://github.com/22-2/obsidian-e2e-toolkit/commit/8945be27914c9bf92be8b68ed72704fc3a6b36be))
+
+### Documentation
+
+* explain pnpm v10 blocking lifecycle scripts as the cause of missing Electron binary ([b9b75a1](https://github.com/22-2/obsidian-e2e-toolkit/commit/b9b75a1c60f5f27a21267406ee97cc805ad60e25))
+* require running electron/install.js manually ([9bd9a20](https://github.com/22-2/obsidian-e2e-toolkit/commit/9bd9a20489d717abb7e75c5374282981b159dd3f))
+
 ## [1.3.0](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.2.3...1.3.0) (2026-10-08)
 
 ### Features
