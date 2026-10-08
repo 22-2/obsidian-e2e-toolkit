@@ -17,11 +17,17 @@ test.use({
 
 ## ディスプレイのない環境（Linux / コンテナ / CI）
 
-仮想ディスプレイが必要です。
+実際の Obsidian（Electron）ウィンドウを起動するため、ディスプレイ（X サーバー）が必要です。ディスプレイのない環境では起動できません。
+
+- ディスプレイのある環境（Windows / macOS / デスクトップの Linux）: そのまま動作します。
+- ディスプレイのない Linux: 仮想ディスプレイ（Xvfb）が必要です。`xvfb-run` を使うと、Xvfb を起動してその上でテストを実行できます。
+- GitHub Actions: 現時点では非対応として扱ってください（下記）。
 
 ```bash
 xvfb-run -a pnpm exec playwright test
 ```
+
+`xvfb-run` が見つからない場合は、Xvfb のパッケージ（Debian/Ubuntu では `xvfb`）をインストールしてください。
 
 ### GitHub Actions（未解決）
 
