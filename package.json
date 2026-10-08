@@ -90,5 +90,8 @@
     },
     "engines": {
         "node": ">=23.0.0"
+    },
+    "bin": {
+        "obsidian-e2e-toolkit": "./scripts/init.mjs"
     }
 }

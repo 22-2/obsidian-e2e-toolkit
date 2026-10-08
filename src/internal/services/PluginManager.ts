@@ -100,6 +100,11 @@ export class PluginManager {
         const destDir = path.join(pluginsDir, plugin.pluginId);
 
         if (plugin.symlink) {
+            if (plugin.data) {
+                logger.warn(
+                    `Ignoring "data" for symlinked plugin ${plugin.pluginId} to avoid modifying its source directory`,
+                );
+            }
             logger.debug(`Creating symlink for plugin: ${plugin.pluginId}`);
             return this.createPluginSymlink(
                 plugin.path,
@@ -108,7 +113,18 @@ export class PluginManager {
             );
         } else {
             logger.debug(`Copying files for plugin: ${plugin.pluginId}`);
-            return this.copyPluginFiles(plugin.path, destDir, plugin.pluginId);
+            const copied = this.copyPluginFiles(
+                plugin.path,
+                destDir,
+                plugin.pluginId,
+            );
+            if (copied && plugin.data) {
+                writeFileSync(
+                    path.join(destDir, "data.json"),
+                    JSON.stringify(plugin.data, null, 2),
+                );
+            }
+            return copied;
         }
     }
 

@@ -70,6 +70,8 @@ export interface TestPlugin {
     path: string;
     // pluginId: string;
     symlink?: boolean;
+    /** Initial contents of the plugin's data.json (written on install; ignored for symlinked plugins). */
+    data?: Record<string, unknown>;
 }
 
 // Simplified fixture types
@@ -85,4 +87,5 @@ export type PluginConfig = {
     path: string;
     pluginId: string;
     symlink?: boolean;
+    data?: Record<string, unknown>;
 };

@@ -19,6 +19,19 @@ E2E 用 Obsidian は起動時に `obsidian://` の既定アプリを登録・解
 `HKEY_CURRENT_USER\Software\Classes\obsidian\shell\open\command` の既定値を
 `"実際にインストールした Obsidian.exe のフルパス" "%1"` に戻してください。
 
+## クイックスタート
+
+```bash
+pnpm exec obsidian-e2e-toolkit   # playwright.config.ts と e2e/example.spec.ts を生成（既存ファイルは上書きしない）
+```
+
+## 便利な API
+
+- `obsidian.createNote(path, content)`: vault API でノートを作成（親フォルダも作成。既存なら上書き）
+- `obsidian.evaluateApp(fn, arg)`: Obsidian 内で `app` を使う関数を実行
+- `obsidian.pluginData(id)` / `obsidian.setPluginData(id, patch)`: プラグインの `data.json` を読み書き
+- `vaultOptions.plugins[].data`: 起動前にプラグインの初期 `data.json` を書き込む（symlink 時は無視）
+
 ## Linux / CI で実行する
 
 ディスプレイのない環境（Linux サーバー、コンテナ、CI）では仮想ディスプレイが必要です。

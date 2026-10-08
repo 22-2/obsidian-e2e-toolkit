@@ -36,6 +36,17 @@ export class ObsidianAPI {
         this.context = context;
     }
 
+    /**
+     * Run a function inside the Obsidian renderer, where the global `app` is available.
+     * Prefer this over `page.evaluate` + `(window as any).app`.
+     */
+    evaluateApp<T, Arg = undefined>(
+        callback: (arg: Arg) => T | Promise<T>,
+        arg?: Arg,
+    ): Promise<T> {
+        return this.appState(callback, arg);
+    }
+
     private appState<T, Arg = undefined>(
         callback: (arg: Arg) => T | Promise<T>,
         arg?: Arg,
@@ -375,6 +386,25 @@ export class ObsidianAPI {
         ] as const);
     }
 
+    /** Create a note through the vault API (creates parent folders, updates the metadata cache). */
+    async createNote(path: string, content = ""): Promise<void> {
+        await this.appState(
+            async ([p, c]) => {
+                const dir = p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "";
+                if (dir && !(await app.vault.adapter.exists(dir))) {
+                    await app.vault.createFolder(dir);
+                }
+                const existing = app.vault.getAbstractFileByPath(p);
+                if (existing) {
+                    await app.vault.modify(existing as any, c);
+                } else {
+                    await app.vault.create(p, c);
+                }
+            },
+            [path, content] as const,
+        );
+    }
+
     async delete(path: string): Promise<void> {
         await this.appState((p: string) => app.vault.adapter.remove(p), path);
     }
@@ -409,6 +439,37 @@ export class ObsidianAPI {
         return this.context.pluginHandleMap.evaluateHandle(
             (map, id) => map.get(id) as T,
             pluginId,
+        );
+    }
+
+    /** Read the plugin's persisted data (data.json) via `plugin.loadData()`. */
+    async pluginData<T = Record<string, any>>(
+        pluginId: string,
+    ): Promise<T | null> {
+        return this.appState(async (id: string) => {
+            const plugin = app.plugins.plugins[id] as any;
+            if (!plugin) {
+                throw new Error(`Plugin not loaded: ${id}`);
+            }
+            return (await plugin.loadData()) ?? null;
+        }, pluginId);
+    }
+
+    /** Shallow-merge `patch` into the plugin's persisted data via `plugin.saveData()`. */
+    async setPluginData(
+        pluginId: string,
+        patch: Record<string, unknown>,
+    ): Promise<void> {
+        await this.appState(
+            async ([id, data]) => {
+                const plugin = app.plugins.plugins[id] as any;
+                if (!plugin) {
+                    throw new Error(`Plugin not loaded: ${id}`);
+                }
+                const current = (await plugin.loadData()) ?? {};
+                await plugin.saveData({ ...current, ...data });
+            },
+            [pluginId, patch] as const,
         );
     }
 
