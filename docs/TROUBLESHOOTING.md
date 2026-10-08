@@ -36,7 +36,7 @@ GitHub Actions の Ubuntu ランナーでは、`electron.launch` が `Process fa
 
 ## Electron のバイナリがない / ダウンロードを省きたい
 
-- 未取得の場合: `pnpm exec node node_modules/electron/install.js`
+- 最近の Electron は、インストール後にバイナリが自動で取得されない場合があります。インストール後に `node node_modules/electron/install.js`（pnpm なら `pnpm exec node node_modules/electron/install.js`）を**手動で実行**してください。CI ではインストール後・テスト前のステップに加えます。
 - E2E を実行しないジョブ（単体テストのみなど）では `ELECTRON_SKIP_BINARY_DOWNLOAD=1` を設定すると、インストール時のダウンロードを省略できます。
 
 ## Vitest など他のテストランナーが `e2e/` を拾う

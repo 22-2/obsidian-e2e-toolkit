@@ -13,7 +13,15 @@ Obsidian（Electron）を Playwright でE2Eテストするためのユーティ�
 pnpm add -D obsidian-e2e-toolkit electron playwright @playwright/test
 ```
 
-Electron のバイナリが未取得で E2E を起動できない場合は、`pnpm exec node node_modules/electron/install.js` で取得できます。
+> **注意:** 最近の Electron は、インストール後にバイナリが自動で取得されない場合があります。その場合は、インストール後に次のコマンドを**手動で実行**してください。実行しないと、E2E の起動時に Electron のバイナリが見つからず失敗します。
+>
+> ```bash
+> node node_modules/electron/install.js
+> # pnpm の場合（node_modules が .pnpm 配下にあるとき）
+> pnpm exec node node_modules/electron/install.js
+> ```
+>
+> CI でも、依存のインストール後・テスト実行前にこのステップが必要です。
 E2E 用 Obsidian は起動時に `obsidian://` の既定アプリを登録・解除しないため、通常の Obsidian の関連付けを維持します。
 旧バージョンの E2E 起動ですでに関連付けが変わっている場合は、Windows のレジストリ
 `HKEY_CURRENT_USER\Software\Classes\obsidian\shell\open\command` の既定値を
