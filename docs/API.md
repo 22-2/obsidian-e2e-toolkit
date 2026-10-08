@@ -135,11 +135,13 @@
 - `isPluginEnabled(pluginId: string): Promise<boolean>`
   - プラグインが有効かを返す
 - `waitForPluginEnabled(pluginId: string, timeout?: number): Promise<void>`
-  - プラグインが有効になるまで待つ
+  - プラグインが有効になるまで待つ。`waitFor*` 系は**タイムアウト時に例外を投げる**（真偽値は返さない）。真偽で分岐したい場合は `isPluginEnabled` / `pluginState` を `expect.poll` で使う
 - `waitForPluginDisabled(pluginId: string, timeout?: number): Promise<void>`
   - プラグインが無効になるまで待つ
 - `pluginState(pluginId: string): Promise<{ enabled: boolean; loaded: boolean; registered: boolean }>`
   - enable / load / register の状態を返す
+- `reloadPlugin(pluginId: string): Promise<void>`
+  - プラグインを無効化 → 有効化して `data.json` を読み直させる。`setPluginData` の後に使う。`plugin(id)` が返す対象も新しいインスタンスに更新される
 - `rebuildPlugins(vaultOptions: VaultOptions, getPluginHandleMapFn?: typeof getPluginHandleMap): Promise<ObsidianPageTextContext>`
   - プラグイン構成を作り直した context を返す
 - `updateContext(context: ObsidianPageTextContext): void`

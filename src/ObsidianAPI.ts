@@ -517,6 +517,27 @@ export class ObsidianAPI {
         );
     }
 
+    /**
+     * Disable and re-enable a plugin so it re-reads its data.json (e.g. after `setPluginData`).
+     * The handle returned by `plugin(id)` is refreshed to the new plugin instance.
+     */
+    async reloadPlugin(pluginId: string): Promise<void> {
+        await this.appState(async (id: string) => {
+            await app.plugins.disablePlugin(id);
+            await app.plugins.enablePlugin(id);
+        }, pluginId);
+        await this.waitForPluginEnabled(pluginId);
+        await this.context?.pluginHandleMap?.evaluate(
+            (map, id) => {
+                const plugin = (window as any).app?.plugins?.plugins?.[id];
+                if (plugin) {
+                    map.set(id, plugin);
+                }
+            },
+            pluginId,
+        );
+    }
+
     async rebuildPlugins(
         vaultOptions: VaultOptions,
         getPluginHandleMapFn: typeof getPluginHandleMap = getPluginHandleMap,
