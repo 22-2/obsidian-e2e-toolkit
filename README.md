@@ -19,6 +19,32 @@ E2E 用 Obsidian は起動時に `obsidian://` の既定アプリを登録・解
 `HKEY_CURRENT_USER\Software\Classes\obsidian\shell\open\command` の既定値を
 `"実際にインストールした Obsidian.exe のフルパス" "%1"` に戻してください。
 
+## 雛形の生成
+
+```bash
+pnpm exec obsidian-e2e-toolkit   # playwright.config.ts と e2e/example.spec.ts を生成（既存ファイルは上書きしない）
+```
+
+## 便利な API
+
+- `obsidian.createNote(path, content)`: vault API でノートを作成（親フォルダも作成。既存なら上書き）
+- `obsidian.evaluateApp(fn, arg)`: Obsidian 内で `app` を使う関数を実行
+- `obsidian.pluginData(id)` / `obsidian.setPluginData(id, patch)`: プラグインの `data.json` を読み書き
+- `vaultOptions.plugins[].data`: 起動前にプラグインの初期 `data.json` を書き込む（symlink 時は無視）
+
+## Linux / CI で実行する
+
+ディスプレイのない環境（Linux サーバー、コンテナ、CI）では仮想ディスプレイが必要です。
+
+```bash
+xvfb-run -a pnpm exec playwright test
+```
+
+- テストが失敗すると、Obsidian ウィンドウのスクリーンショット（`obsidian-screenshot`）と DOM（`obsidian-dom`）が Playwright のレポートと `test-results/` に添付されます。
+- 単体テスト用の Vitest などが `e2e/` の spec を拾わないよう、テスト対象を `src/**` などに限定してください。
+- E2E を実行しないジョブでは `ELECTRON_SKIP_BINARY_DOWNLOAD=1` を設定すると、Electron のダウンロードを省略できます。
+- **GitHub Actions の Ubuntu では、現時点で動作しません。** `electron.launch` が `Process failed to launch` で失敗する既知の問題があり（[microsoft/playwright#11932](https://github.com/microsoft/playwright/issues/11932)）、`xvfb-run` を含めいくつか試しても解決していません。ローカルやコンテナ内の `xvfb-run` では動作を確認できた例があります。詳細は [トラブルシューティング](docs/TROUBLESHOOTING.md) を参照してください。
+
 ## リリース
 
 リリースには Conventional Commits の履歴を使います。まず変更をコミットしてから、次のコマンドでバージョン更新と CHANGELOG の内容を確認してください。
@@ -158,7 +184,7 @@ toolkit 自体の準備完了と `page` fixture の E2E 検証は `pnpm test:e2e
 - `enableBrowserConsoleLogging?: boolean`
 - `browserConsoleLogging?: { enabledTypes?: string[]; maxMessageLength?: number; previewLength?: number; ignoredMessagePatterns?: string[]; includeLocation?: boolean; includePageErrors?: boolean; includeRequestFailures?: boolean; includeHttpErrors?: boolean; httpErrorThreshold?: number }`
 - `obsidianCli?: "off" | "auto" | "required"` - CLI利用モード（デフォルトは `auto`）
-- `plugins: Array<{ path: string; pluginId: string; symlink?: boolean }>`
+- `plugins: ReadonlyArray<{ path: string; symlink?: boolean; data?: Record<string, unknown> }>` - 投入するプラグイン（`data` は初期 `data.json`）
 
 `auto` では、CLI が利用可能で対象 Vault のパスが一致した場合だけ、
 `plugins:restrict off` と `plugin:enable` を実行します。CLI が未インストール、
@@ -167,9 +193,10 @@ toolkit 自体の準備完了と `page` fixture の E2E 検証は `pnpm test:e2e
 
 CLI の実行ファイルを明示する場合は `OBSIDIAN_CLI_PATH` を指定できます。
 
-## APIリファレンス
+## ドキュメント
 
-- `docs/API.md`
+- [APIリファレンス](docs/API.md)
+- [トラブルシューティング](docs/TROUBLESHOOTING.md)（Linux/CI、失敗時の調査、Obsidian バージョン、pnpm）
 
 ## このリポジトリ内のサンプルを動かす
 

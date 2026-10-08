@@ -61,7 +61,7 @@ export interface VaultOptions {
     /** Use the official Obsidian CLI when it targets the same vault. */
     obsidianCli?: ObsidianCliMode;
     /** Plugin fixtures to install into the test vault. */
-    plugins: TestPlugin[];
+    plugins: readonly TestPlugin[];
 }
 
 export type ObsidianCliMode = "off" | "auto" | "required";
@@ -70,6 +70,8 @@ export interface TestPlugin {
     path: string;
     // pluginId: string;
     symlink?: boolean;
+    /** Initial contents of the plugin's data.json (written on install; ignored for symlinked plugins). */
+    data?: Record<string, unknown>;
 }
 
 // Simplified fixture types
@@ -85,4 +87,5 @@ export type PluginConfig = {
     path: string;
     pluginId: string;
     symlink?: boolean;
+    data?: Record<string, unknown>;
 };
