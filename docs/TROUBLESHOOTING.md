@@ -36,7 +36,7 @@ GitHub Actions の Ubuntu ランナーでは、`electron.launch` が `Process fa
 
 ## Electron のバイナリがない / ダウンロードを省きたい
 
-- 未取得の場合: `pnpm exec node node_modules/electron/install.js`
+- pnpm v10 以降は、依存パッケージの `postinstall` などが既定ではブロックされるため、Electron のバイナリが取得されないことがあります。`onlyBuiltDependencies` に `electron` と `obsidian-e2e-toolkit` を追加する（または `pnpm approve-builds` を実行する）と自動で取得されます。許可しない場合は、インストール後に `node node_modules/electron/install.js`（pnpm なら `pnpm exec node node_modules/electron/install.js`）を**手動で実行**してください。CI ではインストール後・テスト前のステップに加えます。
 - E2E を実行しないジョブ（単体テストのみなど）では `ELECTRON_SKIP_BINARY_DOWNLOAD=1` を設定すると、インストール時のダウンロードを省略できます。
 
 ## Vitest など他のテストランナーが `e2e/` を拾う
@@ -54,3 +54,23 @@ E2E の spec は Playwright で実行します。他のランナーの対象を�
 ## プラグインがインストールされない
 
 `path` のディレクトリに `manifest.json` と `main.js` が必要です。ビルド後のディレクトリを指定してください。足りない場合は `Failed to install plugin fixtures` で即座に失敗します。
+
+## `playwright install`（ブラウザ）は不要
+
+このツールキットは Electron（Obsidian）だけを起動するため、Playwright 用の Chromium などのブラウザは不要です。CI で `playwright install chromium` やブラウザのキャッシュを用意する必要はありません。
+
+## 依存として入れたとき、同梱の Obsidian が展開されない
+
+`postinstall` が実行されない設定（pnpm の `onlyBuiltDependencies` に `obsidian-e2e-toolkit` がない、`--ignore-scripts` など）では、同梱の Obsidian が展開されず `Obsidian app not found ... Did you run the setup script?` で失敗します。CI で次を実行してください。
+
+```bash
+node node_modules/obsidian-e2e-toolkit/setup.mjs
+```
+
+## `waitFor*` がタイムアウトで例外になる
+
+`waitForPluginEnabled` などはタイムアウトで例外を投げます。真偽値が欲しい場合は `isPluginEnabled` / `pluginState` と `expect.poll` を組み合わせてください。
+
+## `setPluginData` した設定がプラグインに反映されない
+
+`setPluginData` は `data.json` を更新するだけで、実行中のプラグインのメモリ上の設定は変わりません。続けて `obsidian.reloadPlugin(id)` を呼ぶと、プラグインが `data.json` を読み直します。プラグインのメモリ上の状態を直接変えて内部ロジックを検証したいテストでは、`plugin(id)` のハンドルで `evaluate` してください。

@@ -109,23 +109,39 @@ export class ObsidianAPI {
 
     async allTabs(): Promise<WorkspaceLeafState[]> {
         return this.appState(() => {
-            const leaves: any[] = [];
-            app.workspace.iterateAllLeaves((leaf: any) => leaves.push(leaf));
+            // `iterateAllLeaves` can miss tabs opened in the background on Obsidian 1.14.4
+            // (`getLeaf("tab").openFile(file, { active: false })`), so merge in `getLeavesOfType`.
+            const found = new Set<any>();
+            app.workspace.iterateAllLeaves((leaf: any) => found.add(leaf));
+            for (const type of Object.keys(
+                (app as any).viewRegistry?.viewByType ?? {},
+            )) {
+                for (const leaf of app.workspace.getLeavesOfType(type)) {
+                    found.add(leaf);
+                }
+            }
+            const leaves: any[] = [...found];
 
             return leaves.map((leaf) => {
+                // Background tabs may be deferred views (no `view.file`), so fall back to the saved view state.
                 const view = leaf.view as any;
-                const file = view?.file ?? null;
+                const state = leaf.getViewState?.() as any;
+                const filePath: string | null =
+                    view?.file?.path ?? state?.state?.file ?? null;
+                const basename = filePath
+                    ? (filePath.split("/").pop() ?? "").replace(/\.[^.]+$/, "")
+                    : null;
                 return {
                     active: leaf === app.workspace.activeLeaf,
                     viewType:
                         typeof view?.getViewType === "function"
                             ? view.getViewType()
-                            : null,
-                    filePath: file?.path ?? null,
+                            : (state?.type ?? null),
+                    filePath,
                     title:
                         typeof view?.getDisplayText === "function"
-                            ? (view.getDisplayText() ?? file?.basename ?? null)
-                            : (file?.basename ?? null),
+                            ? (view.getDisplayText() ?? basename)
+                            : (leaf.getDisplayText?.() ?? basename),
                 } satisfies WorkspaceLeafState;
             });
         });
@@ -167,24 +183,45 @@ export class ObsidianAPI {
 
     async allViews(viewType: string): Promise<WorkspaceLeafState[]> {
         return this.appState((type: string) => {
-            const leaves: any[] = [];
-            app.workspace.iterateAllLeaves((leaf: any) => leaves.push(leaf));
+            // `iterateAllLeaves` can miss tabs opened in the background on Obsidian 1.14.4
+            // (`getLeaf("tab").openFile(file, { active: false })`), so merge in `getLeavesOfType`.
+            const found = new Set<any>();
+            app.workspace.iterateAllLeaves((leaf: any) => found.add(leaf));
+            for (const type of Object.keys(
+                (app as any).viewRegistry?.viewByType ?? {},
+            )) {
+                for (const leaf of app.workspace.getLeavesOfType(type)) {
+                    found.add(leaf);
+                }
+            }
+            const leaves: any[] = [...found];
 
             return leaves
-                .filter((leaf) => leaf?.view?.getViewType?.() === type)
+                .filter(
+                    (leaf) =>
+                        (leaf?.view?.getViewType?.() ??
+                            leaf?.getViewState?.()?.type) === type,
+                )
                 .map((leaf) => {
+                    // Background tabs may be deferred views (no `view.file`), so fall back to the saved view state.
                     const view = leaf.view as any;
-                    const file = view?.file ?? null;
+                    const state = leaf.getViewState?.() as any;
+                    const filePath: string | null =
+                        view?.file?.path ?? state?.state?.file ?? null;
+                    const basename = filePath
+                        ? (filePath.split("/").pop() ?? "").replace(
+                              /\.[^.]+$/,
+                              "",
+                          )
+                        : null;
                     return {
                         active: leaf === app.workspace.activeLeaf,
-                        viewType: view.getViewType(),
-                        filePath: file?.path ?? null,
+                        viewType: type,
+                        filePath,
                         title:
                             typeof view?.getDisplayText === "function"
-                                ? (view.getDisplayText() ??
-                                  file?.basename ??
-                                  null)
-                                : (file?.basename ?? null),
+                                ? (view.getDisplayText() ?? basename)
+                                : (leaf.getDisplayText?.() ?? basename),
                     } satisfies WorkspaceLeafState;
                 });
         }, viewType);
@@ -513,6 +550,27 @@ export class ObsidianAPI {
                 loaded: !!app?.plugins?.plugins?.[id]?._loaded,
                 registered: !!app?.plugins?.plugins?.[id],
             }),
+            pluginId,
+        );
+    }
+
+    /**
+     * Disable and re-enable a plugin so it re-reads its data.json (e.g. after `setPluginData`).
+     * The handle returned by `plugin(id)` is refreshed to the new plugin instance.
+     */
+    async reloadPlugin(pluginId: string): Promise<void> {
+        await this.appState(async (id: string) => {
+            await app.plugins.disablePlugin(id);
+            await app.plugins.enablePlugin(id);
+        }, pluginId);
+        await this.waitForPluginEnabled(pluginId);
+        await this.context?.pluginHandleMap?.evaluate(
+            (map, id) => {
+                const plugin = (window as any).app?.plugins?.plugins?.[id];
+                if (plugin) {
+                    map.set(id, plugin);
+                }
+            },
             pluginId,
         );
     }
