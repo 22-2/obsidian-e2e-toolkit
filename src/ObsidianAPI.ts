@@ -109,8 +109,18 @@ export class ObsidianAPI {
 
     async allTabs(): Promise<WorkspaceLeafState[]> {
         return this.appState(() => {
-            const leaves: any[] = [];
-            app.workspace.iterateAllLeaves((leaf: any) => leaves.push(leaf));
+            // `iterateAllLeaves` can miss tabs opened in the background on Obsidian 1.14.4
+            // (`getLeaf("tab").openFile(file, { active: false })`), so merge in `getLeavesOfType`.
+            const found = new Set<any>();
+            app.workspace.iterateAllLeaves((leaf: any) => found.add(leaf));
+            for (const type of Object.keys(
+                (app as any).viewRegistry?.viewByType ?? {},
+            )) {
+                for (const leaf of app.workspace.getLeavesOfType(type)) {
+                    found.add(leaf);
+                }
+            }
+            const leaves: any[] = [...found];
 
             return leaves.map((leaf) => {
                 // Background tabs may be deferred views (no `view.file`), so fall back to the saved view state.
@@ -173,8 +183,18 @@ export class ObsidianAPI {
 
     async allViews(viewType: string): Promise<WorkspaceLeafState[]> {
         return this.appState((type: string) => {
-            const leaves: any[] = [];
-            app.workspace.iterateAllLeaves((leaf: any) => leaves.push(leaf));
+            // `iterateAllLeaves` can miss tabs opened in the background on Obsidian 1.14.4
+            // (`getLeaf("tab").openFile(file, { active: false })`), so merge in `getLeavesOfType`.
+            const found = new Set<any>();
+            app.workspace.iterateAllLeaves((leaf: any) => found.add(leaf));
+            for (const type of Object.keys(
+                (app as any).viewRegistry?.viewByType ?? {},
+            )) {
+                for (const leaf of app.workspace.getLeavesOfType(type)) {
+                    found.add(leaf);
+                }
+            }
+            const leaves: any[] = [...found];
 
             return leaves
                 .filter(

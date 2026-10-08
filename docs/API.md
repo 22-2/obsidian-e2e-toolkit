@@ -47,7 +47,7 @@
 - `activeTab(): Promise<WorkspaceLeafState | null>`
   - アクティブタブの状態を返す
 - `allTabs(): Promise<WorkspaceLeafState[]>`
-  - 開いている全タブの状態を返す。まだ読み込まれていない背景タブ（deferred view）も、保存済みの view state から `filePath` と `viewType` を返す
+  - 開いている全タブの状態を返す。`iterateAllLeaves` が拾えない背景タブ（Obsidian 1.14.4 で `getLeaf("tab").openFile(file, { active: false })` した場合）も、`getLeavesOfType` を併用して含める。まだ読み込まれていない deferred view は保存済みの view state から `filePath` / `viewType` を返す
 - `view(viewType: string): Promise<WorkspaceLeafState | null>`
   - 指定 view type のアクティブ leaf 状態を返す
 - `allViews(viewType: string): Promise<WorkspaceLeafState[]>`
