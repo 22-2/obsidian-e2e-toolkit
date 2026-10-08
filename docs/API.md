@@ -29,6 +29,11 @@
 
 `ObsidianAPI` は `page: Page` を保持し、主に `page.evaluate(...)` 経由で Obsidian の `app` グローバルを操作します。すべてのメソッドは Promise を返します。
 
+### App Access
+
+- `evaluateApp<T, Arg = undefined>(callback: (arg: Arg) => T | Promise<T>, arg?: Arg): Promise<T>`
+  - Obsidian のレンダラー内でコールバックを実行する。グローバルの `app` を使える（`page.evaluate` + `(window as any).app` の代わり）。引数と戻り値はシリアライズ可能な値に限る
+
 ### Workspace State
 
 - `activeLeaf(): Promise<WorkspaceLeafState | null>`
@@ -109,6 +114,8 @@
   - ファイル内容を読み込む
 - `save(path: string, content: string): Promise<void>`
   - ファイル内容を書き込む
+- `createNote(path: string, content?: string): Promise<void>`
+  - vault API でノートを作成する（親フォルダも作成。既存なら内容を上書き）。`save` と違い、メタデータキャッシュにも反映される
 - `delete(path: string): Promise<void>`
   - ファイルを削除する
 - `open(path: string): Promise<void>`
@@ -121,6 +128,10 @@
 - `plugin<T = any>(pluginId: string): Promise<JSHandle<T>>`
   - 指定プラグインの JSHandle を返す
   - 対象は `vaultOptions.plugins` でインストールされたプラグイン
+- `pluginData<T = Record<string, any>>(pluginId: string): Promise<T | null>`
+  - `plugin.loadData()` でプラグインの `data.json` を読む（プラグインがロードされていない場合は例外）
+- `setPluginData(pluginId: string, patch: Record<string, unknown>): Promise<void>`
+  - 現在の data に `patch` を浅くマージして `plugin.saveData()` で保存する。実行中のプラグインのメモリ上の設定は更新されないため、反映にはプラグイン側の再読み込みが必要な場合がある
 - `isPluginEnabled(pluginId: string): Promise<boolean>`
   - プラグインが有効かを返す
 - `waitForPluginEnabled(pluginId: string, timeout?: number): Promise<void>`
@@ -206,7 +217,7 @@ interface VaultOptions {
   enableBrowserConsoleLogging?: boolean;
   browserConsoleLogging?: BrowserConsoleLoggingOptions;
   obsidianCli?: "off" | "auto" | "required";
-  plugins: TestPlugin[];
+  plugins: readonly TestPlugin[];
 }
 ```
 
@@ -226,7 +237,7 @@ interface VaultOptions {
   - browser console の詳細制御
 - `obsidianCli?: "off" | "auto" | "required"`
   - 同じ vault を CLI が操作できる場合だけ CLI を利用し、それ以外は Playwright へフォールバックするモード
-- `plugins: TestPlugin[]`
+- `plugins: readonly TestPlugin[]`
   - テスト開始時に vault へ投入するプラグイン一覧
 
 ### BrowserConsoleLoggingOptions
@@ -275,13 +286,20 @@ interface BrowserConsoleLoggingOptions {
 interface TestPlugin {
   path: string;
   symlink?: boolean;
+  data?: Record<string, unknown>;
 }
 ```
 
 - `path`
-  - プラグインのディレクトリパス
+  - プラグインのディレクトリパス（`manifest.json` と `main.js` が必要）
 - `symlink?: boolean`
   - `true` の場合はコピーではなく symlink で投入する
+- `data?: Record<string, unknown>`
+  - 起動前にプラグインの `data.json` として書き込む初期設定。symlink 投入時は元ディレクトリを変更しないよう無視され、警告ログが出る
+
+## 失敗時の添付ファイル
+
+テストが失敗（または timeout）すると、Obsidian ウィンドウのスクリーンショット `obsidian-screenshot`（PNG）と DOM `obsidian-dom`（HTML）が Playwright のテスト結果に自動で添付される。取得に失敗しても元のエラーは隠さず、警告ログだけを出す。
 
 ### TestFixtures
 

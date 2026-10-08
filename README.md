@@ -19,7 +19,7 @@ E2E 用 Obsidian は起動時に `obsidian://` の既定アプリを登録・解
 `HKEY_CURRENT_USER\Software\Classes\obsidian\shell\open\command` の既定値を
 `"実際にインストールした Obsidian.exe のフルパス" "%1"` に戻してください。
 
-## クイックスタート
+## 雛形の生成
 
 ```bash
 pnpm exec obsidian-e2e-toolkit   # playwright.config.ts と e2e/example.spec.ts を生成（既存ファイルは上書きしない）
@@ -184,7 +184,7 @@ toolkit 自体の準備完了と `page` fixture の E2E 検証は `pnpm test:e2e
 - `enableBrowserConsoleLogging?: boolean`
 - `browserConsoleLogging?: { enabledTypes?: string[]; maxMessageLength?: number; previewLength?: number; ignoredMessagePatterns?: string[]; includeLocation?: boolean; includePageErrors?: boolean; includeRequestFailures?: boolean; includeHttpErrors?: boolean; httpErrorThreshold?: number }`
 - `obsidianCli?: "off" | "auto" | "required"` - CLI利用モード（デフォルトは `auto`）
-- `plugins: Array<{ path: string; pluginId: string; symlink?: boolean }>`
+- `plugins: ReadonlyArray<{ path: string; symlink?: boolean; data?: Record<string, unknown> }>` - 投入するプラグイン（`data` は初期 `data.json`）
 
 `auto` では、CLI が利用可能で対象 Vault のパスが一致した場合だけ、
 `plugins:restrict off` と `plugin:enable` を実行します。CLI が未インストール、
@@ -193,9 +193,10 @@ toolkit 自体の準備完了と `page` fixture の E2E 検証は `pnpm test:e2e
 
 CLI の実行ファイルを明示する場合は `OBSIDIAN_CLI_PATH` を指定できます。
 
-## APIリファレンス
+## ドキュメント
 
-- `docs/API.md`
+- [APIリファレンス](docs/API.md)
+- [トラブルシューティング](docs/TROUBLESHOOTING.md)（Linux/CI、失敗時の調査、Obsidian バージョン、pnpm）
 
 ## このリポジトリ内のサンプルを動かす
 
