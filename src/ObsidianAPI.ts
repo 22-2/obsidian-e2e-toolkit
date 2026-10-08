@@ -113,19 +113,25 @@ export class ObsidianAPI {
             app.workspace.iterateAllLeaves((leaf: any) => leaves.push(leaf));
 
             return leaves.map((leaf) => {
+                // Background tabs may be deferred views (no `view.file`), so fall back to the saved view state.
                 const view = leaf.view as any;
-                const file = view?.file ?? null;
+                const state = leaf.getViewState?.() as any;
+                const filePath: string | null =
+                    view?.file?.path ?? state?.state?.file ?? null;
+                const basename = filePath
+                    ? (filePath.split("/").pop() ?? "").replace(/\.[^.]+$/, "")
+                    : null;
                 return {
                     active: leaf === app.workspace.activeLeaf,
                     viewType:
                         typeof view?.getViewType === "function"
                             ? view.getViewType()
-                            : null,
-                    filePath: file?.path ?? null,
+                            : (state?.type ?? null),
+                    filePath,
                     title:
                         typeof view?.getDisplayText === "function"
-                            ? (view.getDisplayText() ?? file?.basename ?? null)
-                            : (file?.basename ?? null),
+                            ? (view.getDisplayText() ?? basename)
+                            : (leaf.getDisplayText?.() ?? basename),
                 } satisfies WorkspaceLeafState;
             });
         });
@@ -171,20 +177,31 @@ export class ObsidianAPI {
             app.workspace.iterateAllLeaves((leaf: any) => leaves.push(leaf));
 
             return leaves
-                .filter((leaf) => leaf?.view?.getViewType?.() === type)
+                .filter(
+                    (leaf) =>
+                        (leaf?.view?.getViewType?.() ??
+                            leaf?.getViewState?.()?.type) === type,
+                )
                 .map((leaf) => {
+                    // Background tabs may be deferred views (no `view.file`), so fall back to the saved view state.
                     const view = leaf.view as any;
-                    const file = view?.file ?? null;
+                    const state = leaf.getViewState?.() as any;
+                    const filePath: string | null =
+                        view?.file?.path ?? state?.state?.file ?? null;
+                    const basename = filePath
+                        ? (filePath.split("/").pop() ?? "").replace(
+                              /\.[^.]+$/,
+                              "",
+                          )
+                        : null;
                     return {
                         active: leaf === app.workspace.activeLeaf,
-                        viewType: view.getViewType(),
-                        filePath: file?.path ?? null,
+                        viewType: type,
+                        filePath,
                         title:
                             typeof view?.getDisplayText === "function"
-                                ? (view.getDisplayText() ??
-                                  file?.basename ??
-                                  null)
-                                : (file?.basename ?? null),
+                                ? (view.getDisplayText() ?? basename)
+                                : (leaf.getDisplayText?.() ?? basename),
                     } satisfies WorkspaceLeafState;
                 });
         }, viewType);

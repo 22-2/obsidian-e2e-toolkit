@@ -47,7 +47,7 @@
 - `activeTab(): Promise<WorkspaceLeafState | null>`
   - アクティブタブの状態を返す
 - `allTabs(): Promise<WorkspaceLeafState[]>`
-  - 開いている全タブの状態を返す
+  - 開いている全タブの状態を返す。まだ読み込まれていない背景タブ（deferred view）も、保存済みの view state から `filePath` と `viewType` を返す
 - `view(viewType: string): Promise<WorkspaceLeafState | null>`
   - 指定 view type のアクティブ leaf 状態を返す
 - `allViews(viewType: string): Promise<WorkspaceLeafState[]>`
