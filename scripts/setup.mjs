@@ -184,14 +184,12 @@ async function fetchReleaseByTag(tag, headers) {
 }
 
 async function loadRelease(releaseCachePath, headers, requestedRelease) {
-    if (existsSync(releaseCachePath)) {
+    // Only a pinned version can safely reuse metadata without checking GitHub.
+    if (requestedRelease.tag && existsSync(releaseCachePath)) {
         try {
             const raw = await readFile(releaseCachePath, "utf8");
             const cached = JSON.parse(raw);
-            const cacheMatchesRequest =
-                !requestedRelease.tag ||
-                !cached.tag_name ||
-                cached.tag_name === requestedRelease.tag;
+            const cacheMatchesRequest = cached?.tag_name === requestedRelease.tag;
             if (
                 cached?.assets?.length &&
                 cacheMatchesRequest &&
@@ -260,8 +258,7 @@ async function purgeVersionedCache(paths) {
     }
 }
 
-async function ensureVersionState(paths, requestedRelease) {
-    const desired = requestedRelease.key;
+async function ensureVersionState(paths, desired) {
     const cachedVersion = await readMarker(paths.cacheVersionPath);
     const unpackedVersion = await readMarker(paths.unpackedVersionPath);
 
@@ -276,7 +273,7 @@ async function ensureVersionState(paths, requestedRelease) {
             `Cached Obsidian assets are for ${cachedVersion}, refreshing for ${desired}.`,
         );
         await purgeVersionedCache(paths);
-    } else if (!cachedVersion && requestedRelease.tag && hasCacheArtifacts) {
+    } else if (!cachedVersion && hasCacheArtifacts) {
         log.info(
             "Cache version marker is missing. Clearing cache to avoid cross-version reuse.",
         );
@@ -288,7 +285,7 @@ async function ensureVersionState(paths, requestedRelease) {
             `Unpacked Obsidian is ${unpackedVersion}, rebuilding for ${desired}.`,
         );
         await rm(paths.unpackedDir, { recursive: true, force: true });
-    } else if (!unpackedVersion && requestedRelease.tag && existsSync(paths.unpackedDir)) {
+    } else if (!unpackedVersion && existsSync(paths.unpackedDir)) {
         log.info(
             "Unpacked version marker is missing. Rebuilding to ensure requested version.",
         );
@@ -457,13 +454,23 @@ async function main() {
     );
 
     await mkdir(paths.cacheDir, { recursive: true });
-    await ensureVersionState(paths, requestedRelease);
+
+    // Resolve latest before examining artifacts: old caches may be marked
+    // "latest", which does not identify the release they actually contain.
+    let release = requestedRelease.tag
+        ? null
+        : await loadRelease(paths.releaseCachePath, headers, requestedRelease);
+    const version = requestedRelease.tag ?? release?.tag_name;
+    if (!version) {
+        throw new Error("Obsidian release metadata is missing its version tag");
+    }
+    await ensureVersionState(paths, version);
 
     // Skip if already unpacked
     if (
         existsSync(paths.unpackedDir) &&
         existsSync(path.join(paths.unpackedDir, "main.cjs")) &&
-        (await readMarker(paths.unpackedVersionPath)) === requestedRelease.key
+        (await readMarker(paths.unpackedVersionPath)) === version
     ) {
         log.info("Obsidian assets already unpacked. Skipping setup.");
         return;
@@ -476,15 +483,19 @@ async function main() {
         (!existsSync(paths.obsidianAsarPath) &&
             !existsSync(paths.obsidianAsarGzPath));
 
-    const release = needRelease
-        ? await loadRelease(paths.releaseCachePath, headers, requestedRelease)
-        : null;
+    if (needRelease && !release) {
+        release = await loadRelease(
+            paths.releaseCachePath,
+            headers,
+            requestedRelease,
+        );
+    }
 
     await ensureAppAsar(paths, release, headers);
     await ensureObsidianAsar(paths, release, headers);
     await unpackAssets(paths);
-    await writeFile(paths.cacheVersionPath, `${requestedRelease.key}\n`, "utf8");
-    await writeFile(paths.unpackedVersionPath, `${requestedRelease.key}\n`, "utf8");
+    await writeFile(paths.cacheVersionPath, `${version}\n`, "utf8");
+    await writeFile(paths.unpackedVersionPath, `${version}\n`, "utf8");
 
     log.success("\nAsset unpacking completed.");
     log.success("E2E setup process finished successfully.");

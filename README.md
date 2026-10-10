@@ -88,6 +88,11 @@ node node_modules/obsidian-e2e-toolkit/setup.mjs
 `latest` でモバイル専用リリースが選ばれた場合は、デスクトップ用の
 `tar.gz` と `asar.gz` を含む直近の公開リリースを自動的に使用します。
 
+`latest` はセットアップのたびに GitHub API で最新バージョンを確認します。
+キャッシュには実際のバージョンを記録し、同じバージョンなら再利用、
+新しいバージョンならアセットの再取得・再展開を行います。
+旧形式の `latest` と記録されたキャッシュは、初回のみ再取得・再展開します。
+
 互換のため `OBSIDIAN_VERSION` も参照しますが、推奨は `OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION` です。
 
 ```yaml
@@ -117,10 +122,13 @@ env:
 
 ## CI でのレートリミット対策
 
-`setup.mjs` は以下を満たす場合、GitHub API を呼ばずにキャッシュだけで処理します。
+バージョンを固定した場合、`setup.mjs` は以下を満たすと GitHub API を呼ばずにキャッシュだけで処理します。
 
-- `obsidian-e2e-toolkit-assets/obsidian-unpacked/main.cjs` が存在する
-- または `obsidian-e2e-toolkit-assets/cache` 配下に必要な ASAR キャッシュが存在する
+- `obsidian-e2e-toolkit-assets/obsidian-unpacked/main.cjs` が存在し、記録されたバージョンが指定と一致する
+- または `obsidian-e2e-toolkit-assets/cache` 配下に必要なアセットが存在し、記録されたバージョンが指定と一致する
+
+`latest` の場合はキャッシュがあっても最新バージョンの確認に GitHub API を呼びます。
+確認に失敗するとセットアップはエラーになります。キャッシュした旧版を使い続けることはありません。
 
 GitHub Actions では、必要に応じて `GITHUB_TOKEN`（または `GH_TOKEN`）を環境変数に渡してください。
 

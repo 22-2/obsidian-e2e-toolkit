@@ -51,7 +51,7 @@ E2E の spec は Playwright で実行します。他のランナーの対象を�
 
 ## Obsidian のバージョンを固定したい
 
-`OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION=1.12.4` のように指定します（デフォルトは `latest`）。同梱版が古いと一部の機能（例: 外部ファイルの `file:` 形式）が使えない場合があります。取得が GitHub のレート制限や 403 で失敗する場合は `GITHUB_TOKEN` を渡すか、`obsidian-e2e-toolkit-assets` をキャッシュしてください。詳細は README の「CI でのレートリミット対策」を参照してください。
+`OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION=1.12.4` のように指定します（デフォルトは `latest`）。同梱版が古いと一部の機能（例: 外部ファイルの `file:` 形式）が使えない場合があります。取得が GitHub のレート制限や 403 で失敗する場合は `GITHUB_TOKEN` を渡してください。アセットのキャッシュで再ダウンロードを省略できますが、`latest` は毎回 API で最新版を確認します。固定バージョンなら、その版のキャッシュが揃っている場合は API を呼びません。詳細は README の「CI でのレートリミット対策」を参照してください。
 
 ## `plugins` の型エラー（readonly）
 
