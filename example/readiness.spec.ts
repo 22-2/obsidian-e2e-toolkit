@@ -85,3 +85,64 @@ test("fixture provides the vault renderer and restores missing plugin CSS", asyn
         noCssReady: true, noCssLoaded: true, stylesheets: 2,
     });
 });
+
+test("reloadPlugin waits for loading without enabling startup", async ({ obsidian }) => {
+    const pluginId = "fixture-no-css";
+    await obsidian.evaluateApp((id) => app.plugins.enabledPlugins.delete(id), pluginId);
+    await obsidian.setPluginData(pluginId, { reloaded: true });
+
+    await obsidian.reloadPlugin(pluginId);
+
+    expect(await obsidian.pluginState(pluginId)).toEqual({
+        enabled: false, loaded: true, registered: true,
+    });
+    const handle = await obsidian.plugin(pluginId);
+    expect(await handle.evaluate(async (plugin) => ({
+        current: plugin === app.plugins.plugins[plugin.manifest.id],
+        loaded: plugin._loaded,
+        data: await plugin.loadData(),
+    }))).toEqual({ current: true, loaded: true, data: { reloaded: true } });
+});
+
+test("plugin load waits follow runtime transitions independently of startup settings", async ({ obsidian }) => {
+    const pluginId = "fixture-no-css";
+    await obsidian.evaluateApp((id) => app.plugins.disablePlugin(id), pluginId);
+
+    expect(await obsidian.isPluginEnabled(pluginId)).toBe(true);
+    expect(await obsidian.isPluginLoaded(pluginId)).toBe(false);
+    await obsidian.waitForPluginEnabled(pluginId, 250);
+    await obsidian.waitForPluginUnloaded(pluginId, 250);
+    await expect(obsidian.waitForPluginLoaded(pluginId, 250)).rejects.toThrow(/Timeout/);
+
+    await obsidian.evaluateApp((id) => {
+        app.plugins.enabledPlugins.delete(id);
+        setTimeout(() => { void app.plugins.enablePlugin(id); }, 100);
+    }, pluginId);
+    await obsidian.waitForPluginLoaded(pluginId);
+
+    expect(await obsidian.isPluginEnabled(pluginId)).toBe(false);
+    expect(await obsidian.isPluginLoaded(pluginId)).toBe(true);
+    await obsidian.waitForPluginDisabled(pluginId, 250);
+    await expect(obsidian.waitForPluginUnloaded(pluginId, 250)).rejects.toThrow(/Timeout/);
+
+    await obsidian.evaluateApp((id) => {
+        setTimeout(() => { void app.plugins.disablePlugin(id); }, 100);
+    }, pluginId);
+    await obsidian.waitForPluginUnloaded(pluginId);
+    expect(await obsidian.isPluginLoaded(pluginId)).toBe(false);
+    expect(await obsidian.pluginState(pluginId)).toEqual({
+        enabled: false, loaded: false, registered: false,
+    });
+});
+
+test("a registered plugin instance does not count as loaded after unload", async ({ obsidian }) => {
+    const pluginId = "fixture-no-css";
+    await obsidian.evaluateApp((id) => app.plugins.plugins[id].unload(), pluginId);
+
+    expect(await obsidian.pluginState(pluginId)).toEqual({
+        enabled: true, loaded: false, registered: true,
+    });
+    expect(await obsidian.isPluginLoaded(pluginId)).toBe(false);
+    await obsidian.waitForPluginUnloaded(pluginId, 250);
+    await expect(obsidian.waitForPluginLoaded(pluginId, 250)).rejects.toThrow(/Timeout/);
+});

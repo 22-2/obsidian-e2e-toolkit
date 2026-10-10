@@ -510,6 +510,7 @@ export class ObsidianAPI {
         );
     }
 
+    /** Read the startup-enabled setting, independently of the plugin's load state. */
     async isPluginEnabled(pluginId: string): Promise<boolean> {
         return this.appState(
             (id) => !!app.plugins.enabledPlugins.has(id),
@@ -517,6 +518,7 @@ export class ObsidianAPI {
         );
     }
 
+    /** Wait for the startup-enabled setting; use `waitForPluginLoaded` for runtime state. */
     async waitForPluginEnabled(
         pluginId: string,
         timeout = 8000,
@@ -528,12 +530,45 @@ export class ObsidianAPI {
         );
     }
 
+    /** Wait for the startup-disabled setting; use `waitForPluginUnloaded` for runtime state. */
     async waitForPluginDisabled(
         pluginId: string,
         timeout = 8000,
     ): Promise<void> {
         await this.waitForApp(
             (id: string) => !app?.plugins?.enabledPlugins?.has(id),
+            pluginId,
+            timeout,
+        );
+    }
+
+    /** Read the actual load state, independently of the startup-enabled setting. */
+    async isPluginLoaded(pluginId: string): Promise<boolean> {
+        return this.appState(
+            (id) => !!app.plugins.plugins[id]?._loaded,
+            pluginId,
+        );
+    }
+
+    /** Wait until the plugin is loaded, regardless of its startup-enabled setting. */
+    async waitForPluginLoaded(
+        pluginId: string,
+        timeout = 8000,
+    ): Promise<void> {
+        await this.waitForApp(
+            (id: string) => !!app?.plugins?.plugins?.[id]?._loaded,
+            pluginId,
+            timeout,
+        );
+    }
+
+    /** Wait until the plugin is unloaded, regardless of its startup-enabled setting. */
+    async waitForPluginUnloaded(
+        pluginId: string,
+        timeout = 8000,
+    ): Promise<void> {
+        await this.waitForApp(
+            (id: string) => !app?.plugins?.plugins?.[id]?._loaded,
             pluginId,
             timeout,
         );
@@ -555,7 +590,7 @@ export class ObsidianAPI {
     }
 
     /**
-     * Disable and re-enable a plugin so it re-reads its data.json (e.g. after `setPluginData`).
+     * Unload and reload a plugin so it re-reads its data.json (e.g. after `setPluginData`).
      * The handle returned by `plugin(id)` is refreshed to the new plugin instance.
      */
     async reloadPlugin(pluginId: string): Promise<void> {
@@ -563,7 +598,7 @@ export class ObsidianAPI {
             await app.plugins.disablePlugin(id);
             await app.plugins.enablePlugin(id);
         }, pluginId);
-        await this.waitForPluginEnabled(pluginId);
+        await this.waitForPluginLoaded(pluginId);
         await this.context?.pluginHandleMap?.evaluate(
             (map, id) => {
                 const plugin = (window as any).app?.plugins?.plugins?.[id];

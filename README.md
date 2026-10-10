@@ -178,12 +178,14 @@ test.use({
 });
 
 test("plugin activation", async ({ obsidian }) => {
-  expect(await obsidian.isPluginEnabled("sample-plugin")).toBe(true);
+  expect(await obsidian.isPluginLoaded("sample-plugin")).toBe(true);
   expect(await obsidian.plugin("sample-plugin")).toBeTruthy();
 });
 ```
 
 fixture はリロード後にプラグインのロード状態と、`styles.css` がある場合はスタイルの読み込みも確認します。未適用の CSS は Obsidian の `loadCSS()` で一度だけ再読み込みし、復旧できなければセットアップエラーになります。CSS を持たないプラグインも利用できます。プラグイン固有の非同期データや画面の描画完了は、各テストで待機してください。
+
+遅延読み込みなどの実行状態は `isPluginLoaded` / `waitForPluginLoaded` / `waitForPluginUnloaded` で確認できます。`isPluginEnabled` / `waitForPluginEnabled` / `waitForPluginDisabled` は設定上の有効状態を確認するためのAPIです。
 
 `page` fixture は `obsidian.page` と同じ vault の Page を返すため、次の書き方でも Obsidian を操作できます。別ウィンドウで開く設定画面は、そのウィンドウの Page を取得して操作してください。
 

@@ -133,15 +133,21 @@
 - `setPluginData(pluginId: string, patch: Record<string, unknown>): Promise<void>`
   - 現在の data に `patch` を浅くマージして `plugin.saveData()` で保存する。実行中のプラグインのメモリ上の設定は更新されないため、反映にはプラグイン側の再読み込みが必要な場合がある
 - `isPluginEnabled(pluginId: string): Promise<boolean>`
-  - プラグインが有効かを返す
+  - `enabledPlugins` に含まれるか（設定上の有効状態）を返す。実際にロードされているかとは独立
 - `waitForPluginEnabled(pluginId: string, timeout?: number): Promise<void>`
-  - プラグインが有効になるまで待つ。`waitFor*` 系は**タイムアウト時に例外を投げる**（真偽値は返さない）。真偽で分岐したい場合は `isPluginEnabled` / `pluginState` を `expect.poll` で使う
+  - 設定上で有効になるまで待つ。ロード完了を待つ場合は `waitForPluginLoaded` を使う。`waitFor*` 系は**タイムアウト時に例外を投げる**（真偽値は返さない）。真偽で分岐したい場合は `isPluginEnabled` / `isPluginLoaded` / `pluginState` を `expect.poll` で使う
 - `waitForPluginDisabled(pluginId: string, timeout?: number): Promise<void>`
-  - プラグインが無効になるまで待つ
+  - 設定上で無効になるまで待つ。アンロード完了を待つ場合は `waitForPluginUnloaded` を使う
+- `isPluginLoaded(pluginId: string): Promise<boolean>`
+  - 実際のロード状態（プラグインインスタンスの `_loaded`）を返す。インスタンスが存在しない場合は `false`
+- `waitForPluginLoaded(pluginId: string, timeout?: number): Promise<void>`
+  - 実際にロードされるまで待つ。設定上は無効でも、遅延読み込みでロードされた場合に使える
+- `waitForPluginUnloaded(pluginId: string, timeout?: number): Promise<void>`
+  - 実際にアンロードされるまで待つ。設定上は有効でも、実行を停止した場合に使える
 - `pluginState(pluginId: string): Promise<{ enabled: boolean; loaded: boolean; registered: boolean }>`
-  - enable / load / register の状態を返す
+  - `enabled`: 設定上の有効状態、`loaded`: 実際のロード状態、`registered`: プラグインインスタンスの存在を返す
 - `reloadPlugin(pluginId: string): Promise<void>`
-  - プラグインを無効化 → 有効化して `data.json` を読み直させる。`setPluginData` の後に使う。`plugin(id)` が返す対象も新しいインスタンスに更新される
+  - プラグインをアンロード → ロードして `data.json` を読み直させ、ロード完了を待つ。設定上の有効状態は変更しない。`setPluginData` の後に使う。`plugin(id)` が返す対象も新しいインスタンスに更新される
 - `rebuildPlugins(vaultOptions: VaultOptions, getPluginHandleMapFn?: typeof getPluginHandleMap): Promise<ObsidianPageTextContext>`
   - プラグイン構成を作り直した context を返す
 - `updateContext(context: ObsidianPageTextContext): void`

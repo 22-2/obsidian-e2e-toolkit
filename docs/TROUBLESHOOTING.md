@@ -75,7 +75,13 @@ node node_modules/obsidian-e2e-toolkit/setup.mjs
 
 ## `waitFor*` がタイムアウトで例外になる
 
-`waitForPluginEnabled` などはタイムアウトで例外を投げます。真偽値が欲しい場合は `isPluginEnabled` / `pluginState` と `expect.poll` を組み合わせてください。
+`waitForPluginEnabled` などはタイムアウトで例外を投げます。真偽値が欲しい場合は `isPluginEnabled` / `isPluginLoaded` / `pluginState` と `expect.poll` を組み合わせてください。
+
+## 遅延読み込みでプラグインの有効／無効判定が合わない
+
+`isPluginEnabled` / `waitForPluginEnabled` / `waitForPluginDisabled` は `enabledPlugins` による設定上の有効状態を見ます。Obsidian の `enablePlugin` は設定を変更せずにロードするため、実際のロード状態とは一致しない場合があります。
+
+実行状態を調べる場合は `isPluginLoaded`、ロード完了を待つ場合は `waitForPluginLoaded`、停止を待つ場合は `waitForPluginUnloaded` を使ってください。`pluginState` では設定上の有効状態と実際のロード状態をまとめて確認できます。
 
 ## `setPluginData` した設定がプラグインに反映されない
 
