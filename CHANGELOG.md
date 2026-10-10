@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.3](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.4.2...1.4.3) (2026-10-10)
+
+### Bug Fixes
+
+* **api:** distinguish plugin load state from enabled settings ([7c48369](https://github.com/22-2/obsidian-e2e-toolkit/commit/7c48369c2dc483a9654c8e22653f6a7823624a14))
+
 ## [1.4.2](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.4.1...1.4.2) (2026-10-10)
 
 ### Bug Fixes
