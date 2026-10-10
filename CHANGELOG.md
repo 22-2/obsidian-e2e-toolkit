@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.2](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.4.1...1.4.2) (2026-10-10)
+
+### Bug Fixes
+
+* **cleanup:** force-kill Obsidian when it does not close in time ([dcc6cb8](https://github.com/22-2/obsidian-e2e-toolkit/commit/dcc6cb8e5951988f63dc714b50ebca95d5c5858e))
+
 ## [1.4.1](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.4.0...1.4.1) (2026-10-10)
 
 ### Bug Fixes
