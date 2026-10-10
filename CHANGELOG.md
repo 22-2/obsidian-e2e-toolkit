@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.4.1](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.4.0...1.4.1) (2026-10-10)
+
+### Bug Fixes
+
+* **setup:** refresh latest Obsidian before reusing cached assets ([2bab38d](https://github.com/22-2/obsidian-e2e-toolkit/commit/2bab38d04a206b4cb023f90d9307aaaedf613c6a))
+
+### Documentation
+
+* state that a display is required and GitHub Actions is unsupported ([2cd6f8d](https://github.com/22-2/obsidian-e2e-toolkit/commit/2cd6f8dd0035515e3565fd45465a6a6f7a49fac1))
+
 ## [1.4.0](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.3.0...1.4.0) (2026-10-08)
 
 ### Features
