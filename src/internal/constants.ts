@@ -6,7 +6,6 @@ import invariant from "tiny-invariant";
 import { fileURLToPath } from "url";
 import type { ResolvedPaths } from "./path";
 import { resolveConfig } from "./path";
-import type { VaultOptions } from "./types";
 
 // --- Project Structure Detection ---
 const filename =
@@ -146,25 +145,7 @@ export function setResolvedPaths(paths: ResolvedPaths): void {
     RESOLVED_PATHS = paths;
 }
 
-export const DEFAULT_VAULT_OPTIONS: VaultOptions = {
-    sandbox: false,
-    fresh: true,
-    logLevel: "warn",
-    browserConsoleLogging: {
-        enabledTypes: ["warning", "warn", "error", "assert"],
-        maxMessageLength: 300,
-        previewLength: 160,
-        ignoredMessagePatterns: ["Electron Security Warning"],
-        demoteErrorMessagePatterns: ["Timeout waiting for plugin .+ to load"],
-        includeLocation: false,
-        includePageErrors: true,
-        includeRequestFailures: true,
-        includeHttpErrors: true,
-        httpErrorThreshold: 400,
-    },
-    obsidianCli: "auto",
-    plugins: [],
-};
+export { DEFAULT_VAULT_OPTIONS } from "./vaultOptions";
 
 // ===================================================================
 // Playwright Test Fixtures

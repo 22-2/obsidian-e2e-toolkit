@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.4](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.4.3...1.4.4) (2026-10-12)
+
+### Bug Fixes
+
+* **fixture:** stop vaultOptions from leaking between tests in a worker ([945c0ff](https://github.com/22-2/obsidian-e2e-toolkit/commit/945c0ff863ee8245b44444762169a91a34cc2521))
+
 ## [1.4.3](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.4.2...1.4.3) (2026-10-10)
 
 ### Bug Fixes

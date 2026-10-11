@@ -18,7 +18,6 @@ import "./internal/logger";
  */
 
 import { test as base } from "@playwright/test";
-import { merge } from "es-toolkit";
 import fs from "fs/promises";
 import log from "loglevel";
 import os from "os";
@@ -33,6 +32,7 @@ import {
 } from "./internal/logger";
 import type { TestFixtures, WorkerFixtures } from "./internal/types";
 import { createObsidianContext, handleTestError } from "./internal/utils";
+import { resolveVaultOptions } from "./internal/vaultOptions";
 import { ObsidianAPI } from "./ObsidianAPI";
 
 export const logger = log.getLogger("obsidianSetup");
@@ -85,7 +85,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
         const launcher = new ObsidianE2ELauncher({
             paths,
-            options: merge(DEFAULT_VAULT_OPTIONS, vaultOptions),
+            options: resolveVaultOptions(vaultOptions),
             tempUserDataDir: tempDir,
             runId,
         });
