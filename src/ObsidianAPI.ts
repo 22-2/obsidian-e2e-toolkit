@@ -1,4 +1,4 @@
-import type { JSHandle, Page } from "playwright";
+import type { ElectronApplication, JSHandle, Page } from "playwright";
 import { expect } from "playwright/test";
 import invariant from "tiny-invariant";
 import { CMD_ID_CLOSE_TAB, CMD_ID_UNDO_CLOSE_TAB } from "./internal/constants";
@@ -34,6 +34,15 @@ export class ObsidianAPI {
         invariant(context.page, "Page context is required");
         this.page = context.page;
         this.context = context;
+    }
+
+    /**
+     * Playwright's handle to the Electron main process.
+     * Use it for things the renderer cannot do, such as `electronApp.evaluate(({ BrowserWindow }) => ...)`
+     * to blur or focus a window.
+     */
+    get electronApp(): ElectronApplication {
+        return this.context.electronApp;
     }
 
     /**

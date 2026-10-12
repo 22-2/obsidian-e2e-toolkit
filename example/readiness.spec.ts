@@ -37,6 +37,11 @@ const test = base.extend({
     },
 });
 
+test("exposes the Electron application for main process access", async ({ obsidian }) => {
+    const windowCount = await obsidian.electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length);
+    expect(windowCount).toBeGreaterThan(0);
+});
+
 test("a stalled CSS reload fails with the plugin ID and does not retry", async ({ obsidian, page }) => {
     const vaultPath = await page.evaluate(() => (app.vault.adapter as any).getBasePath());
     // 意図: テスト用プラグインだけを停止させ、CSS 復旧が無期限の待機にならないことを確認する。

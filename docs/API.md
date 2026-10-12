@@ -31,6 +31,8 @@
 
 ### App Access
 
+- `electronApp: ElectronApplication`
+  - Electron のメインプロセスを操作する Playwright のハンドル。レンダラーからは触れないウィンドウ操作に使う（例: `await obsidian.electronApp.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].blur())`）。`page` と違い、ウィンドウの実際のフォーカス状態などを扱える
 - `evaluateApp<T, Arg = undefined>(callback: (arg: Arg) => T | Promise<T>, arg?: Arg): Promise<T>`
   - Obsidian のレンダラー内でコールバックを実行する。グローバルの `app` を使える（`page.evaluate` + `(window as any).app` の代わり）。引数と戻り値はシリアライズ可能な値に限る
 
