@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { expect, test as base } from "../src";
 import { PluginManager } from "../src/internal/services/PluginManager";
+import { getElectronMainLogPath } from "../src/internal/services/electronMainLogging";
 
 const test = base.extend({
     vaultOptions: async ({ tempDir }, use) => {
@@ -145,4 +146,30 @@ test("a registered plugin instance does not count as loaded after unload", async
     expect(await obsidian.isPluginLoaded(pluginId)).toBe(false);
     await obsidian.waitForPluginUnloaded(pluginId, 250);
     await expect(obsidian.waitForPluginLoaded(pluginId, 250)).rejects.toThrow(/Timeout/);
+});
+
+base("frameless app requests are cancelled and main process errors are recorded", async ({ page, tempDir }) => {
+    // メインプロセスの net.fetch は要求元フレームを持たず、修正前の origin 参照エラーを再現する。
+    const failure = await page.evaluate(async () => {
+        const remote = (window as any).electron.remote;
+        remote.getGlobal("console").error("toolkit-main-log-probe");
+        try {
+            await remote.require("electron").net.fetch("app://obsidian.md/toolkit-frameless-probe.js");
+            return "unexpected success";
+        } catch (error) {
+            return String(error);
+        }
+    });
+    expect(failure).toContain("ERR_BLOCKED_BY_CLIENT");
+    await expect(page.locator(".workspace")).toBeVisible();
+    const logs = (await fs.readFile(getElectronMainLogPath(tempDir), "utf8"))
+        .trim().split("\n").map((line) => JSON.parse(line));
+    expect(logs).toEqual(expect.arrayContaining([
+        expect.objectContaining({ level: "error", message: "toolkit-main-log-probe" }),
+        expect.objectContaining({
+            level: "warn",
+            message: expect.stringContaining("Cancelled app:// request without a frame"),
+        }),
+    ]));
+    expect(logs.some((entry) => entry.message.includes("reading 'origin'"))).toBe(false);
 });

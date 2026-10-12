@@ -28,8 +28,12 @@ import {
     createRunId,
     createScopedLogger,
     setupBrowserConsoleLogging,
-    toggleLoggerBy
+    toggleLoggerBy,
 } from "./internal/logger";
+import {
+    forwardElectronMainLogs,
+    getElectronMainLogPath,
+} from "./internal/services/electronMainLogging";
 import type { TestFixtures, WorkerFixtures } from "./internal/types";
 import { createObsidianContext, handleTestError } from "./internal/utils";
 import { resolveVaultOptions } from "./internal/vaultOptions";
@@ -89,6 +93,11 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
             tempUserDataDir: tempDir,
             runId,
         });
+        const mainLogPath = getElectronMainLogPath(tempDir);
+        const stopMainLogging = forwardElectronMainLogs(
+            mainLogPath,
+            createScopedLogger("ElectronMain", { runId, phase: "main" }),
+        );
 
         try {
             toggleLoggerBy(vaultOptions.logLevel || "warn");
@@ -124,8 +133,23 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
             throw err;
         } finally {
             runLogger.info("Cleaning up Obsidian");
-            await launcher.cleanup();
-            runLogger.info("Cleanup completed");
+            try {
+                await launcher.cleanup();
+                runLogger.info("Cleanup completed");
+            } finally {
+                // 終了処理のログまで転送・添付してから、一時ディレクトリを削除する。
+                stopMainLogging();
+                try {
+                    await testInfo.attach("obsidian-electron-main-log", {
+                        path: mainLogPath,
+                        contentType: "application/x-ndjson",
+                    });
+                } catch (error) {
+                    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+                        runLogger.warn(`Could not attach Electron main log: ${String(error)}`);
+                    }
+                }
+            }
         }
     },
 });
