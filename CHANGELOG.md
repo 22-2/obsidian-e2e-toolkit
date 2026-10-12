@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.5](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.4.4...1.4.5) (2026-10-12)
+
+### Bug Fixes
+
+* **electron:** guard frameless app requests and capture main process logs ([f0f7d8f](https://github.com/22-2/obsidian-e2e-toolkit/commit/f0f7d8fe25890055fee3da9622ac638e875ce00b))
+
 ## [1.4.4](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.4.3...1.4.4) (2026-10-12)
 
 ### Bug Fixes
