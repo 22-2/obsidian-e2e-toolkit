@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.0](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.4.5...1.5.0) (2026-10-12)
+
+### Features
+
+* **api:** expose electronApp on ObsidianAPI ([6359639](https://github.com/22-2/obsidian-e2e-toolkit/commit/63596392dfca8cca11f9389d87baab6724bd55f8))
+
 ## [1.4.5](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.4.4...1.4.5) (2026-10-12)
 
 ### Bug Fixes
