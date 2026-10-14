@@ -42,7 +42,7 @@ pnpm exec obsidian-e2e-toolkit   # playwright.config.ts と e2e/example.spec.ts 
 - `obsidian.evaluateApp(fn, arg)`: Obsidian 内で `app` を使う関数を実行
 - `obsidian.pluginData(id)` / `obsidian.setPluginData(id, patch)`: プラグインの `data.json` を読み書き
 - `vaultOptions.plugins[].data`: 起動前にプラグインの初期 `data.json` を書き込む（symlink 時は無視）
-- `preparePlugins(sources, baseDir, opts?)`: `sources` は、プラグイン ID をキー、`owner/repo` の文字列または `{ repo, tag }` を値にしたオブジェクトです。`baseDir/myfiles/<ID>` に取得して配置します。tag を指定すると、既定でリリースが使えない時に同じ tag を clone します。失敗はすべてまとめて 1 つのエラーにします。
+- `preparePlugins(sources, baseDir, opts?)`: `sources` は、プラグイン ID をキー、`owner/repo` の文字列または `{ repo, tag }` を値にしたオブジェクトです。`baseDir/myfiles/<ID>` に取得して配置します。tag を指定すると、GitHub API を使わず公開リリースの `main.js`・`manifest.json`・任意の `styles.css` を直接取得します。`styles.css` の404だけは許容し、その他の取得失敗は成功扱いしません。既定ではリリースが使えない時に同じ tag を clone します。失敗はすべてまとめて 1 つのエラーにします。
 - `preparePlugin({ manifest, main, styles?, sourceMap? }, dest)`: 分散したビルド成果物を 1 つのフォルダーにまとめます。sourceMap は元のプロジェクトを基準に解決できる形で書き出します。
 - `defineObsidianConfig(overrides)`: Playwright 設定に共通の既定値を加えます。workers、timeout、reporter などは利用者の値を優先します。
 
@@ -200,7 +200,7 @@ await mergeCoverageReports({
 
 - **ディスプレイのある環境**（Windows / macOS / デスクトップの Linux）: そのまま動作します。
 - **ディスプレイのない Linux**: 仮想ディスプレイ（Xvfb）を用意すれば動作します。`xvfb-run` は Xvfb を起動して、その上でコマンドを実行します。動作を確認できた例は、Linux コンテナでの `xvfb-run -a` です（Node 24）。
-- **GitHub Actions**: 現時点では**動作しません**（非対応として扱ってください）。下記のとおり未解決です。
+- **GitHub Actions の Ubuntu**: Node 24・pnpm 12・Xvfb の構成で、同梱プラグインの起動・ロードを [smoke CI](.github/workflows/obsidian.e2e.yml) で検証しています。
 
 ```bash
 xvfb-run -a pnpm exec playwright test
@@ -210,7 +210,7 @@ xvfb-run -a pnpm exec playwright test
 - Electron のメインプロセスの警告・エラーは標準設定で端末に表示されます。起動前から終了処理までのログ全体は、成功・失敗にかかわらず `obsidian-electron-main-log` として添付されます。
 - 単体テスト用の Vitest などが `e2e/` の spec を拾わないよう、テスト対象を `src/**` などに限定してください。
 - E2E を実行しないジョブでは `ELECTRON_SKIP_BINARY_DOWNLOAD=1` を設定すると、Electron のダウンロードを省略できます。
-- **GitHub Actions の Ubuntu では、現時点で動作しません。** `electron.launch` が `Process failed to launch` で失敗する既知の問題があり（[microsoft/playwright#11932](https://github.com/microsoft/playwright/issues/11932)）、`xvfb-run` を含めいくつか試しても解決していません。ローカルやコンテナ内の `xvfb-run` では動作を確認できた例があります。詳細は [トラブルシューティング](docs/TROUBLESHOOTING.md) を参照してください。
+- Ubuntu の起動検証は `pnpm exec playwright install-deps chromium` で OS の依存を準備し、`xvfb-run -a pnpm run test:e2e:smoke` で実行します。利用するプラグインの全テストは各プロジェクトで確認してください。詳細は [トラブルシューティング](docs/TROUBLESHOOTING.md) を参照してください。
 
 ## リリース
 
@@ -296,11 +296,12 @@ env:
 **理由**：
 - `onlyBuiltDependencies` は、依存パッケージの install や postinstall などのビルドスクリプトを実行してよいパッケージを指定します。Electron のバイナリ取得（`install.js`）を実行させるために必要で、`obsidian-e2e-toolkit` を含めるのは、その postinstall を許可するためです。モジュールの解決やプリビルトの選択には関係しません。
 - Electron は利用側がインストールしたバージョンを使います。ツールキットは特定の Electron バージョンに固定しません。
+- 起動時に Electron 自身の実行ファイル解決処理を使い、未取得のバイナリはその場で準備します。`electron --version` などで GUI を先に起動する必要はありません。解決された実行ファイルを Playwright に渡すため、`ELECTRON_OVERRIDE_DIST_PATH` も使用できます。
 - `obsidian-typings` など複数の Electron バージョンを要求する依存関係がある場合は、プロジェクト側で互換性を確認した上で `overrides` を設定してください。
 
 ## CI でのレートリミット対策
 
-バージョンを固定した場合、`setup.mjs` は以下を満たすと GitHub API を呼ばずにキャッシュだけで処理します。
+バージョンを固定した場合、`setup.mjs` は初回も GitHub API を使わず、公開リリースの `obsidian-<version>.tar.gz` と `obsidian-<version>.asar.gz` を直接取得します。以下を満たす場合は、ダウンロードもせずキャッシュだけで処理します。
 
 - `obsidian-e2e-toolkit-assets/obsidian-unpacked/main.cjs` が存在し、記録されたバージョンが指定と一致する
 - または `obsidian-e2e-toolkit-assets/cache` 配下に必要なアセットが存在し、記録されたバージョンが指定と一致する

@@ -19,8 +19,9 @@ let url = require("url");
 let es_toolkit = require("es-toolkit");
 let child_process = require("child_process");
 let events = require("events");
-let module$1 = require("module");
 let playwright_test = require("playwright/test");
+let node_fs = require("node:fs");
+let node_module = require("node:module");
 let node_child_process = require("node:child_process");
 let node_path = require("node:path");
 node_path = require_targets.__toESM(node_path, 1);
@@ -518,6 +519,19 @@ function withoutElectronRunAsNode(env) {
 	return copy;
 }
 //#endregion
+//#region src/internal/electronExecutable.ts
+/** Electron 自身の解決処理で遅延ダウンロードを済ませ、実際に起動するファイルを返す。 */
+function resolveElectronExecutable(from = require("url").pathToFileURL(__filename).href) {
+	try {
+		const executable = (0, node_module.createRequire)(from)("electron");
+		if (typeof executable !== "string" || !(0, node_fs.statSync)(executable).isFile()) throw new Error("electron did not return an executable file path");
+		return executable;
+	} catch (error) {
+		const detail = error instanceof Error ? error.message : String(error);
+		throw new Error("Could not prepare Electron executable: " + detail, { cause: error });
+	}
+}
+//#endregion
 //#region src/internal/services/ElectronAppManager.ts
 const logger$8 = loglevel.default.getLogger("ElectronAppManager");
 const CLOSE_TIMEOUT_MS = 15e3;
@@ -535,23 +549,12 @@ var ElectronAppManager = class {
 		return this.electronApp;
 	}
 	async launchElectronApp() {
-		try {
-			const pkgJson = (0, module$1.createRequire)(require("url").pathToFileURL(__filename).href).resolve("electron/package.json");
-			const electronRoot = path.default.dirname(pkgJson);
-			const distDir = path.default.join(electronRoot, "dist");
-			if (!(0, fs.existsSync)(distDir)) {
-				logger$8.error(`Electron dist not found at ${distDir}`);
-				logger$8.error(`Electron root contents:`, await fs_promises.default.readdir(electronRoot));
-				throw new Error("Electron appears to be missing its platform binaries. Ensure `electron` was installed correctly.");
-			}
-		} catch (err) {
-			logger$8.error("Electron preflight check failed:", err && err.message ? err.message : err);
-			throw err;
-		}
+		const executablePath = resolveElectronExecutable();
 		const baseLaunchOptions = createLaunchOptions(this.paths);
 		const bootstrapDir = await createElectronBootstrap(this.paths.appMainJsPath, this.tempUserDataDir);
 		const launchOptions = {
 			...baseLaunchOptions,
+			executablePath,
 			args: [
 				bootstrapDir,
 				...baseLaunchOptions.args.slice(1),
@@ -1283,7 +1286,7 @@ var ObsidianE2ELauncher = class {
 			logger: this.scopedLogger
 		};
 		await services.setupAll(serviceContext);
-		const initialPage = await electronApp.waitForEvent("window");
+		const initialPage = await electronApp.firstWindow();
 		this.scopedLogger.debug("Initial window event received");
 		const { starterPage } = await this.prepareRuntimeFeature.run({ initialPage }, serviceContext, services);
 		this.scopedLogger.debug("Starter page ready", starterPage.url());
@@ -2278,7 +2281,8 @@ const OPTIONAL_FILES = ["styles.css"];
 const NAME_PATTERN = /^[A-Za-z0-9_.-]+$/;
 const TAG_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+/-]*$/;
 const SAFE_PNPM_ARGUMENT = /^[A-Za-z0-9._:=-]+$/;
-const PNPM_ENTRY = /[\\/]pnpm(\.[cm]?js)?$/i;
+const PNPM_SCRIPT_ENTRY = /[\\/]pnpm\.[cm]?js$/i;
+const PNPM_EXECUTABLE_ENTRY = /[\\/]pnpm(?:\.exe)?$/i;
 const REPO_PATTERNS = [
 	/^https:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/i,
 	/^git@github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/i,
@@ -2363,9 +2367,18 @@ function toUsableRelease(release) {
 		assets
 	} : null;
 }
-async function lookupRelease(repo, tag) {
+function pinnedRelease(repo, tag) {
+	const base = "https://github.com/" + repoFullName(repo) + "/releases/download/" + encodeURIComponent(tag);
+	return {
+		tag_name: tag,
+		assets: REQUIRED_FILES.concat(OPTIONAL_FILES).map((name) => ({
+			name,
+			browser_download_url: base + "/" + name
+		}))
+	};
+}
+async function lookupRelease(repo) {
 	const base = apiRepoUrl(repo);
-	if (tag !== void 0) return toUsableRelease(await readRelease(base + "/releases/tags/" + encodeURIComponent(tag)));
 	const latest = toUsableRelease(await readRelease(base + "/releases/latest"));
 	if (latest) return latest;
 	const releases = await readReleaseList(base + "/releases?per_page=20");
@@ -2376,8 +2389,9 @@ async function lookupRelease(repo, tag) {
 	}
 	return null;
 }
-async function downloadAsset(url, target, name) {
+async function downloadAsset(url, target, name, optional) {
 	const response = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+	if (optional && response.status === 404) return;
 	if (!response.ok) throw new Error("failed to download " + name + " (" + response.status + ")");
 	await (0, node_fs_promises.writeFile)(target, Buffer.from(await response.arrayBuffer()));
 }
@@ -2385,7 +2399,7 @@ async function downloadReleaseFiles(release, dir) {
 	for (const name of REQUIRED_FILES.concat(OPTIONAL_FILES)) {
 		const asset = release.assets.find((entry) => entry.name === name);
 		if (!asset || typeof asset.browser_download_url !== "string") continue;
-		await downloadAsset(asset.browser_download_url, node_path.default.join(dir, name), name);
+		await downloadAsset(asset.browser_download_url, node_path.default.join(dir, name), name, OPTIONAL_FILES.includes(name));
 	}
 }
 async function isNonEmptyFile(file) {
@@ -2494,15 +2508,20 @@ async function buildCheckout(dir) {
 }
 /**
 * pnpm を起動するコマンドを決める。
-* npm_execpath が pnpm の entry なら node で直接起動し、shell は使わない。
+* npm_execpath が pnpm の JS entry なら node で起動し、native executable は直接起動する。
 * Windows の pnpm は .cmd の shim なので shell 経由にする。その場合は引数を先に検証する。
 */
 function resolvePnpmInvocation(args, env = process.env, platform = process.platform) {
 	for (const arg of args) if (!SAFE_PNPM_ARGUMENT.test(arg)) throw new TypeError("unsafe pnpm argument: " + JSON.stringify(arg));
 	const entry = env.npm_execpath;
-	if (entry && PNPM_ENTRY.test(entry)) return {
+	if (entry && PNPM_SCRIPT_ENTRY.test(entry)) return {
 		command: process.execPath,
 		args: [entry, ...args],
+		shell: false
+	};
+	if (entry && PNPM_EXECUTABLE_ENTRY.test(entry)) return {
+		command: entry,
+		args: [...args],
 		shell: false
 	};
 	return {
@@ -2565,7 +2584,7 @@ async function fetchPlugin(repo, destArg, opts) {
 	if (tag !== void 0 && useCache && await isReusableCopy(dest, parsed, tag, tag)) return reuseCopy(dest, parsed, tag);
 	let usable = null;
 	try {
-		usable = await lookupRelease(parsed, tag);
+		usable = tag === void 0 ? await lookupRelease(parsed) : pinnedRelease(parsed, tag);
 	} catch (error) {
 		if (!fallbackToGit) throw error;
 		logger$2.warn("release lookup failed for " + repoFullName(parsed) + "; falling back to git: " + require_targets.errorMessage(error));

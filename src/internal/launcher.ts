@@ -112,7 +112,8 @@ export class ObsidianE2ELauncher {
 
         await services.setupAll(serviceContext);
 
-        const initialPage = await electronApp.waitForEvent("window");
+        // 意図: 初期化中に開いたウィンドウも取得し、既に発火したイベントを待ち直さない。
+        const initialPage = await electronApp.firstWindow();
         this.scopedLogger.debug("Initial window event received");
 
         const { starterPage } = await this.prepareRuntimeFeature.run(

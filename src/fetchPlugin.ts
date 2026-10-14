@@ -24,7 +24,8 @@ const OPTIONAL_FILES = ["styles.css"];
 const NAME_PATTERN = /^[A-Za-z0-9_.-]+$/;
 const TAG_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+/-]*$/;
 const SAFE_PNPM_ARGUMENT = /^[A-Za-z0-9._:=-]+$/;
-const PNPM_ENTRY = /[\\/]pnpm(\.[cm]?js)?$/i;
+const PNPM_SCRIPT_ENTRY = /[\\/]pnpm\.[cm]?js$/i;
+const PNPM_EXECUTABLE_ENTRY = /[\\/]pnpm(?:\.exe)?$/i;
 const REPO_PATTERNS = [
     /^https:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/i,
     /^git@github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/i,
@@ -162,11 +163,19 @@ function toUsableRelease(release: Release | null): UsableRelease | null {
     return complete ? { tag_name: release.tag_name, assets } : null;
 }
 
-async function lookupRelease(repo: GitHubRepo, tag: string | undefined): Promise<UsableRelease | null> {
+function pinnedRelease(repo: GitHubRepo, tag: string): UsableRelease {
+    const base = "https://github.com/" + repoFullName(repo) + "/releases/download/" + encodeURIComponent(tag);
+    return {
+        tag_name: tag,
+        assets: REQUIRED_FILES.concat(OPTIONAL_FILES).map((name) => ({
+            name,
+            browser_download_url: base + "/" + name,
+        })),
+    };
+}
+
+async function lookupRelease(repo: GitHubRepo): Promise<UsableRelease | null> {
     const base = apiRepoUrl(repo);
-    if (tag !== undefined) {
-        return toUsableRelease(await readRelease(base + "/releases/tags/" + encodeURIComponent(tag)));
-    }
     const latest = toUsableRelease(await readRelease(base + "/releases/latest"));
     if (latest) return latest;
     // latest が asset を持たない場合は、直近の release を順に見て最初に使えるものを選ぶ。
@@ -179,9 +188,11 @@ async function lookupRelease(repo: GitHubRepo, tag: string | undefined): Promise
     return null;
 }
 
-async function downloadAsset(url: string, target: string, name: string): Promise<void> {
+async function downloadAsset(url: string, target: string, name: string, optional: boolean): Promise<void> {
     // 公開 asset の取得には token を付けない。
     const response = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+    // 意図: 固定 tag では一覧を問い合わせず、任意の styles.css だけは不存在を許す。
+    if (optional && response.status === 404) return;
     if (!response.ok) throw new Error("failed to download " + name + " (" + response.status + ")");
     await writeFile(target, Buffer.from(await response.arrayBuffer()));
 }
@@ -190,7 +201,7 @@ async function downloadReleaseFiles(release: UsableRelease, dir: string): Promis
     for (const name of REQUIRED_FILES.concat(OPTIONAL_FILES)) {
         const asset = release.assets.find((entry) => entry.name === name);
         if (!asset || typeof asset.browser_download_url !== "string") continue;
-        await downloadAsset(asset.browser_download_url, path.join(dir, name), name);
+        await downloadAsset(asset.browser_download_url, path.join(dir, name), name, OPTIONAL_FILES.includes(name));
     }
 }
 
@@ -327,7 +338,7 @@ async function buildCheckout(dir: string): Promise<void> {
 
 /**
  * pnpm を起動するコマンドを決める。
- * npm_execpath が pnpm の entry なら node で直接起動し、shell は使わない。
+ * npm_execpath が pnpm の JS entry なら node で起動し、native executable は直接起動する。
  * Windows の pnpm は .cmd の shim なので shell 経由にする。その場合は引数を先に検証する。
  */
 export function resolvePnpmInvocation(
@@ -339,8 +350,11 @@ export function resolvePnpmInvocation(
         if (!SAFE_PNPM_ARGUMENT.test(arg)) throw new TypeError("unsafe pnpm argument: " + JSON.stringify(arg));
     }
     const entry = env.npm_execpath;
-    if (entry && PNPM_ENTRY.test(entry)) {
+    if (entry && PNPM_SCRIPT_ENTRY.test(entry)) {
         return { command: process.execPath, args: [entry, ...args], shell: false };
+    }
+    if (entry && PNPM_EXECUTABLE_ENTRY.test(entry)) {
+        return { command: entry, args: [...args], shell: false };
     }
     return { command: "pnpm", args: [...args], shell: platform === "win32" };
 }
@@ -403,7 +417,7 @@ export async function fetchPlugin(repo: string, destArg?: string, opts?: FetchPl
 
     let usable: UsableRelease | null = null;
     try {
-        usable = await lookupRelease(parsed, tag);
+        usable = tag === undefined ? await lookupRelease(parsed) : pinnedRelease(parsed, tag);
     } catch (error) {
         if (!fallbackToGit) throw error;
         logger.warn("release lookup failed for " + repoFullName(parsed) + "; falling back to git: " + errorMessage(error));

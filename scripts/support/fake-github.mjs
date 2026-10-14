@@ -1,5 +1,4 @@
 // 外部通信なしで GitHub API と asset の応答を再現する。テスト終了時に fetch を元へ戻す。
-const ASSET_ORIGIN = "https://example.invalid/assets";
 
 export function createFakeGitHub(t) {
     const requests = [];
@@ -29,7 +28,8 @@ export function createFakeGitHub(t) {
         },
         // apiBase は https://api.github.com/repos/owner/name の形。tag の release と asset を登録し、release を返す。
         publish(apiBase, tag, files) {
-            const assetBase = ASSET_ORIGIN + new URL(apiBase).pathname + "/" + tag;
+            const repo = new URL(apiBase).pathname.slice("/repos/".length);
+            const assetBase = "https://github.com/" + repo + "/releases/download/" + encodeURIComponent(tag);
             const assets = Object.entries(files).map(([name, text]) => {
                 this.file(assetBase + "/" + name, text);
                 return { name, browser_download_url: assetBase + "/" + name };

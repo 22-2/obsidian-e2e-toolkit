@@ -31,7 +31,7 @@ test("placed plugins are returned, and every failure is reported in one error", 
         broken: { repo: "example/broken", tag: "1.0.0" },
     };
     await assert.rejects(preparePlugins(sources, root, { fallbackToGit: false }), (error) => {
-        assert.match(error.message, /^Failed to prepare external plugins:\n- broken: No usable release/);
+        assert.match(error.message, /^Failed to prepare external plugins:\n- broken: failed to download manifest\.json \(404\)/);
         assert.doesNotMatch(error.message, /- good:/);
         return true;
     });

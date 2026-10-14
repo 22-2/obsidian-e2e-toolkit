@@ -2,71 +2,73 @@ name: Obsidian E2E Test
 
 on:
   workflow_dispatch:
+    inputs:
+      obsidian_version:
+        description: "Obsidian desktop version or latest"
+        default: "1.14.4"
+        required: false
   push:
-    branches: [ main ]
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION: ${{ github.event.inputs.obsidian_version || '1.14.4' }}
 
 jobs:
   e2e-test:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
-
+        os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
 
-    # postinstall とテスト準備の子プロセスにも認証を渡し、未認証の API 制限を避ける。
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          lfs: true
+        uses: actions/checkout@v6
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
-          version: 8
+          version: "12"
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: "23"
+          node-version: "24"
+
+      - name: Cache Obsidian assets
+        uses: actions/cache@v5
+        with:
+          path: obsidian-e2e-toolkit-assets
+          key: ${{ runner.os }}-obsidian-smoke-${{ env.OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION }}
 
       - name: Install dependencies
+        # This library does not track a lockfile; consumer projects keep their own locked dependencies.
         run: pnpm install --no-lockfile
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: |
-            %LOCALAPPDATA%/ms-playwright  # Windows
-            ~/Library/Caches/ms-playwright # macOS
+      - name: Install Linux display dependencies
+        if: runner.os == 'Linux'
+        run: pnpm exec playwright install-deps chromium
 
-          key: ${{ runner.os }}-playwright-chromium
-          restore-keys: |
-            ${{ runner.os }}-playwright-chromium-
-
-      - name: Install Playwright
-        run: pnpm playwright install chromium
-
-      - name: PWD # For debugging purposes
+      # Electron provides Chromium; the smoke test does not need a separate browser download.
+      - name: Run Obsidian smoke test
         shell: bash
         run: |
-          pwd
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            xvfb-run -a pnpm run test:e2e:smoke
+          else
+            pnpm run test:e2e:smoke
+          fi
 
-      - name: Run Playwright example tests
-        run: pnpm run test:e2e:example
-        env:
-          DEBUG: "pw:browser"
-
-      - name: Upload Playwright report
+      - name: Upload Playwright report and diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: playwright-report-${{ matrix.os }}
-          path: playwright-report/
-          retention-days: 30
+          name: obsidian-smoke-${{ matrix.os }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

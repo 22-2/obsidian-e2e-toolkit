@@ -1,8 +1,8 @@
 import { t as isTargetScript } from "./targets-CtjXYvdw.mjs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { readFile, readdir, rm } from "node:fs/promises";
 import { readFileSync, realpathSync, rmSync } from "node:fs";
+import { readFile, readdir, rm } from "node:fs/promises";
 import { parse } from "acorn";
 import { convert } from "ast-v8-to-istanbul";
 import libCoverage from "istanbul-lib-coverage";

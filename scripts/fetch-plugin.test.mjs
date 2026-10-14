@@ -89,6 +89,24 @@ test("a pinned tag installs the release and later reuses the copy without any Gi
     assert.equal(gh.requests.length, 0);
 });
 
+test("a cold pinned tag uses direct assets even when the API is blocked", async (t) => {
+    const { dest } = await tempPlugin(t);
+    setEnv(t, { GITHUB_TOKEN: "api-only-token" });
+    const gh = createFakeGitHub(t);
+    gh.publish(API, "release/1.0.0", { "main.js": "v1", "manifest.json": MANIFEST, "styles.css": "body {}" });
+    gh.file(API + "/releases/tags/release%2F1.0.0", "blocked", 403);
+
+    await fetchPlugin(REPO, dest, { tag: "release/1.0.0" });
+
+    assert.deepEqual(gh.requests.map(({ url }) => url), [
+        "https://github.com/example/plugin/releases/download/release%2F1.0.0/main.js",
+        "https://github.com/example/plugin/releases/download/release%2F1.0.0/manifest.json",
+        "https://github.com/example/plugin/releases/download/release%2F1.0.0/styles.css",
+    ]);
+    assert.ok(gh.requests.every(({ headers }) => headers.get("Authorization") === null));
+    assert.equal(await readFile(path.join(dest, "styles.css"), "utf8"), "body {}");
+});
+
 test("latest is looked up every time, and the copy is replaced only when the resolved tag changes", async (t) => {
     const { dest } = await tempPlugin(t);
     const gh = createFakeGitHub(t);
@@ -112,7 +130,7 @@ test("a release without manifest.json is not treated as a success", async (t) =>
     const { dest } = await tempPlugin(t);
     const gh = createFakeGitHub(t);
     gh.publish(API, "1.0.0", { "main.js": "v1" });
-    await assert.rejects(fetchPlugin(REPO, dest, { tag: "1.0.0" }), /main\.js and manifest\.json are required/);
+    await assert.rejects(fetchPlugin(REPO, dest, { tag: "1.0.0" }), /failed to download manifest\.json \(404\)/);
     assert.equal(existsSync(dest), false);
 });
 
@@ -197,11 +215,11 @@ test("a legacy lazy marker with another tag is replaced by the requested release
     assert.equal(await readFile(path.join(dest, "main.js"), "utf8"), "new main");
 });
 
-test("a release lookup failure is an error when git fallback is not allowed", async (t) => {
+test("a latest lookup failure is an error when git fallback is not allowed", async (t) => {
     const { dest } = await tempPlugin(t);
     const gh = createFakeGitHub(t);
-    gh.file(API + "/releases/tags/1.0.0", "boom", 500);
-    await assert.rejects(fetchPlugin(REPO, dest, { tag: "1.0.0" }), /GitHub release lookup failed \(500\)/);
+    gh.file(API + "/releases/latest", "boom", 500);
+    await assert.rejects(fetchPlugin(REPO, dest), /GitHub release lookup failed \(500\)/);
     assert.equal(existsSync(dest), false);
 });
 
@@ -237,6 +255,20 @@ test("pnpm runs through node when npm_execpath points at the pnpm entry", () => 
         shell: false,
     });
 });
+
+for (const [platform, entry] of [
+    ["linux", "/opt/pnpm/pnpm"],
+    ["darwin", "/Applications/Package Managers/pnpm"],
+    ["win32", "C:\\Package Managers\\pnpm.exe"],
+]) {
+    test(`native pnpm on ${platform} runs directly without Node or a shell`, () => {
+        assert.deepEqual(resolvePnpmInvocation(["run", "build"], { npm_execpath: entry }, platform), {
+            command: entry,
+            args: ["run", "build"],
+            shell: false,
+        });
+    });
+}
 
 test("another package manager's entry is ignored in favor of pnpm", () => {
     const spec = resolvePnpmInvocation(["install"], { npm_execpath: "C:\\npm\\bin\\npm-cli.js" }, "win32");
