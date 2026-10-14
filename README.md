@@ -200,7 +200,7 @@ await mergeCoverageReports({
 
 - **ディスプレイのある環境**（Windows / macOS / デスクトップの Linux）: そのまま動作します。
 - **ディスプレイのない Linux**: 仮想ディスプレイ（Xvfb）を用意すれば動作します。`xvfb-run` は Xvfb を起動して、その上でコマンドを実行します。動作を確認できた例は、Linux コンテナでの `xvfb-run -a` です（Node 24）。
-- **GitHub Actions**: 現時点では**動作しません**（非対応として扱ってください）。下記のとおり未解決です。
+- **GitHub Actions の Ubuntu**: Node 24・pnpm 12・Xvfb の構成で、同梱プラグインの起動・ロードを [smoke CI](.github/workflows/obsidian.e2e.yml) で検証しています。
 
 ```bash
 xvfb-run -a pnpm exec playwright test
@@ -210,7 +210,7 @@ xvfb-run -a pnpm exec playwright test
 - Electron のメインプロセスの警告・エラーは標準設定で端末に表示されます。起動前から終了処理までのログ全体は、成功・失敗にかかわらず `obsidian-electron-main-log` として添付されます。
 - 単体テスト用の Vitest などが `e2e/` の spec を拾わないよう、テスト対象を `src/**` などに限定してください。
 - E2E を実行しないジョブでは `ELECTRON_SKIP_BINARY_DOWNLOAD=1` を設定すると、Electron のダウンロードを省略できます。
-- **GitHub Actions の Ubuntu では、現時点で動作しません。** `electron.launch` が `Process failed to launch` で失敗する既知の問題があり（[microsoft/playwright#11932](https://github.com/microsoft/playwright/issues/11932)）、`xvfb-run` を含めいくつか試しても解決していません。ローカルやコンテナ内の `xvfb-run` では動作を確認できた例があります。詳細は [トラブルシューティング](docs/TROUBLESHOOTING.md) を参照してください。
+- Ubuntu の起動検証は `pnpm exec playwright install-deps chromium` で OS の依存を準備し、`xvfb-run -a pnpm run test:e2e:smoke` で実行します。利用するプラグインの全テストは各プロジェクトで確認してください。詳細は [トラブルシューティング](docs/TROUBLESHOOTING.md) を参照してください。
 
 ## リリース
 

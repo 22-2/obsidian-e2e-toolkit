@@ -29,7 +29,7 @@ test.use({
 
 - ディスプレイのある環境（Windows / macOS / デスクトップの Linux）: そのまま動作します。
 - ディスプレイのない Linux: 仮想ディスプレイ（Xvfb）が必要です。`xvfb-run` を使うと、Xvfb を起動してその上でテストを実行できます。
-- GitHub Actions: 現時点では非対応として扱ってください（下記）。
+- GitHub Actions の Ubuntu: Node 24・pnpm 12・Xvfb で、同梱プラグインの起動・ロードを CI で確認しています。
 
 ```bash
 xvfb-run -a pnpm exec playwright test
@@ -37,20 +37,21 @@ xvfb-run -a pnpm exec playwright test
 
 `xvfb-run` が見つからない場合は、Xvfb のパッケージ（Debian/Ubuntu では `xvfb`）をインストールしてください。
 
-### GitHub Actions（未解決）
+### GitHub Actions の Ubuntu
 
-GitHub Actions の Ubuntu ランナーでは、`electron.launch` が `Process failed to launch` で失敗する既知の問題があり（[microsoft/playwright#11932](https://github.com/microsoft/playwright/issues/11932)）、**現時点で動作する構成は確認できていません**。実際に Actions で `xvfb-run` などを含めて試しましたが、解決しませんでした。
+現在の [smoke CI](../.github/workflows/obsidian.e2e.yml) は、以下の手順で Ubuntu の起動を検証しています。Electron が内蔵する Chromium を使うため、smoke テスト用にブラウザー本体を別途取得する必要はありません。
 
-分かっていること:
+```bash
+pnpm exec playwright install-deps chromium
+xvfb-run -a pnpm run test:e2e:smoke
+```
 
-- 同じ `xvfb-run -a pnpm exec playwright test` は、ローカルの Linux コンテナでは動作しました（Node 24）。
-- そのため、E2E は当面ローカル（または自前の Linux 環境）で実行し、Actions では単体テストとビルドのみを実行する運用が現実的です。
-
-解決に向けて、Actions で失敗したときのログ全文（`Process failed to launch` の前後、Electron の stderr、`DEBUG=pw:browser*` 付きの出力）を残すと、原因の切り分けに役立ちます。
+確認範囲は Obsidian の起動と同梱プラグインのロードです。各プロジェクトの E2E は別途確認してください。起動に失敗した場合は、Electron のメインプロセスログと `DEBUG=pw:browser*` の出力で、表示環境・OS の依存・ダウンロード失敗を切り分けます。
 
 ## Electron のバイナリがない / ダウンロードを省きたい
 
-- pnpm v10 以降は、依存パッケージの `postinstall` などが既定ではブロックされるため、Electron のバイナリが取得されないことがあります。`onlyBuiltDependencies` に `electron` と `obsidian-e2e-toolkit` を追加する（または `pnpm approve-builds` を実行する）と自動で取得されます。許可しない場合は、インストール後に `node node_modules/electron/install.js`（pnpm なら `pnpm exec node node_modules/electron/install.js`）を**手動で実行**してください。CI ではインストール後・テスト前のステップに加えます。
+- Electron パッケージは利用側の依存としてインストールしてください。toolkit は起動時に Electron 自身の実行ファイル解決処理を呼び、遅延取得する版にも対応します。`dist` が未作成という理由だけで失敗せず、準備できた実行ファイルを Playwright に渡します。
+- ダウンロードが失敗した場合は `Could not prepare Electron executable` の元のエラーを確認してください。`ELECTRON_OVERRIDE_DIST_PATH` によるカスタム配置も Electron の解決処理に従います。
 - E2E を実行しないジョブ（単体テストのみなど）では `ELECTRON_SKIP_BINARY_DOWNLOAD=1` を設定すると、インストール時のダウンロードを省略できます。
 
 ## Vitest など他のテストランナーが `e2e/` を拾う
@@ -90,6 +91,16 @@ node node_modules/obsidian-e2e-toolkit/setup.mjs
 `isPluginEnabled` / `waitForPluginEnabled` / `waitForPluginDisabled` は `enabledPlugins` による設定上の有効状態を見ます。Obsidian の `enablePlugin` は設定を変更せずにロードするため、実際のロード状態とは一致しない場合があります。
 
 実行状態を調べる場合は `isPluginLoaded`、ロード完了を待つ場合は `waitForPluginLoaded`、停止を待つ場合は `waitForPluginUnloaded` を使ってください。`pluginState` では設定上の有効状態と実際のロード状態をまとめて確認できます。
+
+## lazy 設定に変えた後の `reload()` が待ち続ける
+
+`reload()` の既定値は、リロード前に読み込まれていたプラグインを待ちます。起動時には読み込まない設定へ変更したテストでは、そのシナリオが期待する起動時のプラグインだけを `expectLoaded` に指定してください。指定は待機条件であり、プラグインを有効化する操作ではありません。
+
+```ts
+await obsidian.reload({ expectLoaded: [pluginUnderTestId] });
+```
+
+lazy 対象が停止していることは、リロード後に `isPluginLoaded` などで別途検証してください。
 
 ## `setPluginData` した設定がプラグインに反映されない
 
