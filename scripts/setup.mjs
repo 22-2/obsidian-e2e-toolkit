@@ -169,18 +169,16 @@ async function fetchLatestDesktopRelease(headers) {
     );
 }
 
-async function fetchReleaseByTag(tag, headers) {
-    log.info(`Fetching Obsidian release ${tag} from GitHub...`);
-    const res = await fetch(
-        `https://api.github.com/repos/obsidianmd/obsidian-releases/releases/tags/${encodeURIComponent(tag)}`,
-        { headers },
-    );
-    if (!res.ok) {
-        throw new Error(
-            `Failed to fetch release ${tag}: ${res.status} ${res.statusText}`,
-        );
-    }
-    return res.json();
+function pinnedRelease(tag) {
+    const version = tag.slice(1);
+    const base = `https://github.com/obsidianmd/obsidian-releases/releases/download/${encodeURIComponent(tag)}`;
+    return {
+        tag_name: tag,
+        assets: ["tar.gz", "asar.gz"].map((suffix) => {
+            const name = `obsidian-${version}.${suffix}`;
+            return { name, browser_download_url: `${base}/${encodeURIComponent(name)}` };
+        }),
+    };
 }
 
 async function loadRelease(releaseCachePath, headers, requestedRelease) {
@@ -213,7 +211,7 @@ async function loadRelease(releaseCachePath, headers, requestedRelease) {
     }
 
     const release = requestedRelease.tag
-        ? await fetchReleaseByTag(requestedRelease.tag, headers)
+        ? pinnedRelease(requestedRelease.tag)
         : await fetchLatestRelease(headers);
     log.success(`Found Obsidian ${release.tag_name}`);
 
@@ -304,13 +302,21 @@ function findReleaseAsset(assets, pattern) {
 // File Utilities
 // =============================================================================
 
-async function downloadFile(url, destPath, headers) {
+async function downloadFile(url, destPath) {
     log.info(`Downloading from ${url}...`);
-    const res = await fetch(url, { headers });
+    // Public assets do not need the token used to look up release metadata.
+    const res = await fetch(url, { headers: { "User-Agent": "obsidian-e2e-toolkit-setup" } });
     if (!res.ok) {
         throw new Error(`Download failed: ${res.status} ${res.statusText}`);
     }
-    await pipeline(res.body, createWriteStream(destPath));
+    // Publish only complete downloads so a failed stream cannot poison the cache.
+    const downloadPath = `${destPath}.${process.pid}.download`;
+    try {
+        await pipeline(res.body, createWriteStream(downloadPath));
+        await rename(downloadPath, destPath);
+    } finally {
+        await rm(downloadPath, { force: true });
+    }
     log.success(`Downloaded to ${destPath}`);
 }
 
@@ -336,7 +342,6 @@ async function decompressGzip(srcPath, destPath) {
 async function ensureAppAsar(
     { appAsarPath, appTarGzPath, appExtractDir },
     release,
-    headers,
 ) {
     if (existsSync(appAsarPath)) {
         log.info(`Using cached ${appAsarPath}`);
@@ -348,7 +353,7 @@ async function ensureAppAsar(
             release.assets,
             DESKTOP_TAR_GZ_PATTERN,
         );
-        await downloadFile(asset.browser_download_url, appTarGzPath, headers);
+        await downloadFile(asset.browser_download_url, appTarGzPath);
     }
 
     log.info("Extracting app.tar.gz to find app.asar...");
@@ -385,7 +390,6 @@ async function ensureAppAsar(
 async function ensureObsidianAsar(
     { obsidianAsarPath, obsidianAsarGzPath },
     release,
-    headers,
 ) {
     if (existsSync(obsidianAsarPath)) {
         log.info(`Using cached ${obsidianAsarPath}`);
@@ -397,7 +401,6 @@ async function ensureObsidianAsar(
         await downloadFile(
             asset.browser_download_url,
             obsidianAsarGzPath,
-            headers,
         );
     } else {
         log.info(`Using cached ${obsidianAsarGzPath}`);
@@ -491,8 +494,8 @@ async function main() {
         );
     }
 
-    await ensureAppAsar(paths, release, headers);
-    await ensureObsidianAsar(paths, release, headers);
+    await ensureAppAsar(paths, release);
+    await ensureObsidianAsar(paths, release);
     await unpackAssets(paths);
     await writeFile(paths.cacheVersionPath, `${version}\n`, "utf8");
     await writeFile(paths.unpackedVersionPath, `${version}\n`, "utf8");

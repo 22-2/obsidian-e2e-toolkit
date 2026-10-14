@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -77,8 +77,9 @@ async function seedCache(fixture, marker = "v1.0.0") {
     }));
 }
 
-async function runSetup(fixture, responses, version = "latest") {
+async function runSetup(fixture, responses, version = "latest", overrides = {}) {
     const requestsPath = path.join(fixture.root, "requests.json");
+    const headersPath = path.join(fixture.root, "request-headers.json");
     // Run the real entry point with fake HTTP responses and tiny local archives.
     // Unexpected requests fail instead of touching the network or using tokens.
     const script = `
@@ -86,15 +87,32 @@ async function runSetup(fixture, responses, version = "latest") {
         import { promisify } from "node:util";
         const responses = ${JSON.stringify(responses)};
         const requests = [];
-        globalThis.fetch = async (url) => {
+        const headers = [];
+        globalThis.fetch = async (url, init) => {
             requests.push(url);
+            headers.push(new Headers(init?.headers).get("Authorization"));
             const response = responses[url];
             if (!response) throw new Error("Unexpected request: " + url);
+            if (response.streamError) {
+                let sent = false;
+                return new Response(new ReadableStream({
+                    pull(controller) {
+                        if (sent) controller.error(new Error("interrupted download"));
+                        else {
+                            controller.enqueue(new TextEncoder().encode("partial archive"));
+                            sent = true;
+                        }
+                    },
+                }));
+            }
             return response.file
                 ? new Response(await promisify(readFile)(response.file))
                 : Response.json(response.body, { status: response.status ?? 200 });
         };
-        process.on("exit", () => writeFileSync(${JSON.stringify(requestsPath)}, JSON.stringify(requests)));
+        process.on("exit", () => {
+            writeFileSync(${JSON.stringify(requestsPath)}, JSON.stringify(requests));
+            writeFileSync(${JSON.stringify(headersPath)}, JSON.stringify(headers));
+        });
         await import(${JSON.stringify(setupUrl)});
     `;
     const env = {
@@ -105,6 +123,7 @@ async function runSetup(fixture, responses, version = "latest") {
         OBSIDIAN_VERSION: "",
         GITHUB_TOKEN: "",
         GH_TOKEN: "",
+        ...overrides,
     };
     const result = await execFileAsync(process.execPath, ["--input-type=module", "--eval", script], {
         env,
@@ -115,7 +134,8 @@ async function runSetup(fixture, responses, version = "latest") {
         (error) => ({ stdout: error.stdout, stderr: error.stderr, code: error.code }),
     );
     const requests = JSON.parse(await readFile(requestsPath, "utf8"));
-    return { ...result, requests };
+    const requestHeaders = JSON.parse(await readFile(headersPath, "utf8"));
+    return { ...result, requests, requestHeaders };
 }
 
 async function assertInstalled(fixture, version) {
@@ -222,6 +242,48 @@ test("pinned versions reuse cached release metadata to download missing assets",
     assert.equal(result.code, 0, result.stderr);
     assert.deepEqual(result.requests, Object.keys(downloads));
     await assertInstalled(fixture, "1.0.0");
+});
+
+test("cold pinned setup downloads public assets without API requests or authorization", async (t) => {
+    const fixture = await createFixture(t);
+    const { release, downloads } = await createRelease(fixture, "1.0.0");
+    const direct = Object.fromEntries(release.assets.map((asset) => [
+        `https://github.com/obsidianmd/obsidian-releases/releases/download/v1.0.0/${asset.name}`,
+        downloads[asset.browser_download_url],
+    ]));
+    const result = await runSetup(fixture, {
+        [`${releasesUrl}/tags/v1.0.0`]: { status: 403, body: { message: "blocked" } },
+        ...direct,
+    }, "1.0.0", { GITHUB_TOKEN: "api-only-token" });
+
+    assert.equal(result.code, 0, result.stderr);
+    assert.deepEqual(result.requests, Object.keys(direct));
+    assert.deepEqual(result.requestHeaders, [null, null]);
+    await assertInstalled(fixture, "1.0.0");
+});
+
+test("a missing pinned archive fails without publishing version markers", async (t) => {
+    const fixture = await createFixture(t);
+    const asset = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.0.0/obsidian-1.0.0.tar.gz";
+    const result = await runSetup(fixture, { [asset]: { status: 404, body: {} } }, "1.0.0");
+
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /Download failed: 404/);
+    assert.deepEqual(result.requests, [asset]);
+    assert.equal(existsSync(path.join(fixture.cache, "app.tar.gz")), false);
+    assert.equal(existsSync(path.join(fixture.cache, ".cache-version")), false);
+    assert.equal(existsSync(fixture.unpacked), false);
+});
+
+test("an interrupted pinned download does not leave a reusable partial archive", async (t) => {
+    const fixture = await createFixture(t);
+    const asset = "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.0.0/obsidian-1.0.0.tar.gz";
+    const result = await runSetup(fixture, { [asset]: { streamError: true } }, "1.0.0");
+
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /interrupted download/);
+    assert.equal(existsSync(path.join(fixture.cache, "app.tar.gz")), false);
+    assert.deepEqual((await readdir(fixture.cache)).filter((name) => name.endsWith(".download")), []);
 });
 
 test("latest and pinned requests share the concrete version cache", async (t) => {

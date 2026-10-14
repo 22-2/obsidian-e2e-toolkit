@@ -300,7 +300,7 @@ env:
 
 ## CI でのレートリミット対策
 
-バージョンを固定した場合、`setup.mjs` は以下を満たすと GitHub API を呼ばずにキャッシュだけで処理します。
+バージョンを固定した場合、`setup.mjs` は初回も GitHub API を使わず、公開リリースの `obsidian-<version>.tar.gz` と `obsidian-<version>.asar.gz` を直接取得します。以下を満たす場合は、ダウンロードもせずキャッシュだけで処理します。
 
 - `obsidian-e2e-toolkit-assets/obsidian-unpacked/main.cjs` が存在し、記録されたバージョンが指定と一致する
 - または `obsidian-e2e-toolkit-assets/cache` 配下に必要なアセットが存在し、記録されたバージョンが指定と一致する
