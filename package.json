@@ -44,7 +44,7 @@
         "LICENSE"
     ],
     "scripts": {
-        "prepare": "pnpm run build",
+        "prepare": "node scripts/prepare-package.cjs",
         "build": "tsdown",
         "test": "node --test scripts/*.test.mjs",
         "release": "release-it",

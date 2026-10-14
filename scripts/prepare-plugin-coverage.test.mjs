@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { loadSource } from "./support/load-source.mjs";
 
@@ -81,10 +82,15 @@ async function reportFor(root, pluginDir) {
 }
 
 function recordFor(lcov, file) {
-    const wanted = path.resolve(file);
+    const wanted = realpathSync.native(path.resolve(file));
     return (
         lcov.split("end_of_record").find((record) =>
-            record.split("\n").some((line) => line.startsWith("SF:") && path.resolve(line.slice(3)) === wanted),
+            record.split("\n").some((line) => {
+                if (!line.startsWith("SF:")) return false;
+                const source = line.slice(3);
+                const sourcePath = source.startsWith("file:") ? fileURLToPath(source) : source;
+                return realpathSync.native(path.resolve(sourcePath)) === wanted;
+            }),
         ) ?? null
     );
 }
