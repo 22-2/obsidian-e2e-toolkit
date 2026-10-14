@@ -51,7 +51,7 @@ export class StorageManager {
 
             webContents.session.flushStorageData();
             await webContents.session.clearStorageData({
-                storages: ["indexdb", "localstorage", "websql"],
+                storages: ["indexdb", "localstorage"],
             });
             await webContents.session.clearCache();
             return true;

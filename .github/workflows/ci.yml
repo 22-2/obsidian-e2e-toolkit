@@ -36,6 +36,9 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Typecheck
+        run: pnpm exec tsc6 --noEmit
+
       # Let test failures block the build so broken releases cannot pass CI.
       - name: Run tests
         run: pnpm test
