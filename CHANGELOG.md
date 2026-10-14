@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.6.0](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.5.0...1.6.0) (2026-10-14)
+
+### Features
+
+* **coverage:** collect and report plugin coverage from E2E runs ([40b546c](https://github.com/22-2/obsidian-e2e-toolkit/commit/40b546c5c41a8908a6b4841737b723d90f1b4782))
+
+### Bug Fixes
+
+* **build:** keep the CLI shebang compatible with Unix ([0933e59](https://github.com/22-2/obsidian-e2e-toolkit/commit/0933e59982a2559d333b49f33d7d99dd6f93f5cf))
+* **types:** correct service imports and Electron storage types ([2a29c43](https://github.com/22-2/obsidian-e2e-toolkit/commit/2a29c4305050696789baac33d6615b380cbcd5cf))
+
 ## [1.5.0](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.4.5...1.5.0) (2026-10-12)
 
 ### Features
