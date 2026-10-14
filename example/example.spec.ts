@@ -11,6 +11,7 @@ import path from "path";
 
 test.use({
   vaultOptions: {
+    obsidianCli: "off",
     plugins: [
       {
         path: path.resolve("example/sample-plugin"),
@@ -23,5 +24,7 @@ test.use({
 test("plugin activation test", async ({ obsidian }) => {
   // Verify plugin activation
   expect(await obsidian.plugin("sample-plugin")).toBeTruthy();
+  expect(await obsidian.isPluginLoaded("sample-plugin")).toBe(true);
+  await expect(obsidian.page.locator(".workspace")).toBeVisible();
 });
 
