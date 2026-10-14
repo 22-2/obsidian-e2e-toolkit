@@ -82,14 +82,16 @@ async function reportFor(root, pluginDir) {
 }
 
 function recordFor(lcov, file) {
-    const wanted = realpathSync.native(path.resolve(file));
+    const wanted = path.resolve(file).replaceAll("\\", "/");
+    const suffix = wanted.split("/").slice(-3).join("/");
     return (
         lcov.split("end_of_record").find((record) =>
             record.split("\n").some((line) => {
                 if (!line.startsWith("SF:")) return false;
                 const source = line.slice(3);
                 const sourcePath = source.startsWith("file:") ? fileURLToPath(source) : source;
-                return realpathSync.native(path.resolve(sourcePath)) === wanted;
+                const normalized = realpathSync.native(path.resolve(sourcePath)).replaceAll("\\", "/");
+                return normalized === wanted || normalized.endsWith("/" + suffix);
             }),
         ) ?? null
     );

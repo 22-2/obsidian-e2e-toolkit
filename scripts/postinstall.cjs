@@ -37,12 +37,6 @@ if (isDependencyInstall) {
   }
 }
 
-// A source checkout used directly can skip setup once its build is ready.
-if (fs.existsSync(distPath) && !isDependencyInstall) {
-  console.log('obsidian-e2e-toolkit: dist already exists, skipping build.');
-  process.exit(0);
-}
-
 function run(nodePath, args, envOverrides = {}) {
   const r = spawnSync(nodePath, args, {
     stdio: 'inherit',
