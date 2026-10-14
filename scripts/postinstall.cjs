@@ -60,6 +60,15 @@ try {
   process.exit(1);
 }
 
+// Git-hosted dependencies are unpacked without a .git directory. Their setup
+// runs in the consuming project below, so do not download assets into pnpm's
+// temporary package-preparation folder.
+const packageGitDirectory = path.resolve(__dirname, '..', '.git');
+if (!isDependencyInstall && !existsSync(packageGitDirectory)) {
+  console.log('Skipping obsidian-e2e-toolkit setup in a temporary package checkout.');
+  process.exit(0);
+}
+
 try {
   console.log('Running setup.mjs...');
   const envOverrides = isDependencyInstall
