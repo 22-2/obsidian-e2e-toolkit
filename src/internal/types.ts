@@ -3,6 +3,7 @@ import log from "loglevel";
 import type { ElectronApplication, JSHandle, Page } from "playwright";
 import { ObsidianAPI } from "../ObsidianAPI";
 import type { ResolvedPaths } from "./path";
+import type { CoverageOptions } from "./coverage/types";
 
 // Minimal Plugin interface to avoid importing from obsidian package
 export interface Plugin {
@@ -78,6 +79,7 @@ export interface TestPlugin {
 export type TestFixtures = {
     obsidian: ObsidianAPI;
     vaultOptions: Partial<VaultOptions>;
+    coverageOptions: CoverageOptions;
     tempDir: string;
 };
 

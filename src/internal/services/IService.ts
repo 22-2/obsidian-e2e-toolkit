@@ -1,6 +1,7 @@
 import type { ElectronApplication, Page } from "playwright";
 import type { ResolvedPaths } from "../path";
 import type { VaultOptions } from "../types";
+import type { PluginCoverageCollector } from "../coverage/collector";
 
 export interface LoggerLike {
     trace: (message: string, ...args: unknown[]) => void;
@@ -15,6 +16,7 @@ export interface RuntimeContext {
     electronApp?: ElectronApplication;
     activePage?: Page;
     vaultPath?: string;
+    coverage?: PluginCoverageCollector;
 }
 
 export interface ServiceContext {

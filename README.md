@@ -1,6 +1,6 @@
 # Obsidian E2E Test Toolkit
 
-Obsidian（Electron）を Playwright でE2Eテストするためのユーティリティです。トップレベルの公開APIは `test` / `expect` / `ObsidianAPI` に絞っています。
+Obsidian（Electron）を Playwright でE2Eテストするためのユーティリティです。`test` / `expect` / `ObsidianAPI` と、任意のカバレッジ収集・レポート生成を提供します。
 
 ## 要件
 
@@ -42,6 +42,96 @@ pnpm exec obsidian-e2e-toolkit   # playwright.config.ts と e2e/example.spec.ts 
 - `obsidian.evaluateApp(fn, arg)`: Obsidian 内で `app` を使う関数を実行
 - `obsidian.pluginData(id)` / `obsidian.setPluginData(id, patch)`: プラグインの `data.json` を読み書き
 - `vaultOptions.plugins[].data`: 起動前にプラグインの初期 `data.json` を書き込む（symlink 時は無視）
+
+## E2E カバレッジ
+
+プラグインをソースマップ付きでビルドしてから、測定対象と出力先を指定します。
+esbuild の `sourcemap: "inline"` と、`sourcemap: "external"` による `main.js.map` の両方に対応しています。
+
+```ts
+import { test } from "obsidian-e2e-toolkit";
+
+test.use({
+    vaultOptions: { plugins: [{ path: process.cwd() }] },
+    coverageOptions: {
+        enabled: process.env.E2E_COVERAGE === "1",
+        pluginPaths: [process.cwd()],
+        outputDir: "coverage/e2e",
+    },
+});
+```
+
+`pluginPaths` を省略すると `vaultOptions.plugins` の全プラグインを測定します。
+複数の spec が共有する fixture ファイルで設定する場合は、`test.use(...)` ではなく
+`test.extend({ coverageOptions: 設定値 })` で既定値を持つ `test` を export してください。
+`test.use(...)` は呼び出した spec にだけ適用され、共有モジュールがキャッシュされると後続の spec には適用されません。
+測定対象のフォルダーには `manifest.json` とソースマップ付きの `main.js` が必要です。
+プラグイン有効化前に測定を開始し、toolkit が行うセットアップ時の再読み込み前と終了前に結果を回収します。
+V8 の測定は画面の再読み込みでリセットせず、toolkit がウィンドウを閉じる前にも回収します。
+直接ウィンドウを閉じたり Electron のプロセスを強制終了した場合、その画面の結果は回収できずテストが失敗します。
+
+Playwright の reporter に追加すると、実行終了時に HTML・LCOV・JSON と端末の集計を生成します。
+reporter と `coverageOptions` の `outputDir` を合わせてください。
+
+```ts
+import { defineConfig } from "@playwright/test";
+
+export default defineConfig({
+    reporter: [
+        ["list"],
+        ["obsidian-e2e-toolkit/coverage", {
+            enabled: process.env.E2E_COVERAGE === "1",
+            outputDir: "coverage/e2e",
+        }],
+    ],
+});
+```
+
+Windows PowerShell での実行例:
+
+```powershell
+$env:E2E_COVERAGE = "1"
+pnpm exec playwright test
+```
+
+`coverage/e2e/index.html`、`lcov.info`、`coverage-final.json` を生成します。
+テスト・モック・型宣言・依存パッケージ・測定対象フォルダーの外にあるソースは除外します。
+ビルドとソースマップはテストごとの JSON に保存するため、テスト終了後に一時プラグインを削除したり通常ビルドに戻してもレポートを生成できます。
+並列ワーカーとリトライはそれぞれ別ファイルに保存します。失敗した試行も集計対象です。
+
+### 複数の実行をまとめる
+
+並列用と直列用などで Playwright を複数回実行する場合は、reporter の `clean: false` を指定します。
+通常の reporter は開始時に過去の `raw/` を削除します。
+複数回の実行前に一度だけ初期化し、最後に一度だけ集計する方法も使えます。
+
+```js
+import { resetCoverageOutput, generateCoverageReport } from "obsidian-e2e-toolkit/coverage";
+
+await resetCoverageOutput("coverage/e2e");
+// ここでソースマップ付きビルドと、カバレッジを有効にした E2E を実行する。
+await generateCoverageReport({ outputDir: "coverage/e2e" });
+```
+
+### 単体テストと E2E を合算する
+
+Vitest で `coverage.reporter` に `"json"` を指定し、両方の `coverage-final.json` を渡します。
+同じチェックアウト・同じソースを対象に実行した結果を合算してください。
+
+```js
+import { mergeCoverageReports } from "obsidian-e2e-toolkit/coverage";
+
+await mergeCoverageReports({
+    inputFiles: ["coverage/unit/coverage-final.json", "coverage/e2e/coverage-final.json"],
+    outputDir: "coverage/combined",
+});
+```
+
+`coverage/combined/index.html` に統合レポートを生成します。
+ファイルとソース位置ごとに実行回数を合算し、単体テストだけで読み込まれたファイルも残します。
+異なるビルドでソースマップの位置が異なる場合は、それぞれの位置を保持します。
+特に分岐は種類と全選択肢の位置が一致した場合だけ合算するため、選択肢の実行回数が別の位置に移ったり失われたりしません。
+異なる位置が追加されることで分母が増える場合があり、合算後の割合が各レポート以上になるとは限りません。
 
 ## Linux / CI で実行する
 

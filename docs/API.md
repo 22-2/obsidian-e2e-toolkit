@@ -2,7 +2,7 @@
 
 このドキュメントは、トップレベルで `import ... from "obsidian-e2e-toolkit"` したときに公開されているAPIの概要です。
 
-対象は最新の 1.0.0 系の公開型定義です。
+対象は現在の公開型定義です。
 
 ## Exports
 
@@ -11,6 +11,7 @@
   - fixture:
     - `obsidian: ObsidianAPI`
     - `vaultOptions: Partial<VaultOptions>`
+    - `coverageOptions: CoverageOptions`（既定で無効）
     - `tempDir: string`
 - `expect`
   - `@playwright/test` の `expect`
@@ -22,6 +23,33 @@
   - vault 起動とプラグイン投入を制御する型
 - `fetchPlugin(repo, destArg?, opts?)`
   - GitHub リポジトリからプラグインを取得するユーティリティ
+
+---
+
+## Coverage
+
+`CoverageOptions` はトップレベルから型として import できます。
+
+```ts
+type CoverageOptions = {
+    enabled?: boolean;
+    pluginPaths?: readonly string[];
+    outputDir?: string;
+};
+```
+
+`pluginPaths` の既定値は `vaultOptions.plugins` のパス、`outputDir` の既定値は `coverage/e2e` です。
+測定対象には `manifest.json` と、ソースマップ付きの `main.js` が必要です。
+
+`obsidian-e2e-toolkit/coverage` は次の API を公開します。
+
+- `CoverageReporter`（default export でも提供）: Playwright reporter。`enabled`、`outputDir`、`clean`、`reporters` を指定できます。
+- `resetCoverageOutput(outputDir?)`: toolkit の過去の `raw/` を削除します。他のファイルは削除しません。
+- `generateCoverageReport({ outputDir?, reporters? }?)`: raw 結果からレポートを生成し、集計値を返します。
+- `mergeCoverageReports({ inputFiles, outputDir?, reporters? })`: Istanbul JSON を合算し、集計値を返します。既定の出力先は `coverage/combined` です。
+
+`reporters` は `"text" | "html" | "lcov" | "json"` の配列です。既定ではすべて出力します。
+実行例・複数実行の合算・Vitest との統合は [README](../README.md#e2e-カバレッジ) を参照してください。
 
 ---
 

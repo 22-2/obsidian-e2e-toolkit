@@ -9,7 +9,7 @@ import type { IFeature } from "./IFeature";
 export class SetupPluginsFeature implements IFeature<{ page: Page }, void> {
     async run(
         input: { page: Page },
-        _ctx: ServiceContext,
+        ctx: ServiceContext,
         services: ServiceContainer,
     ): Promise<void> {
         const pluginManager = services.getValue<PluginManager>(
@@ -18,6 +18,8 @@ export class SetupPluginsFeature implements IFeature<{ page: Page }, void> {
 
         await pluginManager.installAll();
         await pluginManager.enableAll(input.page);
+        // Save first activation before the toolkit's setup reload replaces it.
+        await ctx.runtime.coverage?.checkpoint(input.page);
         await input.page.reload();
         await PageWaiter.waitForPage(input.page);
         // 意図: vault のレイアウト完了後もプラグインと CSS のロードは続くため、

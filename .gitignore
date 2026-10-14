@@ -6,6 +6,7 @@ node_modules/
 .env
 test-results/
 playwright-report/
+/coverage/
 # Build output is attached to GitHub Releases as a prebuilt package.
 dist/
 # Setup downloads and extracted app assets are regenerated and copied into the release tarball by CI.

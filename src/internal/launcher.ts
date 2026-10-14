@@ -19,12 +19,14 @@ import { StorageManager } from "./services/StorageManager";
 import { VaultManager } from "./services/VaultManager";
 import { WindowManager } from "./services/WindowManager";
 import type { TestContext, VaultOptions } from "./types";
+import type { PluginCoverageCollector } from "./coverage/collector";
 
 export interface LauncherConfig {
     paths: ResolvedPaths;
     options: VaultOptions;
     tempUserDataDir: string;
     runId?: string;
+    coverage?: PluginCoverageCollector;
 }
 
 export class ObsidianE2ELauncher {
@@ -44,10 +46,12 @@ export class ObsidianE2ELauncher {
     private tempVaultDir: string;
     private initialized = false;
     private scopedLogger;
+    private coverage?: PluginCoverageCollector;
 
-    constructor({ paths, options, tempUserDataDir, runId }: LauncherConfig) {
+    constructor({ paths, options, tempUserDataDir, runId, coverage }: LauncherConfig) {
         this.paths = paths;
         this.options = options;
+        this.coverage = coverage;
         this.tempVaultDir = `${tempUserDataDir}-vault`;
         this.electronManager = new ElectronAppManager(paths, tempUserDataDir);
         this.scopedLogger = createScopedLogger("ObsidianTestLauncher", {
@@ -72,7 +76,7 @@ export class ObsidianE2ELauncher {
         const electronApp = await this.electronManager.launch();
         this.scopedLogger.debug("Electron app launched");
 
-        const windowManager = new WindowManager(electronApp);
+        const windowManager = new WindowManager(electronApp, this.coverage);
         const storageManager = new StorageManager(electronApp);
 
         const services = new ServiceContainer();
@@ -101,6 +105,7 @@ export class ObsidianE2ELauncher {
             runtime: {
                 initialized: false,
                 electronApp,
+                coverage: this.coverage,
             },
             logger: this.scopedLogger,
         };
@@ -206,6 +211,9 @@ export class ObsidianE2ELauncher {
             serviceContext,
             services,
         );
+
+        // Await collection startup before any plugin is installed or enabled.
+        await this.coverage?.start(page);
 
         const configuredPlugins = pluginManager.getPlugins() || [];
         this.scopedLogger.debug(

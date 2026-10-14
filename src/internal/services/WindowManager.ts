@@ -4,11 +4,12 @@
 import chalk from "chalk";
 import log from "loglevel";
 import type { ElectronApplication, Page } from "playwright";
+import type { PluginCoverageCollector } from "../coverage/collector";
 
 const logger = log.getLogger("WindowManager");
 
 export class WindowManager {
-    constructor(private electronApp: ElectronApplication) {}
+    constructor(private electronApp: ElectronApplication, private coverage?: PluginCoverageCollector) {}
 
     async ensureSingleWindow(): Promise<Page> {
         logger.debug("ensureSingleWindow");
@@ -62,6 +63,7 @@ export class WindowManager {
                 logger.debug(
                     chalk.yellow(`Closing old window: ${await window.title()}`),
                 );
+                await this.coverage?.collect(window);
                 await window.close();
             }
         }
@@ -71,6 +73,7 @@ export class WindowManager {
         for (const window of this.electronApp.windows()) {
             if (window !== keepPage && !window.isClosed()) {
                 logger.debug(chalk.red(`close ${window.url()}`));
+                await this.coverage?.collect(window);
                 await window.close();
             }
         }

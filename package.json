@@ -16,6 +16,16 @@
                 "default": "./dist/index.cjs"
             }
         },
+        "./coverage": {
+            "import": {
+                "types": "./dist/coverage.d.mts",
+                "default": "./dist/coverage.mjs"
+            },
+            "require": {
+                "types": "./dist/coverage.d.cts",
+                "default": "./dist/coverage.cjs"
+            }
+        },
         "./esm": {
             "types": "./dist/index.d.mts",
             "import": "./dist/index.mjs",
@@ -41,6 +51,7 @@
         "prepublishOnly": "pnpm run build",
         "test:e2e:example": "pnpm playwright test example/example.spec.ts",
         "test:e2e:readiness": "playwright test --config playwright.readiness.config.ts",
+        "test:e2e:coverage": "playwright test --config playwright.coverage.config.ts",
         "test:e2e:on-demand": "pnpm playwright test example/on-demand-plugins/tests",
         "postinstall": "node ./scripts/postinstall.cjs"
     },
@@ -68,10 +79,15 @@
     },
     "dependencies": {
         "@electron/asar": "^4.3.0",
+        "acorn": "^8.19.0",
+        "ast-v8-to-istanbul": "^1.0.7",
         "chalk": "^6.0.0",
         "es-toolkit": "^1.52.0",
         "extract-zip": "^2.0.1",
         "find-up": "^8.0.0",
+        "istanbul-lib-coverage": "^3.2.2",
+        "istanbul-lib-report": "^3.0.1",
+        "istanbul-reports": "^3.2.0",
         "loglevel": "^1.9.2",
         "loglevel-plugin-prefix": "^0.8.4",
         "tar": "^7.5.22",
@@ -79,6 +95,9 @@
     },
     "devDependencies": {
         "@release-it/conventional-changelog": "^12.0.2",
+        "@types/istanbul-lib-coverage": "^2.0.6",
+        "@types/istanbul-lib-report": "^3.0.3",
+        "@types/istanbul-reports": "^3.0.4",
         "@types/node": "^26.6.2",
         "esbuild": "^0.28.2",
         "glob": "^13.0.6",

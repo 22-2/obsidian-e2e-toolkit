@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsdown';
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  entry: ['src/index.ts', 'src/coverage.ts'],
   format: ['cjs', 'esm'],
   dts: {
     cjsReexport: true,
@@ -12,4 +12,5 @@ export default defineConfig({
   target: 'node24',
   // Inject CJS shims for import.meta.url, __dirname, etc.
   shims: true,
+  outputOptions: { exports: 'named' },
 });

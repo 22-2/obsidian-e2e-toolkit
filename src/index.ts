@@ -38,6 +38,7 @@ import type { TestFixtures, WorkerFixtures } from "./internal/types";
 import { createObsidianContext, handleTestError } from "./internal/utils";
 import { resolveVaultOptions } from "./internal/vaultOptions";
 import { ObsidianAPI } from "./ObsidianAPI";
+import { PluginCoverageCollector } from "./internal/coverage/collector";
 
 export const logger = log.getLogger("obsidianSetup");
 
@@ -74,12 +75,13 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
             .catch(() => {});
     },
     vaultOptions: [DEFAULT_VAULT_OPTIONS, { option: true }],
+    coverageOptions: [{ enabled: false }, { option: true }],
     // 意図: Playwright 標準の別ページではなく、fixture が準備した Obsidian の
     // vault レンダラーを page として渡し、操作先の取り違えを防ぐ。
     page: async ({ obsidian }, use) => {
         await use(obsidian.page);
     },
-    obsidian: async ({ vaultOptions, tempDir }, use, testInfo) => {
+    obsidian: async ({ vaultOptions, coverageOptions, tempDir }, use, testInfo) => {
         const paths = getResolvedPaths();
         const runId = createRunId(testInfo.title);
         const runLogger = createScopedLogger("obsidianSetup", {
@@ -87,9 +89,14 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
             phase: "fixture",
         });
 
+        const options = resolveVaultOptions(vaultOptions);
+        const coverage = coverageOptions.enabled
+            ? await PluginCoverageCollector.create(coverageOptions, options.plugins.map((plugin) => plugin.path))
+            : undefined;
         const launcher = new ObsidianE2ELauncher({
             paths,
-            options: resolveVaultOptions(vaultOptions),
+            options,
+            coverage,
             tempUserDataDir: tempDir,
             runId,
         });
@@ -134,8 +141,15 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         } finally {
             runLogger.info("Cleaning up Obsidian");
             try {
-                await launcher.cleanup();
-                runLogger.info("Cleanup completed");
+                try {
+                    if (coverage) {
+                        const coveragePath = await coverage.save(testInfo.testId);
+                        await testInfo.attach("obsidian-plugin-coverage", { path: coveragePath, contentType: "application/json" });
+                    }
+                } finally {
+                    await launcher.cleanup();
+                    runLogger.info("Cleanup completed");
+                }
             } finally {
                 // 終了処理のログまで転送・添付してから、一時ディレクトリを削除する。
                 stopMainLogging();
@@ -161,4 +175,5 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 export { expect } from "@playwright/test";
 export { fetchPlugin } from "./fetchPlugin";
 export type { ObsidianCliMode, VaultOptions } from "./internal/types";
+export type { CoverageOptions } from "./internal/coverage/types";
 export { ObsidianAPI } from "./ObsidianAPI";
