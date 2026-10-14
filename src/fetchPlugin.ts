@@ -162,11 +162,19 @@ function toUsableRelease(release: Release | null): UsableRelease | null {
     return complete ? { tag_name: release.tag_name, assets } : null;
 }
 
-async function lookupRelease(repo: GitHubRepo, tag: string | undefined): Promise<UsableRelease | null> {
+function pinnedRelease(repo: GitHubRepo, tag: string): UsableRelease {
+    const base = "https://github.com/" + repoFullName(repo) + "/releases/download/" + encodeURIComponent(tag);
+    return {
+        tag_name: tag,
+        assets: REQUIRED_FILES.concat(OPTIONAL_FILES).map((name) => ({
+            name,
+            browser_download_url: base + "/" + name,
+        })),
+    };
+}
+
+async function lookupRelease(repo: GitHubRepo): Promise<UsableRelease | null> {
     const base = apiRepoUrl(repo);
-    if (tag !== undefined) {
-        return toUsableRelease(await readRelease(base + "/releases/tags/" + encodeURIComponent(tag)));
-    }
     const latest = toUsableRelease(await readRelease(base + "/releases/latest"));
     if (latest) return latest;
     // latest が asset を持たない場合は、直近の release を順に見て最初に使えるものを選ぶ。
@@ -179,9 +187,11 @@ async function lookupRelease(repo: GitHubRepo, tag: string | undefined): Promise
     return null;
 }
 
-async function downloadAsset(url: string, target: string, name: string): Promise<void> {
+async function downloadAsset(url: string, target: string, name: string, optional: boolean): Promise<void> {
     // 公開 asset の取得には token を付けない。
     const response = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+    // 意図: 固定 tag では一覧を問い合わせず、任意の styles.css だけは不存在を許す。
+    if (optional && response.status === 404) return;
     if (!response.ok) throw new Error("failed to download " + name + " (" + response.status + ")");
     await writeFile(target, Buffer.from(await response.arrayBuffer()));
 }
@@ -190,7 +200,7 @@ async function downloadReleaseFiles(release: UsableRelease, dir: string): Promis
     for (const name of REQUIRED_FILES.concat(OPTIONAL_FILES)) {
         const asset = release.assets.find((entry) => entry.name === name);
         if (!asset || typeof asset.browser_download_url !== "string") continue;
-        await downloadAsset(asset.browser_download_url, path.join(dir, name), name);
+        await downloadAsset(asset.browser_download_url, path.join(dir, name), name, OPTIONAL_FILES.includes(name));
     }
 }
 
@@ -403,7 +413,7 @@ export async function fetchPlugin(repo: string, destArg?: string, opts?: FetchPl
 
     let usable: UsableRelease | null = null;
     try {
-        usable = await lookupRelease(parsed, tag);
+        usable = tag === undefined ? await lookupRelease(parsed) : pinnedRelease(parsed, tag);
     } catch (error) {
         if (!fallbackToGit) throw error;
         logger.warn("release lookup failed for " + repoFullName(parsed) + "; falling back to git: " + errorMessage(error));

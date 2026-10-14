@@ -42,7 +42,7 @@ pnpm exec obsidian-e2e-toolkit   # playwright.config.ts と e2e/example.spec.ts 
 - `obsidian.evaluateApp(fn, arg)`: Obsidian 内で `app` を使う関数を実行
 - `obsidian.pluginData(id)` / `obsidian.setPluginData(id, patch)`: プラグインの `data.json` を読み書き
 - `vaultOptions.plugins[].data`: 起動前にプラグインの初期 `data.json` を書き込む（symlink 時は無視）
-- `preparePlugins(sources, baseDir, opts?)`: `sources` は、プラグイン ID をキー、`owner/repo` の文字列または `{ repo, tag }` を値にしたオブジェクトです。`baseDir/myfiles/<ID>` に取得して配置します。tag を指定すると、既定でリリースが使えない時に同じ tag を clone します。失敗はすべてまとめて 1 つのエラーにします。
+- `preparePlugins(sources, baseDir, opts?)`: `sources` は、プラグイン ID をキー、`owner/repo` の文字列または `{ repo, tag }` を値にしたオブジェクトです。`baseDir/myfiles/<ID>` に取得して配置します。tag を指定すると、GitHub API を使わず公開リリースの `main.js`・`manifest.json`・任意の `styles.css` を直接取得します。`styles.css` の404だけは許容し、その他の取得失敗は成功扱いしません。既定ではリリースが使えない時に同じ tag を clone します。失敗はすべてまとめて 1 つのエラーにします。
 - `preparePlugin({ manifest, main, styles?, sourceMap? }, dest)`: 分散したビルド成果物を 1 つのフォルダーにまとめます。sourceMap は元のプロジェクトを基準に解決できる形で書き出します。
 - `defineObsidianConfig(overrides)`: Playwright 設定に共通の既定値を加えます。workers、timeout、reporter などは利用者の値を優先します。
 

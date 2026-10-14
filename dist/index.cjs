@@ -2363,9 +2363,18 @@ function toUsableRelease(release) {
 		assets
 	} : null;
 }
-async function lookupRelease(repo, tag) {
+function pinnedRelease(repo, tag) {
+	const base = "https://github.com/" + repoFullName(repo) + "/releases/download/" + encodeURIComponent(tag);
+	return {
+		tag_name: tag,
+		assets: REQUIRED_FILES.concat(OPTIONAL_FILES).map((name) => ({
+			name,
+			browser_download_url: base + "/" + name
+		}))
+	};
+}
+async function lookupRelease(repo) {
 	const base = apiRepoUrl(repo);
-	if (tag !== void 0) return toUsableRelease(await readRelease(base + "/releases/tags/" + encodeURIComponent(tag)));
 	const latest = toUsableRelease(await readRelease(base + "/releases/latest"));
 	if (latest) return latest;
 	const releases = await readReleaseList(base + "/releases?per_page=20");
@@ -2376,8 +2385,9 @@ async function lookupRelease(repo, tag) {
 	}
 	return null;
 }
-async function downloadAsset(url, target, name) {
+async function downloadAsset(url, target, name, optional) {
 	const response = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+	if (optional && response.status === 404) return;
 	if (!response.ok) throw new Error("failed to download " + name + " (" + response.status + ")");
 	await (0, node_fs_promises.writeFile)(target, Buffer.from(await response.arrayBuffer()));
 }
@@ -2385,7 +2395,7 @@ async function downloadReleaseFiles(release, dir) {
 	for (const name of REQUIRED_FILES.concat(OPTIONAL_FILES)) {
 		const asset = release.assets.find((entry) => entry.name === name);
 		if (!asset || typeof asset.browser_download_url !== "string") continue;
-		await downloadAsset(asset.browser_download_url, node_path.default.join(dir, name), name);
+		await downloadAsset(asset.browser_download_url, node_path.default.join(dir, name), name, OPTIONAL_FILES.includes(name));
 	}
 }
 async function isNonEmptyFile(file) {
@@ -2565,7 +2575,7 @@ async function fetchPlugin(repo, destArg, opts) {
 	if (tag !== void 0 && useCache && await isReusableCopy(dest, parsed, tag, tag)) return reuseCopy(dest, parsed, tag);
 	let usable = null;
 	try {
-		usable = await lookupRelease(parsed, tag);
+		usable = tag === void 0 ? await lookupRelease(parsed) : pinnedRelease(parsed, tag);
 	} catch (error) {
 		if (!fallbackToGit) throw error;
 		logger$2.warn("release lookup failed for " + repoFullName(parsed) + "; falling back to git: " + require_targets.errorMessage(error));
