@@ -14,31 +14,33 @@ const cwd = process.cwd();
 const initCwd = process.env.INIT_CWD || '';
 const isDependencyInstall = initCwd && path.resolve(initCwd) !== path.resolve(cwd);
 
-// すでにビルド済み(distがある)なら、重い処理やエラーの元になる処理をスキップするっす
-// skip heavy processing and potential error sources if already built (dist exists)
-if (fs.existsSync(distPath) && isDependencyInstall) {
-  console.log('obsidian-e2e-toolkit: dist already exists, skipping build/setup.');
-  process.exit(0); 
-}
-
 // When installed as a dependency, avoid running the heavy setup by default.
-// This prevents large downloads during `pnpm add`/install in consumer projects.
-// To force the setup during dependency install, set
-// `OBSIDIAN_E2E_TOOLKIT_RUN_SETUP=1` in the environment. For backward
-// compatibility, `OBSIDIAN_E2E_TOOLKIT_SKIP_SETUP=1` will also skip the setup.
+// Reuse assets already prepared in the consumer project. A Git dependency does
+// not contain the local-pack assets, so a dist-only check would leave the
+// package unusable. In that case, prepare the assets as part of installation.
 if (isDependencyInstall) {
   if (process.env.OBSIDIAN_E2E_TOOLKIT_SKIP_SETUP === '1') {
     console.log('Skipping obsidian-e2e-toolkit postinstall (skipped by OBSIDIAN_E2E_TOOLKIT_SKIP_SETUP)');
     process.exit(0);
   }
 
-  if (process.env.OBSIDIAN_E2E_TOOLKIT_RUN_SETUP === '1') {
-    console.log('Running obsidian-e2e-toolkit postinstall (forced by OBSIDIAN_E2E_TOOLKIT_RUN_SETUP)');
-    // continue to run setup
-  } else {
-    console.log('Skipping obsidian-e2e-toolkit postinstall (dependency install). Set OBSIDIAN_E2E_TOOLKIT_RUN_SETUP=1 to force.');
+  const consumerAssets = path.join(initCwd, 'obsidian-e2e-toolkit-assets', 'obsidian-unpacked', 'main.cjs');
+  if (fs.existsSync(consumerAssets) && process.env.OBSIDIAN_E2E_TOOLKIT_RUN_SETUP !== '1') {
+    console.log('obsidian-e2e-toolkit: consumer assets already exist, skipping setup.');
     process.exit(0);
   }
+
+  if (process.env.OBSIDIAN_E2E_TOOLKIT_RUN_SETUP === '1') {
+    console.log('Running obsidian-e2e-toolkit postinstall (forced by OBSIDIAN_E2E_TOOLKIT_RUN_SETUP)');
+  } else {
+    console.log('Running obsidian-e2e-toolkit postinstall (consumer assets are missing).');
+  }
+}
+
+// A source checkout used directly can skip setup once its build is ready.
+if (fs.existsSync(distPath) && !isDependencyInstall) {
+  console.log('obsidian-e2e-toolkit: dist already exists, skipping build.');
+  process.exit(0);
 }
 
 function run(nodePath, args, envOverrides = {}) {
