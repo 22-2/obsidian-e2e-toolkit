@@ -256,6 +256,20 @@ test("pnpm runs through node when npm_execpath points at the pnpm entry", () => 
     });
 });
 
+for (const [platform, entry] of [
+    ["linux", "/opt/pnpm/pnpm"],
+    ["darwin", "/Applications/Package Managers/pnpm"],
+    ["win32", "C:\\Package Managers\\pnpm.exe"],
+]) {
+    test(`native pnpm on ${platform} runs directly without Node or a shell`, () => {
+        assert.deepEqual(resolvePnpmInvocation(["run", "build"], { npm_execpath: entry }, platform), {
+            command: entry,
+            args: ["run", "build"],
+            shell: false,
+        });
+    });
+}
+
 test("another package manager's entry is ignored in favor of pnpm", () => {
     const spec = resolvePnpmInvocation(["install"], { npm_execpath: "C:\\npm\\bin\\npm-cli.js" }, "win32");
     assert.deepEqual(spec, { command: "pnpm", args: ["install"], shell: true });

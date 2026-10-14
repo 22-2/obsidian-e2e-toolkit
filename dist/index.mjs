@@ -2279,7 +2279,8 @@ const OPTIONAL_FILES = ["styles.css"];
 const NAME_PATTERN = /^[A-Za-z0-9_.-]+$/;
 const TAG_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._+/-]*$/;
 const SAFE_PNPM_ARGUMENT = /^[A-Za-z0-9._:=-]+$/;
-const PNPM_ENTRY = /[\\/]pnpm(\.[cm]?js)?$/i;
+const PNPM_SCRIPT_ENTRY = /[\\/]pnpm\.[cm]?js$/i;
+const PNPM_EXECUTABLE_ENTRY = /[\\/]pnpm(?:\.exe)?$/i;
 const REPO_PATTERNS = [
 	/^https:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/i,
 	/^git@github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/i,
@@ -2505,15 +2506,20 @@ async function buildCheckout(dir) {
 }
 /**
 * pnpm を起動するコマンドを決める。
-* npm_execpath が pnpm の entry なら node で直接起動し、shell は使わない。
+* npm_execpath が pnpm の JS entry なら node で起動し、native executable は直接起動する。
 * Windows の pnpm は .cmd の shim なので shell 経由にする。その場合は引数を先に検証する。
 */
 function resolvePnpmInvocation(args, env = process.env, platform = process.platform) {
 	for (const arg of args) if (!SAFE_PNPM_ARGUMENT.test(arg)) throw new TypeError("unsafe pnpm argument: " + JSON.stringify(arg));
 	const entry = env.npm_execpath;
-	if (entry && PNPM_ENTRY.test(entry)) return {
+	if (entry && PNPM_SCRIPT_ENTRY.test(entry)) return {
 		command: process.execPath,
 		args: [entry, ...args],
+		shell: false
+	};
+	if (entry && PNPM_EXECUTABLE_ENTRY.test(entry)) return {
+		command: entry,
+		args: [...args],
 		shell: false
 	};
 	return {
