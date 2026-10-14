@@ -53,6 +53,8 @@
         "test:e2e:readiness": "playwright test --config playwright.readiness.config.ts",
         "test:e2e:coverage": "playwright test --config playwright.coverage.config.ts",
         "test:e2e:on-demand": "pnpm playwright test example/on-demand-plugins/tests",
+        "test:e2e:runtime": "playwright test --config playwright.runtime.config.ts",
+        "pack:local": "node scripts/pack-local.mjs",
         "postinstall": "node ./scripts/postinstall.cjs"
     },
     "author": "22-2",

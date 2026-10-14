@@ -114,8 +114,9 @@ type CoverageOptions = {
 ### Wait Helpers
 
 - `waitReady(timeout?: number): Promise<void>`
-  - `app.workspace.layoutReady` または `activeLeaf` が利用可能になるまで待つ
-  - デフォルト timeout は実装依存だが、型上は省略可能
+  - `app.workspace.layoutReady === true` になるまで待つ。既定は 15000ms
+  - fixture は起動時にこの状態を保証してからテストへ渡すため、テスト冒頭で呼ぶ必要はない。手動の画面遷移の後に使う
+  - `activeLeaf` があるだけでは待ち終わらない
 - `waitForApp<Arg = undefined>(predicate, arg?, timeout?): Promise<void>`
   - renderer 側で predicate が true になるまで待つ
 - `waitForView<T extends ItemView>(viewType: string): Promise<JSHandle<T>>`
@@ -357,7 +358,7 @@ type TestFixtures = {
 fetchPlugin(
   repo: string,
   destArg?: string,
-  opts?: { fallbackToGit?: boolean },
+  opts?: { tag?: string; cache?: boolean; fallbackToGit?: boolean },
 ): Promise<string>
 ```
 
@@ -369,6 +370,95 @@ fetchPlugin(
   - release asset の取得に失敗したとき Git clone へフォールバックするか
 - 戻り値
   - 展開先ディレクトリの path
+
+---
+
+## 追加 API（runtime）
+
+以下は `ObsidianAPI` のメソッド。すべて Promise を返す。
+
+### 設定ウィンドウとウィンドウ探索
+
+- `openSettings(tabId: string, options?: { subPage?: string; timeout?: number }): Promise<Page>`
+  - 設定を開いて `tabId` のタブを選び、設定ウィンドウの `Page` を返す。既に開いていれば同じウィンドウを返す
+  - 検出は `findPage` で行う。`page` イベントは待たない
+  - 設定が vault 画面のモーダルとして出た場合（`settingsPopoutWindow` が無効）は、vault の `Page` を返す
+  - `subPage` は設定画面の項目名（`.setting-item-name`）のうち、表示文字列が完全一致する可視の要素をクリックする。左メニューには限定しない。見出し等の同じ文字は対象外
+  - 既定 timeout は 10000ms
+- `closeSettings(options?: { timeout?: number }): Promise<void>`
+  - `app.setting.close()` の後、設定ウィンドウが見えなくなるまで待つ
+- `findPage(locate: (page: Page) => Locator, options?: { timeout?: number; description?: string }): Promise<Page>`
+  - 開いている全ウィンドウを一定間隔で再列挙し、`locate` が返す要素のうち可視なものが 1 つ以上あるウィンドウの `Page` を返す
+  - 先頭の要素だけは見ない。先頭が hidden で 2 個目が visible なら一致する
+  - 待機中に開いたウィンドウも対象になる。探索中に閉じたウィンドウは候補から外れ、エラーにはならない
+  - 複数のウィンドウに一致した場合は、Playwright の一覧順（古い順）の先頭を返す
+  - 既定 timeout は 10000ms。失敗時のエラーには `description`、ウィンドウ数、各ウィンドウの一致数（全体と可視）を含める
+
+### 再読込とリロード要求の差し替え
+
+- `reload(options?: { saveLayout?: boolean; timeout?: number; expectLoaded?: string[] }): Promise<void>`
+  - 既定ではレイアウトを保存（`app.workspace.saveLayout()`）してから、ページを再読込する
+  - 準備完了の待機対象は、再読込の直前に読み込まれていた plugin。`expectLoaded` を渡すと、その ID を待つ（空配列なら待たない）
+  - 起動時に導入した全 fixture は待たない。無効化された plugin と、再読込の直前に未ロードだった plugin は待たない
+  - 待った plugin について、読み込みと styles.css の適用を確認する。CSS が欠落していれば Obsidian の `loadCSS()` で復旧する
+  - plugin の有効化・無効化は行わない。設定ファイル（`community-plugins.json` など）は書き換えない
+  - 完了後、plugin のハンドル（`plugin(id)`）は再読込後のインスタンスを指す
+  - 既定 timeout は 30000ms。失敗時のエラーには、読み込まれなかった ID と CSS が欠落した ID を含める
+  - coverage 有効時は、再読込の前に `checkpoint` を行う
+- `interceptReload(): Promise<ReloadInterceptor>`
+  - `app.commands.executeCommandById` のうち `app:reload` だけを差し替え、呼び出しを記録する。実行はしない
+  - `app:reload` 以外の ID は元の関数へそのまま渡す。this・引数（2 番目以降を含む）・戻り値を保つ
+  - 同じウィンドウで有効な差し替えは 1 つだけ。2 つ目は例外になる
+  - テスト終了時に fixture が残りを自動で戻す
+
+`ReloadInterceptor` は次のメソッドを持つ。
+
+- `requested(): Promise<boolean>`: 1 回でも要求されたら true
+- `requests(): Promise<ReloadRequest[]>`: 要求ごとのスナップショット（呼び出し順）。`ReloadRequest` は `enabledPluginIds: string[] を持ち、要求を受けた時点の `app.plugins.enabledPlugins` を昇順に複製したもの。後で有効状態を変えても変わらない
+- `restore(): Promise<void>`: 差し替えを元に戻す。2 回目以降は何もしない。restore の後も `requests()` は restore 時点の記録を返す
+
+差し替えは、`reload()` やページの再読込で消える。その後の `requests()` は例外、`restore()` は何もしない。`restore()` は、差し替えの後に `executeCommandById` が別の処理に置き換えられていた場合は例外を投げ、上書きしない。
+
+### vault と設定ファイル
+
+- `vaultPath(): Promise<string>`: vault のディスク上の絶対パス
+- `configDir(): Promise<string>`: 設定ディレクトリ名（通常は `.obsidian`）
+- `readConfig<T>(file: string): Promise<T>`: 設定ディレクトリ配下の JSON を読む。`file` は相対パスのみ。絶対パス、vault の外へ出る `..`、実体が設定ディレクトリの外にある symlink は拒否する
+- `enabledPluginsOnDisk(): Promise<string[]>`: `community-plugins.json` の一覧。ファイルが無い、または配列でなければ例外
+
+### プラグインの settings
+
+- `pluginSettings<T>(pluginId: string): Promise<T>`: 読み込まれた plugin の `settings` を読む（読み取り専用）。未ロードや `settings` が無い場合は例外
+- `updatePluginSettings(pluginId: string, patch: Record<string, unknown>): Promise<void>`: `settings` に `patch` を浅くマージし、`saveSettings()` を await する。UI の再描画は行わない。`saveSettings` が無い plugin は例外
+- `evaluatePlugin<T, P, Arg>(pluginId, fn, arg?): Promise<T>`: plugin のインスタンスを渡して `fn(plugin, arg)` を renderer で実行する。`fn` はシリアライズされるため、外側の変数を参照しない
+
+### ワークスペース
+
+- `collapseSidebars(): Promise<void>`: 左右のサイドバーを閉じる
+- `openView(viewType, state?, options?: { newLeaf?: boolean }): Promise<void>`: 指定の view を開き、前面に出して active にする。`newLeaf: true` なら新しいタブ、既定はアクティブ leaf を使う
+- `revealView(viewType: string): Promise<void>`: 指定 view の先頭 leaf を前面に出して active にし、遅延読み込みなら描画させる。無ければ例外
+- `describeLeaves(): Promise<string>`: 開いている leaf を 1 行ずつ整形した文字列（失敗メッセージ用）
+
+### 撮影補助
+
+- `setTheme(theme: 'dark' | 'light', page?: Page): Promise<void>`: `body` のテーマクラスを切り替える。設定ファイルは変えない
+- `emulateMobile(kind: 'phone' | 'tablet', page?: Page, options?: { platform?: 'android' | 'ios' }): Promise<void>`: `body` のクラス（`is-mobile`、`is-phone` または `is-tablet`、`is-android` または `is-ios`）だけでモバイル表示を再現する。既定の platform は android（lazy の既存の撮影と同じ）。viewport と `Platform.isMobile` は変わらない
+- `waitForAnimations(page?: Page, options?: { timeout?: number }): Promise<void>`: 実行中で無限でないアニメーションが終わるまで待つ。無限のアニメーションは待たない
+
+### コマンド
+
+- `hasCommand(id: string): Promise<boolean>`: コマンドが登録されているか。`pluginId:name` の形式では ID マッピングも試す
+- `findCommands(prefix: string): Promise<string[]>`: 接頭辞に一致するコマンド ID の一覧
+- `tryCommand(id: string): Promise<boolean>`: コマンドを実行し、実行されたかを返す。ID が無い・実行されなかった場合は false
+  - `executeCommandById` 自体が投げた例外は隠さず、そのまま呼び出し元へ伝える
+  - コマンドの callback（native command を含む）が投げた例外は Obsidian の処理に従う。この API は、その扱いを保証しない
+- `command(id: string): Promise<void>`: `tryCommand` を呼び、実行されなければ失敗させる
+
+### 準備 helper（ビルド済みプラグインの取得と配置）
+
+- `preparePlugins(sources: Record<string, PluginSource>, baseDir: string, opts?: PreparePluginsOptions): Promise<Record<string, string>>`: 各 plugin を `baseDir/destDir/<key>` に取得して配置する。配置先の絶対パスを key ごとに返す。失敗は 1 つのエラーにまとめる
+- `preparePlugin(input: PreparePluginInput, dest: string): Promise<string>`: manifest・main.js・styles.css（任意）から配置する
+- `defineObsidianConfig(overrides?: PlaywrightTestConfig): PlaywrightTestConfig`: Playwright の設定に Obsidian E2E 向けの既定値を加える。利用者が明示した値を優先する
 
 ---
 

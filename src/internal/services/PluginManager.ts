@@ -272,79 +272,14 @@ export class PluginManager {
     }
 
     async waitForReady(page: Page, timeout = 30000): Promise<void> {
-        const fixtures = this.plugins.map(({ pluginId }) => {
-            const cssPath = path.join(
-                this.vaultPath, ".obsidian", "plugins", pluginId, "styles.css",
-            );
-            return {
-                pluginId,
-                css: existsSync(cssPath) ? readFileSync(cssPath, "utf8").trim() : "",
-            };
-        });
-        if (fixtures.length === 0) return;
-
-        // 意図: リロード後の有効化一覧やインスタンスの存在だけでは、
-        // 実際にロードされたプラグインと CSS が操作可能とは限らない。
-        try {
-            await page.waitForFunction(
-                (ids) => ids.every((id) =>
-                    (window as any).app?.plugins?.plugins?.[id]?._loaded === true,
-                ),
-                fixtures.map(({ pluginId }) => pluginId),
-                { timeout },
-            );
-
-            const restored = await page.evaluate(async ({ fixtures, timeout }) => {
-                const restored: string[] = [];
-                for (const { pluginId, css } of fixtures) {
-                    if (!css) continue;
-                    const applied = Array.from(document.styleSheets).some(
-                        (sheet) => !sheet.disabled && sheet.ownerNode?.textContent?.trim() === css,
-                    );
-                    if (applied) continue;
-                    const plugin = (window as any).app.plugins.plugins[pluginId];
-                    // 意図: fixture で CSS が欠落した場合だけ、Obsidian 自身の登録・
-                    // unload 処理を使って一度復旧し、独自の style 注入や無限再試行は避ける。
-                    if (typeof plugin.loadCSS !== "function") {
-                        throw new Error(`Plugin ${pluginId} has styles.css but loadCSS() is unavailable`);
-                    }
-                    // 意図: ネイティブのロード処理自体が停止した場合も、セットアップを無期限に待たない。
-                    let deadline: ReturnType<typeof setTimeout> | undefined;
-                    try {
-                        await Promise.race([
-                            plugin.loadCSS(),
-                            new Promise<never>((_, reject) => {
-                                deadline = setTimeout(() => reject(new Error(
-                                    `Timed out loading styles.css for ${pluginId}`,
-                                )), timeout);
-                            }),
-                        ]);
-                    } finally {
-                        clearTimeout(deadline);
-                    }
-                    restored.push(pluginId);
-                }
-                return restored;
-            }, { fixtures, timeout });
-            if (restored.length) {
-                logger.warn(`Restored missing plugin styles after reload: ${restored.join(", ")}`);
-            }
-
-            await page.waitForFunction(
-                (fixtures) => fixtures.every(({ css }) => !css ||
-                    Array.from(document.styleSheets).some(
-                        (sheet) => !sheet.disabled && sheet.ownerNode?.textContent?.trim() === css,
-                    ),
-                ),
-                fixtures,
-                { timeout },
-            );
-        } catch (error) {
-            throw new Error(
-                `Plugin fixtures are not ready after reload: ${fixtures.map(({ pluginId }) => pluginId).join(", ")}. Check plugin loading and styles.css application.`,
-                { cause: error },
-            );
-        }
+        await waitForPluginFixtures(
+            page,
+            {
+                pluginsDir: path.join(this.vaultPath, ".obsidian", "plugins"),
+                pluginIds: this.plugins.map(({ pluginId }) => pluginId),
+            },
+            timeout,
+        );
     }
 
     private async disableRestrictedMode(page: Page): Promise<void> {
@@ -450,6 +385,120 @@ export class PluginManager {
     private async verifyCommunityPluginsEnabled(page: Page): Promise<void> {
         const isEnabled = await this.isCommunityPluginsEnabled(page);
         expect(isEnabled, "Failed to enable community plugins.").toBe(true);
+    }
+}
+
+export interface PluginFixtureExpectation {
+    /** 各 plugin の styles.css を含む親ディレクトリ（通常は .obsidian/plugins）。 */
+    pluginsDir: string;
+    /** 読み込みと CSS 適用を待つ plugin の ID。 */
+    pluginIds: readonly string[];
+}
+
+/**
+ * 指定した plugin が読み込まれ、styles.css が適用されるまで待つ。
+ * 対象は呼び出し側が決める。起動時は導入した全 fixture、再読込時は再読込の直前に読み込まれていた plugin を渡す。
+ */
+export async function waitForPluginFixtures(
+    page: Page,
+    expectation: PluginFixtureExpectation,
+    timeout = 30000,
+): Promise<void> {
+    const fixtures = expectation.pluginIds.map((pluginId) => {
+        const cssPath = path.join(expectation.pluginsDir, pluginId, "styles.css");
+        return {
+            pluginId,
+            css: existsSync(cssPath) ? readFileSync(cssPath, "utf8").trim() : "",
+        };
+    });
+    if (fixtures.length === 0) return;
+
+    // 意図: リロード後の有効化一覧やインスタンスの存在だけでは、
+    // 実際にロードされたプラグインと CSS が操作可能とは限らない。
+    try {
+        await page.waitForFunction(
+            (ids) => ids.every((id) =>
+                (window as any).app?.plugins?.plugins?.[id]?._loaded === true,
+            ),
+            fixtures.map(({ pluginId }) => pluginId),
+            { timeout },
+        );
+
+        const restored = await page.evaluate(async ({ fixtures, timeout }) => {
+            const restored: string[] = [];
+            for (const { pluginId, css } of fixtures) {
+                if (!css) continue;
+                const applied = Array.from(document.styleSheets).some(
+                    (sheet) => !sheet.disabled && sheet.ownerNode?.textContent?.trim() === css,
+                );
+                if (applied) continue;
+                const plugin = (window as any).app.plugins.plugins[pluginId];
+                // 意図: fixture で CSS が欠落した場合だけ、Obsidian 自身の登録・
+                // unload 処理を使って一度復旧し、独自の style 注入や無限再試行は避ける。
+                if (typeof plugin.loadCSS !== "function") {
+                    throw new Error(`Plugin ${pluginId} has styles.css but loadCSS() is unavailable`);
+                }
+                // 意図: ネイティブのロード処理自体が停止した場合も、セットアップを無期限に待たない。
+                let deadline: ReturnType<typeof setTimeout> | undefined;
+                try {
+                    await Promise.race([
+                        plugin.loadCSS(),
+                        new Promise<never>((_, reject) => {
+                            deadline = setTimeout(() => reject(new Error(
+                                `Timed out loading styles.css for ${pluginId}`,
+                            )), timeout);
+                        }),
+                    ]);
+                } finally {
+                    clearTimeout(deadline);
+                }
+                restored.push(pluginId);
+            }
+            return restored;
+        }, { fixtures, timeout });
+        if (restored.length) {
+            logger.warn(`Restored missing plugin styles after reload: ${restored.join(", ")}`);
+        }
+
+        await page.waitForFunction(
+            (fixtures) => fixtures.every(({ css }) => !css ||
+                Array.from(document.styleSheets).some(
+                    (sheet) => !sheet.disabled && sheet.ownerNode?.textContent?.trim() === css,
+                ),
+            ),
+            fixtures,
+            { timeout },
+        );
+    } catch (error) {
+        const state = await describeFixtureState(page, fixtures);
+        throw new Error(
+            `Plugin fixtures are not ready after reload: ${fixtures.map(({ pluginId }) => pluginId).join(", ")}.${state} Check plugin loading and styles.css application.`,
+            { cause: error },
+        );
+    }
+}
+
+/** 失敗時の説明に、読み込まれなかった plugin と CSS が欠落した plugin を載せる。取得できなければその理由を載せる。 */
+async function describeFixtureState(
+    page: Page,
+    fixtures: { pluginId: string; css: string }[],
+): Promise<string> {
+    try {
+        const states = await page.evaluate((items: { pluginId: string; css: string }[]) => {
+            const sheets = Array.from(document.styleSheets);
+            return items.map(({ pluginId, css }) => ({
+                pluginId,
+                loaded: (window as any).app?.plugins?.plugins?.[pluginId]?._loaded === true,
+                cssApplied: !css || sheets.some(
+                    (sheet) => !sheet.disabled && sheet.ownerNode?.textContent?.trim() === css,
+                ),
+            }));
+        }, fixtures);
+        const notLoaded = states.filter((state) => !state.loaded).map((state) => state.pluginId);
+        const cssMissing = states.filter((state) => state.loaded && !state.cssApplied).map((state) => state.pluginId);
+        return ` Not loaded: [${notLoaded.join(", ")}]. styles.css not applied: [${cssMissing.join(", ")}].`;
+    } catch (diagnosticError) {
+        return ` (State unavailable: ${String(diagnosticError)}.)`;
     }
 }
 

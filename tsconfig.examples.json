@@ -1,0 +1,17 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true,
+        "declaration": true,
+        "rootDir": ".",
+        "types": ["node"]
+    },
+    "include": [
+        "src/**/*",
+        "playwright.runtime.config.ts",
+        "example/runtime-*.ts",
+        "example/readiness.spec.ts",
+        "example/coverage.spec.ts",
+        "example/background-tab.spec.ts"
+    ]
+}

@@ -1,10 +1,47 @@
-import type { ElectronApplication, JSHandle, Page } from "playwright";
+import { randomUUID } from "node:crypto";
+import path from "node:path";
+import type { ElectronApplication, JSHandle, Locator, Page } from "playwright";
 import { expect } from "playwright/test";
 import invariant from "tiny-invariant";
 import { CMD_ID_CLOSE_TAB, CMD_ID_UNDO_CLOSE_TAB } from "./internal/constants";
-import { getActualPluginId } from "./internal/services/PluginManager";
+import { readJsonInside } from "./internal/runtime/config";
+import { refreshPluginHandleMap } from "./internal/runtime/reload";
+import { ReloadInterceptorSession, installReloadInterceptor, type ReloadInterceptor } from "./internal/runtime/reloadInterceptor";
+import { MANAGED_MOBILE_CLASSES, mobileClassNames, type MobileKind, type MobilePlatform } from "./internal/runtime/presentation";
+import { SETTINGS_WINDOW_MARKER, settingItemNamed } from "./internal/runtime/settings";
+import { findVisiblePage, waitUntilNoVisiblePage } from "./internal/runtime/windowSearch";
+import { PageWaiter } from "./internal/services/PageWaiter";
+import { getActualPluginId, waitForPluginFixtures } from "./internal/services/PluginManager";
 import type { ObsidianPageTextContext, VaultOptions } from "./internal/types";
 import { getPluginHandleMap } from "./internal/utils";
+
+export type { ReloadInterceptor, ReloadRequest } from "./internal/runtime/reloadInterceptor";
+
+interface SettingHost {
+    setting: { open(): void; openTabById(id: string): void; close(): void };
+}
+
+interface WorkspaceSaver {
+    saveLayout(): Promise<void>;
+}
+
+interface CommandIndexHost {
+    findCommand(id: string): unknown;
+    commands: Record<string, unknown>;
+}
+
+interface PluginIdMappingHost {
+    __pluginIdMapping?: Map<string, string>;
+}
+
+export interface ReloadOptions {
+    /** 再読込の前にレイアウトを保存する。既定 true。 */
+    saveLayout?: boolean;
+    /** 再読込と plugin 準備の待ち時間（ms）。既定 30000。 */
+    timeout?: number;
+    /** 待つ plugin の ID。省略時は再読込の直前に読み込まれていた plugin。空配列なら待たない。 */
+    expectLoaded?: string[];
+}
 
 interface ItemView {
     [key: string]: any;
@@ -29,6 +66,7 @@ interface WorkspaceEditorState {
 export class ObsidianAPI {
     public page: Page;
     private context: ObsidianPageTextContext;
+    private readonly reloadInterceptors = new Set<ReloadInterceptorSession>();
 
     constructor(context: ObsidianPageTextContext) {
         invariant(context.page, "Page context is required");
@@ -240,26 +278,9 @@ export class ObsidianAPI {
     // Commands & Workspace - コマンド実行と画面操作
     // ========================================
 
+    /** コマンドを実行し、実行されなければ失敗させる。 */
     async command(commandId: string): Promise<void> {
-        const success = await this.appState((id: string) => {
-            if (app.commands.executeCommandById(id)) {
-                return true;
-            }
-
-            // Try with mapped plugin ID if available
-            if (id.includes(":")) {
-                const [pluginId, ...rest] = id.split(":");
-                const actualId = (window as any).__pluginIdMapping?.get(
-                    pluginId,
-                );
-                if (actualId) {
-                    const mappedId = [actualId, ...rest].join(":");
-                    return app.commands.executeCommandById(mappedId);
-                }
-            }
-            return false;
-        }, commandId);
-        expect(success).toBe(true);
+        expect(await this.tryCommand(commandId)).toBe(true);
     }
 
     async split(
@@ -326,15 +347,8 @@ export class ObsidianAPI {
     }
 
     async waitReady(timeout = 15000): Promise<void> {
-        await this.page.waitForFunction(
-            () =>
-                !!app?.workspace &&
-                (app.workspace.layoutReady === true ||
-                    !!app.workspace.activeLeaf),
-            // 意図: timeout を評価関数の引数にせず、Playwright の待機設定として使う。
-            undefined,
-            { timeout },
-        );
+        // 判定は PageWaiter と共通にして、layoutReady だけを見る。
+        await PageWaiter.waitForVaultReady(this.page, timeout);
     }
 
     async waitForApp<Arg = undefined>(
@@ -636,6 +650,363 @@ export class ObsidianAPI {
 
     updateContext(context: ObsidianPageTextContext): void {
         this.context = context;
+    }
+
+    // ========================================
+    // Settings Window - 設定ウィンドウ
+    // ========================================
+
+    /**
+     * 設定ウィンドウを開いて tab を選び、その Page を返す。既に開いていれば同じウィンドウを返す。
+     * subPage を渡すと、設定画面の項目名（.setting-item-name）のうち表示文字列が完全一致する可視の要素をクリックする。
+     */
+    async openSettings(
+        tabId: string,
+        options: { subPage?: string; timeout?: number } = {},
+    ): Promise<Page> {
+        const timeout = options.timeout ?? 10_000;
+        await this.appState((id: string) => {
+            const setting = (app as unknown as SettingHost).setting;
+            setting.open();
+            setting.openTabById(id);
+        }, tabId);
+
+        const settingsPage = await findVisiblePage(
+            () => this.page.context().pages(),
+            (page) => page.locator(SETTINGS_WINDOW_MARKER),
+            { timeout, description: 'settings window for tab "' + tabId + '"' },
+        );
+        if (options.subPage !== undefined) {
+            await settingItemNamed(settingsPage, options.subPage).click({ timeout });
+        }
+        return settingsPage;
+    }
+
+    /** 設定ウィンドウを閉じ、設定画面が見えなくなるまで待つ。 */
+    async closeSettings(options: { timeout?: number } = {}): Promise<void> {
+        const timeout = options.timeout ?? 10_000;
+        await this.appState(() => (app as unknown as SettingHost).setting.close());
+        await waitUntilNoVisiblePage(
+            () => this.page.context().pages(),
+            (page) => page.locator(SETTINGS_WINDOW_MARKER),
+            { timeout, description: "settings window" },
+        );
+    }
+
+    /**
+     * 開いているどのウィンドウでも、locate が返す要素のうち可視なものが 1 つ以上になるまで待ち、そのウィンドウの Page を返す。
+     * 待機中に開いたウィンドウも対象になる。timeout のエラーには各ウィンドウの一致数を載せる。
+     */
+    findPage(
+        locate: (page: Page) => Locator,
+        options: { timeout?: number; description?: string } = {},
+    ): Promise<Page> {
+        return findVisiblePage(() => this.page.context().pages(), locate, options);
+    }
+
+    // ========================================
+    // Reload - 再読込とリロード要求の差し替え
+    // ========================================
+
+    /**
+     * レイアウトを保存してからページを再読込し、plugin の読み込みと CSS 適用を待つ。
+     * 待つ対象は、再読込の直前に読み込まれていた plugin（expectLoaded を渡すとその ID）。
+     * plugin の有効化・無効化は行わない。
+     */
+    async reload(options: ReloadOptions = {}): Promise<void> {
+        const timeout = options.timeout ?? 30_000;
+        if (options.saveLayout ?? true) {
+            await this.appState(() => (app.workspace as unknown as WorkspaceSaver).saveLayout());
+        }
+
+        const configuredIds = await this.context.pluginHandleMap.evaluate((map) => [...map.keys()]);
+        const expectedIds =
+            options.expectLoaded ??
+            (await this.appState(() =>
+                Object.keys(app.plugins.plugins).filter((id) => app.plugins.plugins[id]?._loaded === true),
+            ));
+        const pluginsDir = path.join(await this.vaultPath(), await this.configDir(), "plugins");
+
+        await this.context.coverage?.checkpoint(this.page);
+        this.invalidateReloadInterceptors();
+        await this.page.reload({ waitUntil: "domcontentloaded", timeout });
+        await PageWaiter.waitForPage(this.page, timeout);
+        await waitForPluginFixtures(this.page, { pluginsDir, pluginIds: expectedIds }, timeout);
+        this.context = { ...this.context, pluginHandleMap: await refreshPluginHandleMap(this.page, configuredIds) };
+    }
+
+    /**
+     * app:reload だけを差し替えて呼び出しを記録する。他のコマンドは本当に実行される（this・引数・戻り値を保つ）。
+     * 同じページで有効な差し替えは 1 つだけ。テスト終了時に fixture が自動で戻す。
+     */
+    async interceptReload(): Promise<ReloadInterceptor> {
+        const session = new ReloadInterceptorSession(this.page, randomUUID());
+        await this.page.evaluate(installReloadInterceptor, session.token);
+        this.reloadInterceptors.add(session);
+        return session;
+    }
+
+    /** fixture の終了処理から呼ばれる。残っている差し替えを元に戻す。 */
+    async restoreReloadInterceptors(): Promise<void> {
+        const sessions = [...this.reloadInterceptors];
+        this.reloadInterceptors.clear();
+        for (const session of sessions) {
+            if (this.page.isClosed()) {
+                session.invalidate();
+            } else {
+                await session.restore();
+            }
+        }
+    }
+
+    private invalidateReloadInterceptors(): void {
+        for (const session of this.reloadInterceptors) {
+            session.invalidate();
+        }
+        this.reloadInterceptors.clear();
+    }
+
+    // ========================================
+    // Vault Paths - vault と設定ファイルの読み取り
+    // ========================================
+
+    /** vault のディスク上の絶対パス。 */
+    vaultPath(): Promise<string> {
+        return this.appState(() => {
+            const adapter = app.vault.adapter as unknown as { getBasePath?: () => string };
+            if (typeof adapter.getBasePath !== "function") {
+                throw new Error("The vault adapter does not provide getBasePath(); the vault path is unavailable.");
+            }
+            return adapter.getBasePath();
+        });
+    }
+
+    /** 設定ディレクトリ名（通常は .obsidian）。 */
+    configDir(): Promise<string> {
+        return this.appState(() => app.vault.configDir);
+    }
+
+    /** 設定ディレクトリ配下の JSON を読む。file は相対パスのみ。vault の外へ出る指定は拒否する。 */
+    async readConfig<T = unknown>(file: string): Promise<T> {
+        const root = path.join(await this.vaultPath(), await this.configDir());
+        return readJsonInside<T>(root, file);
+    }
+
+    /** community-plugins.json に載っている有効な plugin の ID 一覧。 */
+    async enabledPluginsOnDisk(): Promise<string[]> {
+        const ids = await this.readConfig<unknown>("community-plugins.json");
+        if (!Array.isArray(ids) || !ids.every((id) => typeof id === "string")) {
+            throw new Error("community-plugins.json must contain a JSON array of plugin IDs.");
+        }
+        return ids as string[];
+    }
+
+    // ========================================
+    // Plugin Settings - プラグインのメモリ上の settings
+    // ========================================
+
+    /** 読み込まれた plugin の settings を読む（読み取り専用）。 */
+    async pluginSettings<T = Record<string, unknown>>(pluginId: string): Promise<T> {
+        const settings = await this.appState((id: string) => {
+            const plugin = app.plugins.plugins[id];
+            if (!plugin || plugin._loaded !== true) {
+                throw new Error("Plugin is not loaded: " + id);
+            }
+            if (plugin.settings === undefined) {
+                throw new Error("Plugin has no settings property: " + id);
+            }
+            return plugin.settings;
+        }, pluginId);
+        return settings as T;
+    }
+
+    /** settings に patch を浅くマージし、plugin の saveSettings() で保存する。UI の再描画は行わない。 */
+    async updatePluginSettings(pluginId: string, patch: Record<string, unknown>): Promise<void> {
+        await this.appState(async ([id, values]) => {
+            const plugin = app.plugins.plugins[id];
+            if (!plugin || plugin._loaded !== true) {
+                throw new Error("Plugin is not loaded: " + id);
+            }
+            if (typeof plugin.saveSettings !== "function") {
+                throw new Error("Plugin has no saveSettings(): " + id);
+            }
+            const settings = plugin.settings as Record<string, unknown> | undefined;
+            if (!settings || typeof settings !== "object") {
+                throw new Error("Plugin settings are not an object: " + id);
+            }
+            Object.assign(settings, values);
+            await plugin.saveSettings();
+        }, [pluginId, patch] as const);
+    }
+
+    /**
+     * plugin インスタンスを渡して fn を renderer 内で実行する。fn は (plugin, arg) を受け取る。
+     * fn はシリアライズされて実行されるため、外側の変数を参照しないこと。
+     */
+    async evaluatePlugin<T, P = unknown, Arg = undefined>(
+        pluginId: string,
+        fn: (plugin: P, arg: Arg) => T | Promise<T>,
+        arg?: Arg,
+    ): Promise<T> {
+        const handle: JSHandle<unknown> = await this.page.evaluateHandle((id: string) => {
+            const plugin = app.plugins.plugins[id];
+            if (!plugin || plugin._loaded !== true) {
+                throw new Error("Plugin is not loaded: " + id);
+            }
+            return plugin;
+        }, pluginId);
+        try {
+            const run = fn as unknown as (plugin: unknown, arg: unknown) => T | Promise<T>;
+            return await handle.evaluate<T, unknown>(run, arg);
+        } finally {
+            await handle.dispose();
+        }
+    }
+
+    // ========================================
+    // Workspace Layout - サイドバーと view
+    // ========================================
+
+    /** 左右のサイドバーを閉じる。 */
+    async collapseSidebars(): Promise<void> {
+        await this.appState(() => {
+            app.workspace.leftSplit.collapse();
+            app.workspace.rightSplit.collapse();
+        });
+    }
+
+    /** 指定の view type を開いて前面に出す。newLeaf が true なら新しいタブ、既定はアクティブ leaf を使う。 */
+    async openView(
+        viewType: string,
+        state: Record<string, unknown> = {},
+        options: { newLeaf?: boolean } = {},
+    ): Promise<void> {
+        await this.appState(async ([type, viewState, newLeaf]) => {
+            const leaf = app.workspace.getLeaf(newLeaf);
+            await leaf.setViewState({ type, state: viewState, active: true });
+            await app.workspace.revealLeaf(leaf);
+            await leaf.loadIfDeferred();
+            app.workspace.setActiveLeaf(leaf, { focus: true });
+        }, [viewType, state, options.newLeaf === true] as const);
+    }
+
+    /** 指定 view type の先頭 leaf を前面に出し、遅延読み込みなら描画させる。無ければ例外。 */
+    async revealView(viewType: string): Promise<void> {
+        await this.appState(async (type: string) => {
+            const leaf = app.workspace.getLeavesOfType(type)[0];
+            if (!leaf) {
+                throw new Error("No leaf of view type: " + type);
+            }
+            await app.workspace.revealLeaf(leaf);
+            await leaf.loadIfDeferred();
+            app.workspace.setActiveLeaf(leaf, { focus: true });
+        }, viewType);
+    }
+
+    /** 開いている leaf を 1 行ずつ整形する。失敗メッセージに載せる用途。 */
+    async describeLeaves(): Promise<string> {
+        const tabs = await this.allTabs();
+        if (tabs.length === 0) {
+            return "(no leaves)";
+        }
+        return tabs
+            .map((tab) => (tab.active ? "*" : "-") + " type=" + (tab.viewType ?? "-") + " file=" + (tab.filePath ?? "-") + " title=" + (tab.title ?? "-"))
+            .join("\n");
+    }
+
+    // ========================================
+    // Presentation - 撮影用の表示補助
+    // ========================================
+
+    /** body のテーマクラスを切り替える。設定ファイルは変えない。 */
+    async setTheme(theme: "dark" | "light", page: Page = this.page): Promise<void> {
+        await page.evaluate((next: "dark" | "light") => {
+            document.body.classList.remove("theme-dark", "theme-light");
+            document.body.classList.add("theme-" + next);
+        }, theme);
+    }
+
+    /**
+     * CSS クラスだけでモバイル表示を再現する。viewport と Platform.isMobile は変わらない。
+     * 既定の platform は android（lazy の既存の撮影が使う is-android を維持するため）。
+     */
+    async emulateMobile(
+        kind: MobileKind,
+        page: Page = this.page,
+        options: { platform?: MobilePlatform } = {},
+    ): Promise<void> {
+        const classes = mobileClassNames(kind, options.platform ?? "android");
+        await page.evaluate(
+            ({ managed, next }) => {
+                document.body.classList.remove(...managed);
+                document.body.classList.add(...next);
+            },
+            { managed: [...MANAGED_MOBILE_CLASSES], next: classes },
+        );
+    }
+
+    /** 無限でない実行中のアニメーションが終わるまで待つ。無限のアニメーション（ローディング等）は待たない。 */
+    async waitForAnimations(page: Page = this.page, options: { timeout?: number } = {}): Promise<void> {
+        await page.waitForFunction(
+            () =>
+                document.getAnimations().every((animation) => {
+                    if (animation.playState !== "running") {
+                        return true;
+                    }
+                    return animation.effect?.getTiming().iterations === Infinity;
+                }),
+            undefined,
+            { timeout: options.timeout ?? 10_000 },
+        );
+    }
+
+    // ========================================
+    // Commands - コマンドの確認と実行
+    // ========================================
+
+    /** コマンドが登録されているか。pluginId:name の形式では ID マッピングも試す。 */
+    async hasCommand(commandId: string): Promise<boolean> {
+        return this.appState((id: string) => {
+            const commands = app.commands as unknown as CommandIndexHost;
+            if (commands.findCommand(id)) {
+                return true;
+            }
+            if (!id.includes(":")) {
+                return false;
+            }
+            const [pluginId, ...rest] = id.split(":");
+            const actualId = (window as unknown as PluginIdMappingHost).__pluginIdMapping?.get(pluginId);
+            return actualId !== undefined && Boolean(commands.findCommand([actualId, ...rest].join(":")));
+        }, commandId);
+    }
+
+    /** 接頭辞に一致する command ID の一覧。 */
+    async findCommands(prefix: string): Promise<string[]> {
+        return this.appState((p: string) => {
+            const commands = (app.commands as unknown as CommandIndexHost).commands;
+            return Object.keys(commands).filter((id) => id.startsWith(p));
+        }, prefix);
+    }
+
+    /**
+     * コマンドを実行し、実行されたかを返す。ID が無い・実行されなかった場合は false。
+     * コマンド内で投げられた例外は隠さず、そのまま呼び出し元へ伝える。
+     */
+    async tryCommand(commandId: string): Promise<boolean> {
+        return this.appState((id: string) => {
+            if (app.commands.executeCommandById(id)) {
+                return true;
+            }
+            if (!id.includes(":")) {
+                return false;
+            }
+            const [pluginId, ...rest] = id.split(":");
+            const actualId = (window as unknown as PluginIdMappingHost).__pluginIdMapping?.get(pluginId);
+            if (actualId === undefined) {
+                return false;
+            }
+            return app.commands.executeCommandById([actualId, ...rest].join(":"));
+        }, commandId);
     }
 
     // ========================================

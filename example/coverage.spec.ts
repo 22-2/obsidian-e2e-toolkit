@@ -6,12 +6,12 @@ import { expect, test as base } from "../src";
 const test = base.extend({
     vaultOptions: async ({ tempDir }, use) => {
         const root = path.join(tempDir, "coverage-plugin");
-        const source = `const { Plugin } = require("obsidian");
-module.exports = class extends Plugin {
-    onload() { this.startupValue = 42; }
-    exercised() { return this.startupValue; }
-    neverCalled() { return -1; }
-};`;
+        const source = "const { Plugin } = require('obsidian');\n" +
+            "module.exports = class extends Plugin {\n" +
+            "    onload() { this.startupValue = 42; }\n" +
+            "    exercised() { return this.startupValue; }\n" +
+            "    neverCalled() { return -1; }\n" +
+            "};";
         await mkdir(path.join(root, "src"), { recursive: true });
         const sourcefile = path.join(root, "src/main.ts");
         await writeFile(sourcefile, source);
@@ -34,6 +34,15 @@ test("collects independent results after an Obsidian page reload", async ({ obsi
     await obsidian.page.reload();
     await obsidian.waitReady();
     await obsidian.waitForPluginLoaded("fixture-coverage");
+    expect(await obsidian.evaluateApp(() => {
+        const plugin = app.plugins.plugins["fixture-coverage"] as unknown as { exercised(): number };
+        return plugin.exercised();
+    })).toBe(42);
+});
+
+test("obsidian.reload keeps collecting plugin coverage", async ({ obsidian }) => {
+    await obsidian.waitReady();
+    await obsidian.reload();
     expect(await obsidian.evaluateApp(() => {
         const plugin = app.plugins.plugins["fixture-coverage"] as unknown as { exercised(): number };
         return plugin.exercised();

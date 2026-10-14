@@ -4,6 +4,7 @@ import type { ElectronApplication, JSHandle, Page } from "playwright";
 import { ObsidianAPI } from "../ObsidianAPI";
 import type { ResolvedPaths } from "./path";
 import type { CoverageOptions } from "./coverage/types";
+import type { PluginCoverageCollector } from "./coverage/collector";
 
 // Minimal Plugin interface to avoid importing from obsidian package
 export interface Plugin {
@@ -21,6 +22,8 @@ export interface TestContext {
 export interface ObsidianPageTextContext extends TestContext {
     pluginHandleMap: PluginHandleMap;
     paths: ResolvedPaths;
+    /** coverage 有効時だけ入る。reload 前の checkpoint に使う。外部から組み立てた context では省略できる。 */
+    coverage?: PluginCoverageCollector;
 }
 
 export interface BrowserConsoleLoggingOptions {

@@ -1,7 +1,23 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CoverageTarget, CoverageSourceMap } from "./types";
+import { readPreparedPluginMarker } from "../pluginDirectory";
+
+// 準備済み plugin では、ソースは元のプロジェクト root の下にある。測定の source root はそこを使う。
+async function resolveCoverageRoot(stagedRoot: string, pluginId: string): Promise<string> {
+    const prepared = await readPreparedPluginMarker(stagedRoot);
+    if (prepared === null) return stagedRoot;
+    if (prepared.id !== pluginId) {
+        throw new Error("Prepared plugin marker id " + prepared.id + " does not match manifest id " + pluginId + ": " + stagedRoot);
+    }
+    try {
+        await stat(prepared.projectRoot);
+    } catch {
+        throw new Error("Prepared plugin project folder is missing: " + prepared.projectRoot);
+    }
+    return prepared.projectRoot;
+}
 
 export async function readCoverageTarget(pluginPath: string): Promise<CoverageTarget> {
     const root = path.resolve(pluginPath);
@@ -9,6 +25,7 @@ export async function readCoverageTarget(pluginPath: string): Promise<CoverageTa
     if (typeof manifest.id !== "string" || !manifest.id) {
         throw new Error(`Coverage plugin manifest is missing its id: ${root}`);
     }
+    const coverageRoot = await resolveCoverageRoot(root, manifest.id);
     const bundle = await readFile(path.join(root, "main.js"), "utf8");
     const mapMatch = bundle.match(/^\/\/[#@] sourceMappingURL=([^\r\n]+)$/m);
     // esbuild's "external" mode writes a sidecar without sourceMappingURL.
@@ -36,7 +53,7 @@ export async function readCoverageTarget(pluginPath: string): Promise<CoverageTa
     delete sourceMap.sourceRoot;
     return {
         pluginId: manifest.id,
-        root,
+        root: coverageRoot,
         // Obsidian strips sourceMappingURL before wrapping main.js in a function.
         code: (mapMatch ? bundle.replace(mapMatch[0], "") : bundle).trimEnd(),
         sourceMap,

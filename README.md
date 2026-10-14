@@ -42,6 +42,9 @@ pnpm exec obsidian-e2e-toolkit   # playwright.config.ts と e2e/example.spec.ts 
 - `obsidian.evaluateApp(fn, arg)`: Obsidian 内で `app` を使う関数を実行
 - `obsidian.pluginData(id)` / `obsidian.setPluginData(id, patch)`: プラグインの `data.json` を読み書き
 - `vaultOptions.plugins[].data`: 起動前にプラグインの初期 `data.json` を書き込む（symlink 時は無視）
+- `preparePlugins(sources, baseDir, opts?)`: `sources` は、プラグイン ID をキー、`owner/repo` の文字列または `{ repo, tag }` を値にしたオブジェクトです。`baseDir/myfiles/<ID>` に取得して配置します。tag を指定すると、既定でリリースが使えない時に同じ tag を clone します。失敗はすべてまとめて 1 つのエラーにします。
+- `preparePlugin({ manifest, main, styles?, sourceMap? }, dest)`: 分散したビルド成果物を 1 つのフォルダーにまとめます。sourceMap は元のプロジェクトを基準に解決できる形で書き出します。
+- `defineObsidianConfig(overrides)`: Playwright 設定に共通の既定値を加えます。workers、timeout、reporter などは利用者の値を優先します。
 
 ## E2E カバレッジ
 
@@ -101,17 +104,75 @@ pnpm exec playwright test
 
 ### 複数の実行をまとめる
 
-並列用と直列用などで Playwright を複数回実行する場合は、reporter の `clean: false` を指定します。
-通常の reporter は開始時に過去の `raw/` を削除します。
-複数回の実行前に一度だけ初期化し、最後に一度だけ集計する方法も使えます。
+並列用と直列用などで Playwright を複数回実行する場合は、reporter の `clean` オプションを切り替えます。既定の reporter は開始時に過去の `raw/` を削除してから書き込みます。`E2E_COVERAGE_APPEND=1` の場合は `clean: false` になり、削除せずに既存の `raw/` へ追記します。
+
+reporter の設定は次のとおりです。
+
+```ts
+import { defineObsidianConfig } from "obsidian-e2e-toolkit";
+
+export default defineObsidianConfig({
+    reporter: [
+        ["list"],
+        ["obsidian-e2e-toolkit/coverage", {
+            enabled: process.env.E2E_COVERAGE === "1",
+            outputDir: "coverage/e2e",
+            clean: process.env.E2E_COVERAGE_APPEND !== "1",
+        }],
+    ],
+});
+```
+
+次のスクリプトは、`E2E_COVERAGE=1` と `E2E_COVERAGE_APPEND=1` を設定して、ソースマップ付きのビルドと並列・直列の両方の実行を行い、結果を 1 つに集計します。集計のあとは、`E2E_COVERAGE=0` で通常のビルドに戻し、その終了コードも含めて結果を判定します。`build:coverage` はプロジェクト側で定義してください。
 
 ```js
-import { resetCoverageOutput, generateCoverageReport } from "obsidian-e2e-toolkit/coverage";
+// scripts/e2e-coverage.mjs
+import { spawn } from "node:child_process";
+import { generateCoverageReport, resetCoverageOutput } from "obsidian-e2e-toolkit/coverage";
 
-await resetCoverageOutput("coverage/e2e");
-// ここでソースマップ付きビルドと、カバレッジを有効にした E2E を実行する。
-await generateCoverageReport({ outputDir: "coverage/e2e" });
+const outputDir = "coverage/e2e";
+const COVERAGE_ENV = { E2E_COVERAGE: "1", E2E_COVERAGE_APPEND: "1" };
+const NORMAL_ENV = { E2E_COVERAGE: "0" };
+
+function run(command, args, env) {
+    return new Promise((resolve, reject) => {
+        const child = spawn(command, args, {
+            stdio: "inherit",
+            env: { ...process.env, ...env },
+            shell: process.platform === "win32",
+        });
+        child.once("error", reject);
+        child.once("exit", (code, signal) => {
+            if (signal) reject(new Error("terminated by " + signal));
+            else resolve(code ?? 1);
+        });
+    });
+}
+
+const exitCodes = [];
+await resetCoverageOutput(outputDir);
+try {
+    const buildExit = await run("pnpm", ["run", "build:coverage"], COVERAGE_ENV);
+    if (buildExit === 0) {
+        exitCodes.push(await run("pnpm", ["exec", "playwright", "test", "--grep-invert", "@serial", "--pass-with-no-tests"], COVERAGE_ENV));
+        exitCodes.push(await run("pnpm", ["exec", "playwright", "test", "--grep", "@serial", "--workers=1", "--pass-with-no-tests"], COVERAGE_ENV));
+    } else {
+        exitCodes.push(buildExit);
+    }
+} finally {
+    // 失敗した実行の結果も集計し、通常のビルドへ戻す。どちらの終了コードも必ず集計する。
+    try {
+        await generateCoverageReport({ outputDir });
+    } catch (error) {
+        console.error(error);
+        exitCodes.push(1);
+    }
+    exitCodes.push(await run("pnpm", ["run", "build"], NORMAL_ENV));
+}
+process.exitCode = exitCodes.find((code) => code !== 0) ?? 0;
 ```
+
+各 Playwright 実行には `--pass-with-no-tests` を付けているため、対象のテストが 0 件でも失敗しません。ビルド、いずれかの実行、集計、通常ビルドへの復帰のどれかが失敗すると、スクリプトは 0 以外で終了します。
 
 ### 単体テストと E2E を合算する
 
@@ -169,6 +230,32 @@ pnpm release -- --dry-run --ci
 node node_modules/obsidian-e2e-toolkit/setup.mjs
 ```
 
+### ローカルで配布物を検証する
+
+公開前の build 結果を、release と同じ形の tgz にまとめて利用側で試せます。アセットは同梱し、`prepare` と `postinstall` は含めません。
+
+```bash
+pnpm run build
+pnpm run postinstall
+pnpm run pack:local
+```
+
+`pack:local` は `coverage/local-pack/obsidian-e2e-toolkit-<version>-<hash>.tgz` を作り、絶対 path と `file:` で始まる指定子を表示します。表示される指定子は絶対 path なので、consumer の `package.json` には保存せず、下の相対 path に直して使います。`package.json` は書き換えません。この tgz は未公開の開発版です。version は作業ツリーの値をそのまま使い、ファイル名の hash で内容を区別します。公開済みのリリース（`1.5.0` など）と番号が同じに見えても中身は別物なので、公開版として扱わないでください。`preparePlugins` などの新しい API は、公開済みの 1.5.0 には含まれません。
+
+#### 型チェック
+
+ソースの型は次のコマンドで確かめます。TypeScript は devDependencies の `tsc6` を使います。
+
+```bash
+pnpm exec tsc6 --noEmit -p tsconfig.json
+```
+
+#### 利用側から参照する（相対 file:）
+
+利用側（consumer）は、この tgz を相対の `file:` 指定で参照します。絶対 path（`file:V:/...`）を consumer の `package.json` に保存しないでください。相対 path は、作成したホストで toolkit と consumer の repo を並べて配置している前提でのみ解決できます。
+
+ファイル名の hash は内容を示します。同じ内容を pack し直した場合は同じ名前になり、内容が変わった場合は consumer 側の指定も更新します。
+
 ### Obsidian バージョン指定
 
 `setup.mjs` は環境変数で取得バージョンを切り替えられます。
@@ -207,7 +294,7 @@ env:
 ```
 
 **理由**：
-- `onlyBuiltDependencies` は、モジュール解決時にこれらのパッケージのプリビルト（ネイティブ）バイナリだけを使用させます。多くのプラグインが同梱依存関係として独自のバージョンの electron を持つため、この設定がないと互換性問題が発生します。
+- `onlyBuiltDependencies` は、依存パッケージの install や postinstall などのビルドスクリプトを実行してよいパッケージを指定します。Electron のバイナリ取得（`install.js`）を実行させるために必要で、`obsidian-e2e-toolkit` を含めるのは、その postinstall を許可するためです。モジュールの解決やプリビルトの選択には関係しません。
 - Electron は利用側がインストールしたバージョンを使います。ツールキットは特定の Electron バージョンに固定しません。
 - `obsidian-typings` など複数の Electron バージョンを要求する依存関係がある場合は、プロジェクト側で互換性を確認した上で `overrides` を設定してください。
 
@@ -241,13 +328,12 @@ env:
 
 ## クイックスタート
 
-Playwright のテストはそのまま使い、import だけこのパッケージの `test` を使います（fixtureとして `obsidian: ObsidianAPI` が生えます）。
+Playwright のテストはそのまま使い、import だけこのパッケージの `test` を使います（fixture として `obsidian: ObsidianAPI` が使えます）。テスト本体が始まる時点で、Obsidian の起動と準備は完了しています。
 
 ```ts
 import { expect, test } from "obsidian-e2e-toolkit";
 
 test("smoke", async ({ obsidian }) => {
-  await obsidian.waitReady();
   expect(await obsidian.vaultName()).toBeTruthy();
 });
 ```
@@ -274,7 +360,7 @@ test("plugin activation", async ({ obsidian }) => {
 });
 ```
 
-fixture はリロード後にプラグインのロード状態と、`styles.css` がある場合はスタイルの読み込みも確認します。未適用の CSS は Obsidian の `loadCSS()` で一度だけ再読み込みし、復旧できなければセットアップエラーになります。CSS を持たないプラグインも利用できます。プラグイン固有の非同期データや画面の描画完了は、各テストで待機してください。
+fixture は、テスト本体の前に次の 3 つを待ちます。vault の `layoutReady`、`vaultOptions.plugins` で導入したプラグインの読み込み、プラグインに `styles.css` がある場合はその適用です。そのため、テストの冒頭で `waitReady()` を呼ぶ必要はありません。`waitReady()` は `layoutReady` だけを待つ API として残しています。どれか 1 つでも満たされない場合は、テスト本体の前にセットアップエラーとして失敗します。未適用の CSS は Obsidian の `loadCSS()` で一度だけ再読み込みし、復旧できなければセットアップエラーになります。CSS を持たないプラグインも利用できます。プラグイン固有の非同期データや画面の描画完了は、各テストで待機してください。
 
 遅延読み込みなどの実行状態は `isPluginLoaded` / `waitForPluginLoaded` / `waitForPluginUnloaded` で確認できます。`isPluginEnabled` / `waitForPluginEnabled` / `waitForPluginDisabled` は設定上の有効状態を確認するためのAPIです。
 

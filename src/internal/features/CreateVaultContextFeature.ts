@@ -39,6 +39,7 @@ export class CreateVaultContextFeature implements IFeature<
             pluginHandleMap,
             vaultName,
             paths: ctx.paths,
+            coverage: ctx.runtime.coverage,
         };
     }
 }

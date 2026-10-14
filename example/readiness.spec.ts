@@ -178,3 +178,22 @@ base("frameless app requests are cancelled and main process errors are recorded"
     ]));
     expect(logs.some((entry) => entry.message.includes("reading 'origin'"))).toBe(false);
 });
+
+test("layoutReady is true once the fixture returns the vault", async ({ obsidian }) => {
+    expect(await obsidian.evaluateApp(() => app.workspace.layoutReady)).toBe(true);
+});
+
+test("waitReady waits for layoutReady even while a leaf is active", async ({ obsidian }) => {
+    expect(await obsidian.evaluateApp(() => app.workspace.activeLeaf !== null)).toBe(true);
+    await obsidian.evaluateApp(() => {
+        (app.workspace as unknown as { layoutReady: boolean }).layoutReady = false;
+    });
+    try {
+        await expect(obsidian.waitReady(500)).rejects.toThrow(/Timeout/);
+    } finally {
+        await obsidian.evaluateApp(() => {
+            (app.workspace as unknown as { layoutReady: boolean }).layoutReady = true;
+        });
+    }
+    await obsidian.waitReady(2000);
+});

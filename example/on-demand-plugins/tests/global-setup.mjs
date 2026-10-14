@@ -1,105 +1,26 @@
-import path from "node:path";
-import { access, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { promisify } from "node:util";
-import { exec } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { fetchPlugin } from "obsidian-e2e-toolkit";
+import { preparePlugins } from "obsidian-e2e-toolkit";
 
-const execP = promisify(exec);
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const exampleRoot = path.resolve(__dirname, "..");
+const exampleRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /**
- * Utility to check if a file or directory exists asynchronously.
- * @param {string} filePath 
- * @returns {Promise<boolean>}
- */
-async function fileExists(filePath) {
-    try {
-        await access(filePath);
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-/**
- * Helper to execute shell commands with localized error handling.
- * @param {string} command - Command to run.
- * @param {string} cwd - Working directory.
- * @param {string} label - Context label for logging.
- */
-async function runSafeCommand(command, cwd, label) {
-    try {
-        await execP(command, { cwd });
-    } catch (err) {
-        console.warn(`[global-setup] ${label} failed (ignored):`, err?.message || err);
-    }
-}
-
-/**
- * Handles the fetch, install, and build process for a single plugin.
- * @param {string} pluginId 
- * @param {string} ownerRepo 
- * @param {string} baseDir 
- */
-async function setupExternalPlugin(pluginId, ownerRepo, baseDir) {
-    const dest = path.resolve(baseDir, "myfiles", pluginId);
-    const manifestPath = path.join(dest, "manifest.json");
-    const pkgPath = path.join(dest, "package.json");
-
-    try {
-        // Check if the plugin is already cached by looking for manifest.json
-        if (await fileExists(manifestPath)) {
-            console.log(`[global-setup] ${pluginId} already cached, skipping fetch`);
-        } else {
-            console.log(`[global-setup] fetching ${ownerRepo} -> ${dest}`);
-            await fetchPlugin(`https://github.com/${ownerRepo}.git`, dest);
-        }
-
-        // Run build steps if package.json is present
-        if (await fileExists(pkgPath)) {
-            console.log(`[global-setup] installing/building plugin: ${pluginId}`);
-            await runSafeCommand("pnpm install --silent", dest, `pnpm install (${pluginId})`);
-            await runSafeCommand("pnpm run build --silent", dest, `pnpm build (${pluginId})`);
-        }
-    } catch (err) {
-        console.warn(`[global-setup] Error processing ${pluginId} (${ownerRepo}):`, err?.message || err);
-    }
-}
-
-/**
- * Main global setup function for Playwright/E2E testing.
+ * on-demand 例の準備。example 自身の main.js を確認し、plugin-sources.json の外部プラグインを取得する。
+ * 取得・検証・キャッシュは toolkit の preparePlugins に任せる。
  */
 export default async function globalSetup() {
-    const repoRoot = exampleRoot;
-
-    // 1. Ensure the main project is built
-    const mainJsPath = path.resolve(repoRoot, "main.js");
-    if (!(await fileExists(mainJsPath))) {
-        throw new Error(`[global-setup] ${mainJsPath} not found`);
+    const mainJsPath = path.resolve(exampleRoot, "main.js");
+    if (!existsSync(mainJsPath)) {
+        throw new Error("[global-setup] " + mainJsPath + " not found; build the example first");
     }
 
-    // 2. Load plugin mapping
-    const repoMapPath = path.resolve(__dirname, "plugin-sources.json");
-    if (!existsSync(repoMapPath)) {
+    const sourcesPath = path.resolve(exampleRoot, "tests", "plugin-sources.json");
+    if (!existsSync(sourcesPath)) {
         console.warn("[global-setup] No plugin-sources.json found; skipping external plugins");
         return;
     }
-
-    let repoMap;
-    try {
-        const content = await readFile(repoMapPath, "utf8");
-        repoMap = JSON.parse(content);
-    } catch (err) {
-        console.error("[global-setup] Failed to parse plugin-sources.json:", err.message);
-        return;
-    }
-
-    // 3. Process each plugin sequentially to avoid I/O race conditions
-    for (const [pluginId, ownerRepo] of Object.entries(repoMap)) {
-        await setupExternalPlugin(pluginId, ownerRepo, repoRoot);
-    }
+    const sources = JSON.parse(await readFile(sourcesPath, "utf8"));
+    await preparePlugins(sources, exampleRoot);
 }

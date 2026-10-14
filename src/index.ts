@@ -106,6 +106,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
             createScopedLogger("ElectronMain", { runId, phase: "main" }),
         );
 
+        let api: ObsidianAPI | undefined;
         try {
             toggleLoggerBy(vaultOptions.logLevel || "warn");
             runLogger.info("Launching Obsidian and creating context");
@@ -122,7 +123,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
                 });
             }
 
-            const api = new ObsidianAPI(context);
+            api = new ObsidianAPI(context);
 
             runLogger.info("Entering test body");
             await use(api);
@@ -142,9 +143,13 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
             runLogger.info("Cleaning up Obsidian");
             try {
                 try {
-                    if (coverage) {
-                        const coveragePath = await coverage.save(testInfo.testId);
-                        await testInfo.attach("obsidian-plugin-coverage", { path: coveragePath, contentType: "application/json" });
+                    try {
+                        await api?.restoreReloadInterceptors();
+                    } finally {
+                        if (coverage) {
+                            const coveragePath = await coverage.save(testInfo.testId);
+                            await testInfo.attach("obsidian-plugin-coverage", { path: coveragePath, contentType: "application/json" });
+                        }
                     }
                 } finally {
                     await launcher.cleanup();
@@ -174,6 +179,11 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
 
 export { expect } from "@playwright/test";
 export { fetchPlugin } from "./fetchPlugin";
+export type { FetchPluginOptions, PluginSource } from "./fetchPlugin";
+export { defineObsidianConfig } from "./config";
+export { preparePlugin, type PreparePluginInput } from "./preparePlugin";
+export { preparePlugins, type PreparePluginsOptions } from "./preparePlugins";
 export type { ObsidianCliMode, VaultOptions } from "./internal/types";
 export type { CoverageOptions } from "./internal/coverage/types";
-export { ObsidianAPI } from "./ObsidianAPI";
+export { ObsidianAPI, type ReloadOptions } from "./ObsidianAPI";
+export type { ReloadInterceptor, ReloadRequest } from "./internal/runtime/reloadInterceptor";

@@ -13,6 +13,7 @@ import { _electron as electron } from "playwright/test";
 import type { ResolvedPaths } from "../path";
 import { createLaunchOptions } from "../path";
 import { createElectronBootstrap } from "./electronBootstrap";
+import { withoutElectronRunAsNode } from "../electronEnv";
 
 const logger = log.getLogger("ElectronAppManager");
 
@@ -76,7 +77,7 @@ export class ElectronAppManager {
                 `--user-data-dir=${this.tempUserDataDir}`,
             ],
             env: {
-                ...baseLaunchOptions.env,
+                ...withoutElectronRunAsNode(baseLaunchOptions.env),
                 PLAYWRIGHT: "true",
                 CI: process.env.CI || "false",
             },
