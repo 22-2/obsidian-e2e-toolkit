@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.7.1](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.7.0...1.7.1) (2026-10-14)
+
+### Bug Fixes
+
+* **ci:** support unlocked installs and macOS fixture paths ([74f40ca](https://github.com/22-2/obsidian-e2e-toolkit/commit/74f40ca1a6b87368ebae5c4fa226cfa75ad281d5))
+* download pinned Obsidian assets without API metadata ([bacad23](https://github.com/22-2/obsidian-e2e-toolkit/commit/bacad23c9db7d644707412df38c17299e37e1fa1))
+* fetch pinned plugin releases without GitHub API ([cf70b21](https://github.com/22-2/obsidian-e2e-toolkit/commit/cf70b2133a52a93cf241d457571f9396ba09200a))
+* invoke native pnpm executables directly ([3ac0eae](https://github.com/22-2/obsidian-e2e-toolkit/commit/3ac0eae28e03c3cafd5db246ca34a43a7f280cb9))
+* prepare Electron and reuse its first window on launch ([b3f48ad](https://github.com/22-2/obsidian-e2e-toolkit/commit/b3f48ad17eb6b933e94b1bf89a67c469e7517a5f))
+
+### Documentation
+
+* describe verified Ubuntu startup and lazy reload expectations ([607fc97](https://github.com/22-2/obsidian-e2e-toolkit/commit/607fc973a06ffd948228fafa7ddb4666c2ece365))
+
 ## [1.7.0](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.6.0...1.7.0) (2026-10-14)
 
 ### Features
