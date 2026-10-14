@@ -3,17 +3,14 @@
 // ===================================================================
 import { spawnSync } from "child_process";
 import { once } from "events";
-import { existsSync } from "fs";
-import fs from "fs/promises";
 import log from "loglevel";
-import { createRequire } from "module";
-import path from "path";
 import type { ElectronApplication, Page } from "playwright";
 import { _electron as electron } from "playwright/test";
 import type { ResolvedPaths } from "../path";
 import { createLaunchOptions } from "../path";
 import { createElectronBootstrap } from "./electronBootstrap";
 import { withoutElectronRunAsNode } from "../electronEnv";
+import { resolveElectronExecutable } from "../electronExecutable";
 
 const logger = log.getLogger("ElectronAppManager");
 
@@ -40,29 +37,7 @@ export class ElectronAppManager {
     }
 
     private async launchElectronApp(): Promise<ElectronApplication> {
-        // Preflight: ensure `electron` package is resolvable and has its binary installed
-        try {
-            const req = createRequire(import.meta.url);
-            const pkgJson = req.resolve("electron/package.json");
-            const electronRoot = path.dirname(pkgJson);
-            const distDir = path.join(electronRoot, "dist");
-            if (!existsSync(distDir)) {
-                logger.error(`Electron dist not found at ${distDir}`);
-                logger.error(
-                    `Electron root contents:`,
-                    await fs.readdir(electronRoot),
-                );
-                throw new Error(
-                    "Electron appears to be missing its platform binaries. Ensure `electron` was installed correctly.",
-                );
-            }
-        } catch (err: any) {
-            logger.error(
-                "Electron preflight check failed:",
-                err && err.message ? err.message : err,
-            );
-            throw err;
-        }
+        const executablePath = resolveElectronExecutable();
         const baseLaunchOptions = createLaunchOptions(this.paths);
         // Guard protocol registration before Obsidian runs, including with cached assets.
         const bootstrapDir = await createElectronBootstrap(
@@ -71,6 +46,7 @@ export class ElectronAppManager {
         );
         const launchOptions = {
             ...baseLaunchOptions,
+            executablePath,
             args: [
                 bootstrapDir,
                 ...baseLaunchOptions.args.slice(1),

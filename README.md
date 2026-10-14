@@ -296,6 +296,7 @@ env:
 **理由**：
 - `onlyBuiltDependencies` は、依存パッケージの install や postinstall などのビルドスクリプトを実行してよいパッケージを指定します。Electron のバイナリ取得（`install.js`）を実行させるために必要で、`obsidian-e2e-toolkit` を含めるのは、その postinstall を許可するためです。モジュールの解決やプリビルトの選択には関係しません。
 - Electron は利用側がインストールしたバージョンを使います。ツールキットは特定の Electron バージョンに固定しません。
+- 起動時に Electron 自身の実行ファイル解決処理を使い、未取得のバイナリはその場で準備します。`electron --version` などで GUI を先に起動する必要はありません。解決された実行ファイルを Playwright に渡すため、`ELECTRON_OVERRIDE_DIST_PATH` も使用できます。
 - `obsidian-typings` など複数の Electron バージョンを要求する依存関係がある場合は、プロジェクト側で互換性を確認した上で `overrides` を設定してください。
 
 ## CI でのレートリミット対策

@@ -3,11 +3,11 @@ Object.defineProperties(exports, {
 	[Symbol.toStringTag]: { value: "Module" }
 });
 const require_targets = require("./targets-DUrff_Wl.cjs");
+let node_fs = require("node:fs");
 let node_path = require("node:path");
 node_path = require_targets.__toESM(node_path, 1);
 let node_fs_promises = require("node:fs/promises");
 let node_url = require("node:url");
-let node_fs = require("node:fs");
 let acorn = require("acorn");
 let ast_v8_to_istanbul = require("ast-v8-to-istanbul");
 let istanbul_lib_coverage = require("istanbul-lib-coverage");

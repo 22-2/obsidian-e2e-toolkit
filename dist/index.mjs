@@ -1,4 +1,5 @@
 import { _ as createRunId, a as assertUsableDirectory, b as toggleLoggerBy, c as isRecord, d as readManifestIdentity, f as readPreparedPluginMarker, g as writeSourceMarker, h as tempSiblingPath, i as TOOLKIT_MARKER_OWNER, l as isSameOrInside, m as removeTempDirectory, n as readCoverageTarget, o as errorMessage, p as readSourceMarker, r as PREPARED_PLUGIN_MARKER, s as inspectDestination, t as isTargetScript, u as promoteDirectory, v as createScopedLogger, y as setupBrowserConsoleLogging } from "./targets-CtjXYvdw.mjs";
+import { createRequire } from "node:module";
 import chalk from "chalk";
 import log from "loglevel";
 import { expect, expect as expect$1, test as test$1 } from "@playwright/test";
@@ -14,8 +15,8 @@ import { fileURLToPath as fileURLToPath$1 } from "url";
 import { toMerged } from "es-toolkit";
 import { spawnSync } from "child_process";
 import { once } from "events";
-import { createRequire } from "module";
 import { _electron, expect as expect$2 } from "playwright/test";
+import { statSync as statSync$1 } from "node:fs";
 import { execFile, spawnSync as spawnSync$1 } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
@@ -516,6 +517,19 @@ function withoutElectronRunAsNode(env) {
 	return copy;
 }
 //#endregion
+//#region src/internal/electronExecutable.ts
+/** Electron 自身の解決処理で遅延ダウンロードを済ませ、実際に起動するファイルを返す。 */
+function resolveElectronExecutable(from = import.meta.url) {
+	try {
+		const executable = createRequire(from)("electron");
+		if (typeof executable !== "string" || !statSync$1(executable).isFile()) throw new Error("electron did not return an executable file path");
+		return executable;
+	} catch (error) {
+		const detail = error instanceof Error ? error.message : String(error);
+		throw new Error("Could not prepare Electron executable: " + detail, { cause: error });
+	}
+}
+//#endregion
 //#region src/internal/services/ElectronAppManager.ts
 const logger$8 = log.getLogger("ElectronAppManager");
 const CLOSE_TIMEOUT_MS = 15e3;
@@ -533,23 +547,12 @@ var ElectronAppManager = class {
 		return this.electronApp;
 	}
 	async launchElectronApp() {
-		try {
-			const pkgJson = createRequire(import.meta.url).resolve("electron/package.json");
-			const electronRoot = path.dirname(pkgJson);
-			const distDir = path.join(electronRoot, "dist");
-			if (!existsSync(distDir)) {
-				logger$8.error(`Electron dist not found at ${distDir}`);
-				logger$8.error(`Electron root contents:`, await fs.readdir(electronRoot));
-				throw new Error("Electron appears to be missing its platform binaries. Ensure `electron` was installed correctly.");
-			}
-		} catch (err) {
-			logger$8.error("Electron preflight check failed:", err && err.message ? err.message : err);
-			throw err;
-		}
+		const executablePath = resolveElectronExecutable();
 		const baseLaunchOptions = createLaunchOptions(this.paths);
 		const bootstrapDir = await createElectronBootstrap(this.paths.appMainJsPath, this.tempUserDataDir);
 		const launchOptions = {
 			...baseLaunchOptions,
+			executablePath,
 			args: [
 				bootstrapDir,
 				...baseLaunchOptions.args.slice(1),
@@ -1281,7 +1284,7 @@ var ObsidianE2ELauncher = class {
 			logger: this.scopedLogger
 		};
 		await services.setupAll(serviceContext);
-		const initialPage = await electronApp.waitForEvent("window");
+		const initialPage = await electronApp.firstWindow();
 		this.scopedLogger.debug("Initial window event received");
 		const { starterPage } = await this.prepareRuntimeFeature.run({ initialPage }, serviceContext, services);
 		this.scopedLogger.debug("Starter page ready", starterPage.url());
