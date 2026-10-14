@@ -114,7 +114,14 @@ async function resetCoverageOutput(outputDir = "coverage/e2e") {
 	});
 }
 function isProjectSource(filename, target) {
-	const relative = node_path.default.relative(target.root, filename).replaceAll("\\", "/");
+	const resolveRealPath = (value) => {
+		try {
+			return node_fs.realpathSync.native(value);
+		} catch {
+			return node_path.default.resolve(value);
+		}
+	};
+	const relative = node_path.default.relative(resolveRealPath(target.root), resolveRealPath(filename)).replaceAll("\\", "/");
 	return relative !== ".." && !relative.startsWith("../") && !node_path.default.isAbsolute(relative) && !/(^|\/)(node_modules|tests?|__tests__|__mocks__)(\/|$)/.test(relative) && !/\.(test|spec)\.[cm]?[jt]sx?$/.test(relative) && !/\.d\.[cm]?ts$/.test(relative);
 }
 async function generateCoverageReport(options = {}) {

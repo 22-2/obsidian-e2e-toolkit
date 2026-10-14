@@ -2,7 +2,7 @@ import { t as isTargetScript } from "./targets-CtjXYvdw.mjs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { readFile, readdir, rm } from "node:fs/promises";
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync, realpathSync, rmSync } from "node:fs";
 import { parse } from "acorn";
 import { convert } from "ast-v8-to-istanbul";
 import libCoverage from "istanbul-lib-coverage";
@@ -106,7 +106,14 @@ async function resetCoverageOutput(outputDir = "coverage/e2e") {
 	});
 }
 function isProjectSource(filename, target) {
-	const relative = path.relative(target.root, filename).replaceAll("\\", "/");
+	const resolveRealPath = (value) => {
+		try {
+			return realpathSync.native(value);
+		} catch {
+			return path.resolve(value);
+		}
+	};
+	const relative = path.relative(resolveRealPath(target.root), resolveRealPath(filename)).replaceAll("\\", "/");
 	return relative !== ".." && !relative.startsWith("../") && !path.isAbsolute(relative) && !/(^|\/)(node_modules|tests?|__tests__|__mocks__)(\/|$)/.test(relative) && !/\.(test|spec)\.[cm]?[jt]sx?$/.test(relative) && !/\.d\.[cm]?ts$/.test(relative);
 }
 async function generateCoverageReport(options = {}) {

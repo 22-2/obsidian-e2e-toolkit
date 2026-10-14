@@ -1,5 +1,5 @@
 import { readdir, readFile, rm } from "node:fs/promises";
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync, realpathSync, rmSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { parse } from "acorn";
@@ -48,7 +48,14 @@ export async function resetCoverageOutput(outputDir = "coverage/e2e"): Promise<v
 }
 
 function isProjectSource(filename: string, target: CoverageTarget): boolean {
-    const relative = path.relative(target.root, filename).replaceAll("\\", "/");
+    const resolveRealPath = (value: string) => {
+        try {
+            return realpathSync.native(value);
+        } catch {
+            return path.resolve(value);
+        }
+    };
+    const relative = path.relative(resolveRealPath(target.root), resolveRealPath(filename)).replaceAll("\\", "/");
     return relative !== ".." && !relative.startsWith("../") && !path.isAbsolute(relative) &&
         !/(^|\/)(node_modules|tests?|__tests__|__mocks__)(\/|$)/.test(relative) &&
         !/\.(test|spec)\.[cm]?[jt]sx?$/.test(relative) && !/\.d\.[cm]?ts$/.test(relative);
