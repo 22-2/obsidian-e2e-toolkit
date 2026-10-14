@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.7.0](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.6.0...1.7.0) (2026-10-14)
+
+### Features
+
+* add reusable Obsidian E2E runtime and preparation APIs ([0c38fc2](https://github.com/22-2/obsidian-e2e-toolkit/commit/0c38fc20ec47bfe9c48f0bb63fddd6cf96408572))
+
+### Bug Fixes
+
+* prepare app assets for Git dependency installs ([63df616](https://github.com/22-2/obsidian-e2e-toolkit/commit/63df6164082f3329600916beb020b7d6308df410))
+* preserve setup for source checkouts across platforms ([80d7878](https://github.com/22-2/obsidian-e2e-toolkit/commit/80d7878873ef783248de7b79e704fc06f8fb907c))
+* resolve macOS symlink paths in coverage reports ([1848400](https://github.com/22-2/obsidian-e2e-toolkit/commit/1848400d6d60b4a8e46a3c3c55a38fe4b8364438))
+* skip setup in temporary Git package checkouts ([31a5881](https://github.com/22-2/obsidian-e2e-toolkit/commit/31a588132ff6b921018b81a0194f709cac32ae55))
+* stabilize Git dependency installs and macOS coverage tests ([ea1341d](https://github.com/22-2/obsidian-e2e-toolkit/commit/ea1341de0f55393a64096af163016120131089ac))
+
 ## [1.6.0](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.5.0...1.6.0) (2026-10-14)
 
 ### Features
