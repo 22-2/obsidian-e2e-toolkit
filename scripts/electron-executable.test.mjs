@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -41,7 +41,7 @@ test("an executable outside the package dist folder is accepted", async (t) => {
     const f = await fixture(t, `module.exports = require("node:path").resolve(__dirname, "../../custom-electron");`);
     const executable = path.join(f.root, "custom-electron");
     await writeFile(executable, "override");
-    assert.equal(resolveElectronExecutable(f.from), executable);
+    assert.equal(await realpath(resolveElectronExecutable(f.from)), await realpath(executable));
 });
 
 test("missing executables fail before Playwright launch with the original cause", async (t) => {

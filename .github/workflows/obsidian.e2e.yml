@@ -38,7 +38,6 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: pnpm
 
       - name: Cache Obsidian assets
         uses: actions/cache@v5
@@ -47,7 +46,8 @@ jobs:
           key: ${{ runner.os }}-obsidian-smoke-${{ env.OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION }}
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # This library does not track a lockfile; consumer projects keep their own locked dependencies.
+        run: pnpm install --no-lockfile
 
       - name: Install Linux display dependencies
         if: runner.os == 'Linux'
