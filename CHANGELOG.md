@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.0.0](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.7.1...2.0.0) (2026-10-26)
+
+### ⚠ BREAKING CHANGES
+
+* Playwright, coverage, and setup outputs now use .e2e/ by default. Update consumers that read the old output paths; explicit outputDir and OBSIDIAN_E2E_TOOLKIT_HOME overrides remain supported.
+
+### Features
+
+* centralize generated E2E outputs under .e2e ([d106d0c](https://github.com/22-2/obsidian-e2e-toolkit/commit/d106d0c5f171e4df313cc8d3d1b0bb8ab868aabb))
+
 ## [1.7.1](https://github.com/22-2/obsidian-e2e-toolkit/compare/1.7.0...1.7.1) (2026-10-14)
 
 ### Bug Fixes
