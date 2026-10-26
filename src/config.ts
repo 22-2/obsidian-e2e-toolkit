@@ -10,10 +10,24 @@ const DEFAULT_USE: UseOptions = {
     screenshot: "only-on-failure",
 };
 const DEFAULT_EXPECT: ExpectOptions = { timeout: 5_000 };
+const DEFAULT_OUTPUT_DIR = ".e2e/test-results";
+const DEFAULT_HTML_REPORT_FOLDER = ".e2e/playwright-report";
 
 function definedEntries<T extends object>(value: T | undefined): Partial<T> {
     if (value === undefined) return {};
     return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as Partial<T>;
+}
+
+function withDefaultHtmlReportFolder(reporter: PlaywrightTestConfig["reporter"]): PlaywrightTestConfig["reporter"] {
+    if (reporter === undefined) return undefined;
+    if (reporter === "html") return [["html", { outputFolder: DEFAULT_HTML_REPORT_FOLDER }]];
+    if (typeof reporter === "string") return reporter;
+
+    return reporter.map((description) => {
+        const [name, options] = description;
+        if (name !== "html" || options?.outputFolder !== undefined) return description;
+        return [name, { ...options, outputFolder: DEFAULT_HTML_REPORT_FOLDER }] as const;
+    });
 }
 
 /**
@@ -22,9 +36,11 @@ function definedEntries<T extends object>(value: T | undefined): Partial<T> {
  * 何度重ねて呼んでも利用者の値は消えない。Linux でも例外にしない。
  */
 export function defineObsidianConfig(overrides: PlaywrightTestConfig = {}): PlaywrightTestConfig {
-    const { use, expect, ...rest } = overrides;
+    const { use, expect, outputDir, reporter, ...rest } = overrides;
     return {
         ...definedEntries(rest),
+        outputDir: outputDir ?? DEFAULT_OUTPUT_DIR,
+        ...(reporter === undefined ? {} : { reporter: withDefaultHtmlReportFolder(reporter) }),
         use: { ...DEFAULT_USE, ...definedEntries(use) },
         expect: { ...DEFAULT_EXPECT, ...definedEntries(expect) },
     };

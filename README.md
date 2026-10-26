@@ -50,6 +50,7 @@ pnpm exec obsidian-e2e-toolkit   # playwright.config.ts と e2e/example.spec.ts 
 
 プラグインをソースマップ付きでビルドしてから、測定対象と出力先を指定します。
 esbuild の `sourcemap: "inline"` と、`sourcemap: "external"` による `main.js.map` の両方に対応しています。
+Playwright の結果、レポート、アセットキャッシュ、カバレッジは既定で `.e2e/` に保存します。
 
 ```ts
 import { test } from "obsidian-e2e-toolkit";
@@ -59,7 +60,7 @@ test.use({
     coverageOptions: {
         enabled: process.env.E2E_COVERAGE === "1",
         pluginPaths: [process.cwd()],
-        outputDir: "coverage/e2e",
+        outputDir: ".e2e/coverage/e2e",
     },
 });
 ```
@@ -77,14 +78,14 @@ Playwright の reporter に追加すると、実行終了時に HTML・LCOV・JS
 reporter と `coverageOptions` の `outputDir` を合わせてください。
 
 ```ts
-import { defineConfig } from "@playwright/test";
+import { defineObsidianConfig } from "obsidian-e2e-toolkit";
 
-export default defineConfig({
+export default defineObsidianConfig({
     reporter: [
         ["list"],
         ["obsidian-e2e-toolkit/coverage", {
             enabled: process.env.E2E_COVERAGE === "1",
-            outputDir: "coverage/e2e",
+            outputDir: ".e2e/coverage/e2e",
         }],
     ],
 });
@@ -97,7 +98,7 @@ $env:E2E_COVERAGE = "1"
 pnpm exec playwright test
 ```
 
-`coverage/e2e/index.html`、`lcov.info`、`coverage-final.json` を生成します。
+`.e2e/coverage/e2e/index.html`、`lcov.info`、`coverage-final.json` を生成します。
 テスト・モック・型宣言・依存パッケージ・測定対象フォルダーの外にあるソースは除外します。
 ビルドとソースマップはテストごとの JSON に保存するため、テスト終了後に一時プラグインを削除したり通常ビルドに戻してもレポートを生成できます。
 並列ワーカーとリトライはそれぞれ別ファイルに保存します。失敗した試行も集計対象です。
@@ -116,7 +117,7 @@ export default defineObsidianConfig({
         ["list"],
         ["obsidian-e2e-toolkit/coverage", {
             enabled: process.env.E2E_COVERAGE === "1",
-            outputDir: "coverage/e2e",
+            outputDir: ".e2e/coverage/e2e",
             clean: process.env.E2E_COVERAGE_APPEND !== "1",
         }],
     ],
@@ -130,7 +131,7 @@ export default defineObsidianConfig({
 import { spawn } from "node:child_process";
 import { generateCoverageReport, resetCoverageOutput } from "obsidian-e2e-toolkit/coverage";
 
-const outputDir = "coverage/e2e";
+const outputDir = ".e2e/coverage/e2e";
 const COVERAGE_ENV = { E2E_COVERAGE: "1", E2E_COVERAGE_APPEND: "1" };
 const NORMAL_ENV = { E2E_COVERAGE: "0" };
 
@@ -183,12 +184,12 @@ Vitest で `coverage.reporter` に `"json"` を指定し、両方の `coverage-f
 import { mergeCoverageReports } from "obsidian-e2e-toolkit/coverage";
 
 await mergeCoverageReports({
-    inputFiles: ["coverage/unit/coverage-final.json", "coverage/e2e/coverage-final.json"],
-    outputDir: "coverage/combined",
+    inputFiles: [".e2e/coverage/unit/coverage-final.json", ".e2e/coverage/e2e/coverage-final.json"],
+    outputDir: ".e2e/coverage/combined",
 });
 ```
 
-`coverage/combined/index.html` に統合レポートを生成します。
+`.e2e/coverage/combined/index.html` に統合レポートを生成します。
 ファイルとソース位置ごとに実行回数を合算し、単体テストだけで読み込まれたファイルも残します。
 異なるビルドでソースマップの位置が異なる場合は、それぞれの位置を保持します。
 特に分岐は種類と全選択肢の位置が一致した場合だけ合算するため、選択肢の実行回数が別の位置に移ったり失われたりしません。
@@ -206,7 +207,7 @@ await mergeCoverageReports({
 xvfb-run -a pnpm exec playwright test
 ```
 
-- テストが失敗すると、Obsidian ウィンドウのスクリーンショット（`obsidian-screenshot`）と DOM（`obsidian-dom`）が Playwright のレポートと `test-results/` に添付されます。
+- テストが失敗すると、Obsidian ウィンドウのスクリーンショット（`obsidian-screenshot`）と DOM（`obsidian-dom`）が Playwright のレポートと `.e2e/test-results/` に添付されます。
 - Electron のメインプロセスの警告・エラーは標準設定で端末に表示されます。起動前から終了処理までのログ全体は、成功・失敗にかかわらず `obsidian-electron-main-log` として添付されます。
 - 単体テスト用の Vitest などが `e2e/` の spec を拾わないよう、テスト対象を `src/**` などに限定してください。
 - E2E を実行しないジョブでは `ELECTRON_SKIP_BINARY_DOWNLOAD=1` を設定すると、Electron のダウンロードを省略できます。
@@ -222,7 +223,8 @@ pnpm release -- --dry-run --ci
 
 確認後に `pnpm release` を実行すると、`package.json` と `CHANGELOG.md` を更新して、バージョン更新コミットと `1.2.0` のような `v` なしタグを push します。タグはソース履歴上に維持し、GitHub Actions はビルド済みの npm 互換 tarball を Release asset として作成します。インストール URL は各 Release の説明に表示されます。npm には publish しません。
 
-インストール後に `postinstall` で `setup.mjs` が実行され、同梱されている Obsidian の ASAR アセットを `.obsidian-unpacked/` に展開します。
+ソースや Git から依存として入れた場合、`postinstall` がダウンロードした Obsidian の ASAR アセットを `.e2e/obsidian-e2e-toolkit-assets/obsidian-unpacked/` に展開します。GitHub Release のビルド済みパッケージには展開済みアセットが含まれます。
+`defineObsidianConfig` を使うと Playwright の出力先も `.e2e/test-results/` になり、HTML reporter の出力先は `.e2e/playwright-report/` になります（明示した `outputFolder` はそのまま使います）。
 
 再実行したい場合:
 
@@ -240,7 +242,7 @@ pnpm run postinstall
 pnpm run pack:local
 ```
 
-`pack:local` は `coverage/local-pack/obsidian-e2e-toolkit-<version>-<hash>.tgz` を作り、絶対 path と `file:` で始まる指定子を表示します。表示される指定子は絶対 path なので、consumer の `package.json` には保存せず、下の相対 path に直して使います。`package.json` は書き換えません。この tgz は未公開の開発版です。version は作業ツリーの値をそのまま使い、ファイル名の hash で内容を区別します。公開済みのリリース（`1.5.0` など）と番号が同じに見えても中身は別物なので、公開版として扱わないでください。`preparePlugins` などの新しい API は、公開済みの 1.5.0 には含まれません。
+`pack:local` は `.e2e/local-pack/obsidian-e2e-toolkit-<version>-<hash>.tgz` を作り、絶対 path と `file:` で始まる指定子を表示します。表示される指定子は絶対 path なので、consumer の `package.json` には保存せず、下の相対 path に直して使います。`package.json` は書き換えません。この tgz は未公開の開発版です。version は作業ツリーの値をそのまま使い、ファイル名の hash で内容を区別します。公開済みのリリース（`1.5.0` など）と番号が同じに見えても中身は別物なので、公開版として扱わないでください。`preparePlugins` などの新しい API は、公開済みの 1.5.0 には含まれません。
 
 #### 型チェック
 
@@ -303,8 +305,8 @@ env:
 
 バージョンを固定した場合、`setup.mjs` は初回も GitHub API を使わず、公開リリースの `obsidian-<version>.tar.gz` と `obsidian-<version>.asar.gz` を直接取得します。以下を満たす場合は、ダウンロードもせずキャッシュだけで処理します。
 
-- `obsidian-e2e-toolkit-assets/obsidian-unpacked/main.cjs` が存在し、記録されたバージョンが指定と一致する
-- または `obsidian-e2e-toolkit-assets/cache` 配下に必要なアセットが存在し、記録されたバージョンが指定と一致する
+- `.e2e/obsidian-e2e-toolkit-assets/obsidian-unpacked/main.cjs` が存在し、記録されたバージョンが指定と一致する
+- または `.e2e/obsidian-e2e-toolkit-assets/cache` 配下に必要なアセットが存在し、記録されたバージョンが指定と一致する
 
 `latest` の場合はキャッシュがあっても最新バージョンの確認に GitHub API を呼びます。
 確認に失敗するとセットアップはエラーになります。キャッシュした旧版を使い続けることはありません。
@@ -322,7 +324,7 @@ env:
 - uses: actions/cache@v4
   with:
     path: |
-      obsidian-e2e-toolkit-assets
+      .e2e/obsidian-e2e-toolkit-assets
       node_modules/obsidian-e2e-toolkit/obsidian-e2e-toolkit-assets
     key: ${{ runner.os }}-obsidian-e2e-${{ hashFiles('pnpm-lock.yaml') }}
 ```

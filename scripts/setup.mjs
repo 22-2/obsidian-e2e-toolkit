@@ -12,7 +12,6 @@ import {
 } from "fs/promises";
 import { findDown } from "find-up";
 import path from "path";
-import { fileURLToPath } from "url";
 import { pipeline } from "stream/promises";
 import zlib from "zlib";
 import * as tar from "tar";
@@ -60,15 +59,11 @@ function resolveRequestedRelease() {
 // =============================================================================
 
 function resolvePaths(requestedRelease) {
-    const __filename = fileURLToPath(import.meta.url);
-    const scriptDir = path.dirname(__filename);
-    const repoRoot = path.resolve(scriptDir, "..");
     const initCwd = process.env.INIT_CWD || "";
-    const toolkitHome =
-        process.env.OBSIDIAN_E2E_TOOLKIT_HOME ||
-        (initCwd && path.resolve(initCwd) !== path.resolve(repoRoot)
-            ? initCwd
-            : repoRoot);
+    const projectRoot = path.resolve(initCwd || process.cwd());
+    const toolkitHome = process.env.OBSIDIAN_E2E_TOOLKIT_HOME
+        ? path.resolve(process.env.OBSIDIAN_E2E_TOOLKIT_HOME)
+        : path.join(projectRoot, ".e2e");
 
     const cacheRoot = path.join(toolkitHome, "obsidian-e2e-toolkit-assets");
     const cacheDir = path.join(cacheRoot, "cache");

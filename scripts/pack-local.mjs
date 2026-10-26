@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ビルド済みの toolkit を、release.yml と同じ形の npm 互換 tgz にまとめる。
 // 同梱アセットは残し、ダウンロード用の cache と prepare / postinstall は含めない。
-// package.json は書き換えず、加工と削除は coverage/local-pack の中に限る。
+// package.json は書き換えず、加工と削除は .e2e/local-pack の中に限る。
 // 出力は未公開の開発版。ファイル名の hash で内容を区別する。
 import { createHash } from "node:crypto";
 import { cp, lstat, mkdir, readFile, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
@@ -11,6 +11,7 @@ import * as tar from "tar";
 
 const PACKAGE_NAME = "obsidian-e2e-toolkit";
 const ASSET_DIRECTORY = "obsidian-e2e-toolkit-assets";
+const SOURCE_ASSET_DIRECTORY = path.join(".e2e", ASSET_DIRECTORY);
 const PACKAGED_ENTRIES = ["dist", "scripts", "README.md", "LICENSE"];
 // exports・types・main・bin が指す成果物は declaredTargets で照合する。ここには、それ以外に必要なものだけを書く。
 const REQUIRED_STATIC_OUTPUT = [
@@ -20,11 +21,11 @@ const REQUIRED_STATIC_OUTPUT = [
     "scripts/setup.mjs",
     "scripts/init.mjs",
     "scripts/postinstall.cjs",
-    "obsidian-e2e-toolkit-assets/obsidian-unpacked/main.cjs",
-    "obsidian-e2e-toolkit-assets/obsidian-unpacked/obsidian.asar",
-    "obsidian-e2e-toolkit-assets/obsidian-unpacked/.obsidian-version",
+    path.join(SOURCE_ASSET_DIRECTORY, "obsidian-unpacked", "main.cjs"),
+    path.join(SOURCE_ASSET_DIRECTORY, "obsidian-unpacked", "obsidian.asar"),
+    path.join(SOURCE_ASSET_DIRECTORY, "obsidian-unpacked", ".obsidian-version"),
 ];
-const OUTPUT_DIRECTORY = ["coverage", "local-pack"];
+const OUTPUT_DIRECTORY = [".e2e", "local-pack"];
 const STAGING_NAME = "staging";
 // SemVer 2.0.0 のうち、ファイル名に安全な形だけを許す（build metadata の + は含めない）。
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?$/;
@@ -146,9 +147,14 @@ async function copyPackageContents(root, staging) {
     for (const entry of PACKAGED_ENTRIES) {
         await copyFromRepo(root, staging, entry);
     }
-    const assetsRoot = path.resolve(root, ASSET_DIRECTORY);
-    await copyFromRepo(root, staging, ASSET_DIRECTORY, {
-        filter: (source) => !isDownloadCache(assetsRoot, source),
+    const assetsRoot = path.resolve(root, SOURCE_ASSET_DIRECTORY);
+    const source = path.resolve(root, SOURCE_ASSET_DIRECTORY);
+    const destination = path.resolve(staging, ASSET_DIRECTORY);
+    if (!isStrictlyInside(root, source)) throw new Error("asset source escapes the repo: " + source);
+    if (!isStrictlyInside(staging, destination)) throw new Error("asset destination escapes staging: " + destination);
+    await cp(source, destination, {
+        recursive: true,
+        filter: (entry) => !isDownloadCache(assetsRoot, entry),
     });
 }
 

@@ -2,14 +2,14 @@
 
 ## テストが失敗したとき
 
-失敗したテストには次のファイルが自動で添付されます（Playwright の HTML レポートと `test-results/`）。
+失敗したテストには次のファイルが自動で添付されます（Playwright の HTML レポートと `.e2e/test-results/`）。
 
 - `obsidian-screenshot` — 失敗時点の Obsidian ウィンドウ
 - `obsidian-dom` — 失敗時点の DOM（HTML）
 
 Electron のメインプロセスは、Obsidian の読み込み前からログを収集します。
 警告・エラーは標準設定で端末に `[ELECTRON:MAIN:WARN]` / `[ELECTRON:MAIN:ERROR]` として表示され、例外のスタックも省略せずに出力されます。
-メインプロセスのログ全体は、成功・失敗にかかわらず `obsidian-electron-main-log` として Playwright のレポートと `test-results/` に添付されます（JSON Lines 形式）。起動中や終了処理でのエラーも含みます。
+メインプロセスのログ全体は、成功・失敗にかかわらず `obsidian-electron-main-log` として Playwright のレポートと `.e2e/test-results/` に添付されます（JSON Lines 形式）。起動中や終了処理でのエラーも含みます。
 `enableBrowserConsoleLogging` はメインプロセスのログ収集には不要です。`logLevel` は端末に転送するレベルを制御し、添付ファイルには全レベルを保存します。
 
 `Cannot read properties of undefined (reading 'origin')` は、Obsidian が `app://` の要求元フレームを参照する処理で起こることがあります。

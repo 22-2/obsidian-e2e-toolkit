@@ -5,9 +5,9 @@ import { build } from "esbuild";
 
 // テスト用に src の TypeScript を1ファイルへ bundle する。npm パッケージは bundle せず外部のまま読む。
 // istanbul のように動的 require や __dirname を使うパッケージを、通常の Node モジュールとして動かすため。
-// 出力は gitignore 対象の coverage/ 配下に置き、パッケージ解決を実際の依存関係と一致させる。
+// 出力は gitignore 対象の .e2e/ 配下に置き、パッケージ解決を実際の依存関係と一致させる。
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
-const bundleDirectory = path.join(repoRoot, "coverage", "test-bundles");
+const bundleDirectory = path.join(repoRoot, ".e2e", "coverage", "test-bundles");
 
 export async function loadSource(relativePath) {
     const entry = fileURLToPath(new URL("../../src/" + relativePath, import.meta.url));

@@ -24,6 +24,10 @@
 - `fetchPlugin(repo, destArg?, opts?)`
   - GitHub リポジトリからプラグインを取得するユーティリティ
 
+## Playwright config
+
+`defineObsidianConfig(overrides?)` は Playwright 設定に共通値を加えます。既定の `outputDir` は `.e2e/test-results` です。`reporter` に HTML reporter を含め、`outputFolder` を省略した場合は `.e2e/playwright-report` に保存します。
+
 ---
 
 ## Coverage
@@ -38,7 +42,7 @@ type CoverageOptions = {
 };
 ```
 
-`pluginPaths` の既定値は `vaultOptions.plugins` のパス、`outputDir` の既定値は `coverage/e2e` です。
+`pluginPaths` の既定値は `vaultOptions.plugins` のパス、`outputDir` の既定値は `.e2e/coverage/e2e` です。
 測定対象には `manifest.json` と、ソースマップ付きの `main.js` が必要です。
 
 `obsidian-e2e-toolkit/coverage` は次の API を公開します。
@@ -46,7 +50,7 @@ type CoverageOptions = {
 - `CoverageReporter`（default export でも提供）: Playwright reporter。`enabled`、`outputDir`、`clean`、`reporters` を指定できます。
 - `resetCoverageOutput(outputDir?)`: toolkit の過去の `raw/` を削除します。他のファイルは削除しません。
 - `generateCoverageReport({ outputDir?, reporters? }?)`: raw 結果からレポートを生成し、集計値を返します。
-- `mergeCoverageReports({ inputFiles, outputDir?, reporters? })`: Istanbul JSON を合算し、集計値を返します。既定の出力先は `coverage/combined` です。
+- `mergeCoverageReports({ inputFiles, outputDir?, reporters? })`: Istanbul JSON を合算し、集計値を返します。既定の出力先は `.e2e/coverage/combined` です。
 
 `reporters` は `"text" | "html" | "lcov" | "json"` の配列です。既定ではすべて出力します。
 実行例・複数実行の合算・Vitest との統合は [README](../README.md#e2e-カバレッジ) を参照してください。

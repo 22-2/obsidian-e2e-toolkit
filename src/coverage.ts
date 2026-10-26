@@ -21,7 +21,7 @@ export interface MergeCoverageReportOptions extends CoverageReportOptions {
 
 function writeReport(coverageMap: libCoverage.CoverageMap, options: CoverageReportOptions, sourceContents?: Map<string, string>): CoverageSummary {
     const context = libReport.createContext({
-        dir: path.resolve(options.outputDir ?? "coverage/e2e"), coverageMap,
+        dir: path.resolve(options.outputDir ?? ".e2e/coverage/e2e"), coverageMap,
         sourceFinder: (filename) => sourceContents?.get(filename) ?? readFileSync(filename, "utf8"),
     });
     for (const reporter of options.reporters ?? ["text", "html", "lcov", "json"]) {
@@ -37,10 +37,10 @@ export async function mergeCoverageReports(options: MergeCoverageReportOptions):
         inputs.push(JSON.parse(await readFile(path.resolve(filename), "utf8")) as libCoverage.CoverageMapData);
     }
     const coverageMap = mergeIstanbulCoverage(inputs);
-    return writeReport(coverageMap, { ...options, outputDir: options.outputDir ?? "coverage/combined" });
+    return writeReport(coverageMap, { ...options, outputDir: options.outputDir ?? ".e2e/coverage/combined" });
 }
 
-export async function resetCoverageOutput(outputDir = "coverage/e2e"): Promise<void> {
+export async function resetCoverageOutput(outputDir = ".e2e/coverage/e2e"): Promise<void> {
     // Delete only toolkit-owned raw results, leaving other output files intact.
     const directory = path.resolve(outputDir, "raw");
     if (path.dirname(directory) !== path.resolve(outputDir)) throw new Error("Invalid coverage output directory.");
@@ -62,7 +62,7 @@ function isProjectSource(filename: string, target: CoverageTarget): boolean {
 }
 
 export async function generateCoverageReport(options: CoverageReportOptions = {}): Promise<CoverageSummary> {
-    const outputDir = path.resolve(options.outputDir ?? "coverage/e2e");
+    const outputDir = path.resolve(options.outputDir ?? ".e2e/coverage/e2e");
     const rawDirectory = path.join(outputDir, "raw");
     let filenames: string[];
     try {
@@ -117,7 +117,7 @@ export class CoverageReporter implements Reporter {
     onBegin(): void {
         // Playwright does not await onBegin; finish cleanup before workers start.
         if (this.options.enabled !== false && this.options.clean !== false) {
-            rmSync(path.resolve(this.options.outputDir ?? "coverage/e2e", "raw"), { recursive: true, force: true });
+            rmSync(path.resolve(this.options.outputDir ?? ".e2e/coverage/e2e", "raw"), { recursive: true, force: true });
         }
     }
 

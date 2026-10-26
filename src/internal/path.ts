@@ -30,7 +30,7 @@ export interface ObsidianE2EConfig {
     assetsDir?: string;
 
     /**
-     * Path to the unpacked Obsidian directory (default: ".obsidian-unpacked")
+     * Path to the unpacked Obsidian directory (default: ".e2e/obsidian-e2e-toolkit-assets/obsidian-unpacked")
      */
     obsidianUnpackedDir?: string;
 
@@ -117,7 +117,12 @@ export function resolveConfig(config: ObsidianE2EConfig): ResolvedPaths {
         ? path.resolve(config.assetsDir)
         : defaultAssetsDir;
 
-    const defaultObsidianUnpackedDir = path.join(dirname, ".obsidian-unpacked");
+    const defaultObsidianUnpackedDir = path.join(
+        dirname,
+        ".e2e",
+        "obsidian-e2e-toolkit-assets",
+        "obsidian-unpacked",
+    );
     const obsidianUnpackedDir = config.obsidianUnpackedDir
         ? path.resolve(config.obsidianUnpackedDir)
         : defaultObsidianUnpackedDir;

@@ -24,10 +24,25 @@ if (isDependencyInstall) {
     process.exit(0);
   }
 
-  const consumerAssets = path.join(initCwd, 'obsidian-e2e-toolkit-assets', 'obsidian-unpacked', 'main.cjs');
-  if (fs.existsSync(consumerAssets) && process.env.OBSIDIAN_E2E_TOOLKIT_RUN_SETUP !== '1') {
+  const requestedHome = process.env.OBSIDIAN_E2E_TOOLKIT_HOME;
+  const toolkitHome = requestedHome ? path.resolve(requestedHome) : path.join(path.resolve(initCwd), '.e2e');
+  const consumerAssetsDir = path.join(toolkitHome, 'obsidian-e2e-toolkit-assets');
+  const consumerAssets = path.join(consumerAssetsDir, 'obsidian-unpacked', 'main.cjs');
+  const shouldRunSetup = process.env.OBSIDIAN_E2E_TOOLKIT_RUN_SETUP === '1';
+  if (fs.existsSync(consumerAssets) && !shouldRunSetup) {
     console.log('obsidian-e2e-toolkit: consumer assets already exist, skipping setup.');
     process.exit(0);
+  }
+
+  const legacyAssetsDir = path.join(path.resolve(initCwd), 'obsidian-e2e-toolkit-assets');
+  const legacyStats = fs.existsSync(legacyAssetsDir) ? fs.lstatSync(legacyAssetsDir) : null;
+  if (!requestedHome && legacyStats?.isDirectory() && !legacyStats.isSymbolicLink() && !fs.existsSync(consumerAssetsDir)) {
+    fs.mkdirSync(path.dirname(consumerAssetsDir), { recursive: true });
+    fs.renameSync(legacyAssetsDir, consumerAssetsDir);
+    if (fs.existsSync(consumerAssets) && !shouldRunSetup) {
+      console.log('obsidian-e2e-toolkit: moved existing consumer assets into .e2e, skipping setup.');
+      process.exit(0);
+    }
   }
 
   if (process.env.OBSIDIAN_E2E_TOOLKIT_RUN_SETUP === '1') {
@@ -72,7 +87,7 @@ if (!isDependencyInstall && !existsSync(packageGitDirectory)) {
 try {
   console.log('Running setup.mjs...');
   const envOverrides = isDependencyInstall
-    ? { OBSIDIAN_E2E_TOOLKIT_HOME: initCwd }
+    ? { OBSIDIAN_E2E_TOOLKIT_HOME: toolkitHome }
     : {};
   run(process.execPath, [path.resolve('scripts', 'setup.mjs')], envOverrides);
 } catch (err) {

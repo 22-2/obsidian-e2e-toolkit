@@ -6,4 +6,5 @@ export default defineConfig({
     testMatch: "readiness.spec.ts",
     workers: 1,
     timeout: 90000,
+    outputDir: ".e2e/test-results",
 });

@@ -20,7 +20,7 @@ const test = base.extend({
         await writeFile(path.join(root, "main.js"), result.code);
         await use({ fresh: true, obsidianCli: "off", plugins: [{ path: root }] });
     },
-    coverageOptions: { enabled: true, outputDir: "coverage/fixture" },
+    coverageOptions: { enabled: true, outputDir: ".e2e/coverage/fixture" },
 });
 
 test("captures plugin activation before fixture setup reload", async ({ obsidian }) => {

@@ -5,4 +5,5 @@ export default defineConfig({
   globalSetup: "./example/on-demand-plugins/tests/global-setup.mjs",
   fullyParallel: false,
   timeout: 90_000,
+    outputDir: ".e2e/test-results",
 });

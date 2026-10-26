@@ -33,11 +33,17 @@ function getDefaultConfig() {
     const manifestPath = findUpSync("manifest.json", { cwd: toolkitRoot });
     const projectRoot = manifestPath ? path.dirname(manifestPath) : toolkitRoot;
 
-    const toolkitHome =
-        process.env.OBSIDIAN_E2E_TOOLKIT_HOME ||
-        (existsSync(path.join(toolkitRoot, "obsidian-e2e-toolkit-assets"))
-            ? toolkitRoot
-            : projectRoot);
+    const toolkitAssetHomes = [
+        toolkitRoot,
+        path.join(toolkitRoot, ".e2e"),
+        path.join(projectRoot, ".e2e"),
+        projectRoot,
+    ];
+    const toolkitHome = process.env.OBSIDIAN_E2E_TOOLKIT_HOME
+        ? path.resolve(process.env.OBSIDIAN_E2E_TOOLKIT_HOME)
+        : toolkitAssetHomes.find((home) =>
+            existsSync(path.join(home, "obsidian-e2e-toolkit-assets")),
+        ) ?? path.join(projectRoot, ".e2e");
 
     return {
         pluginDir: projectRoot,

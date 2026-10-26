@@ -4,7 +4,7 @@ export interface CoverageOptions {
     enabled?: boolean;
     /** Folders containing the measured plugins' manifest.json and main.js. */
     pluginPaths?: readonly string[];
-    /** Shared by all workers and the coverage reporter. Defaults to coverage/e2e. */
+    /** Shared by all workers and the coverage reporter. Defaults to .e2e/coverage/e2e. */
     outputDir?: string;
 }
 

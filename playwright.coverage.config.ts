@@ -5,5 +5,6 @@ export default defineConfig({
     testMatch: "coverage.spec.ts",
     workers: 2,
     timeout: 90000,
-    reporter: [["list"], ["./src/coverage.ts", { outputDir: "coverage/fixture" }]],
+    outputDir: ".e2e/test-results",
+    reporter: [["list"], ["./src/coverage.ts", { outputDir: ".e2e/coverage/fixture" }]],
 });

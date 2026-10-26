@@ -30,7 +30,7 @@ jobs:
         run: |
           pnpm install
           pnpm build
-          # ここでセットアップも実行して、obsidian-e2e-toolkit-assets を生成しておくっす
+          # ここでセットアップも実行して、.e2e 配下にアセットを生成しておくっす
           pnpm run postinstall
 
       - name: Create a consumer project and install this package from local clone
@@ -42,7 +42,7 @@ jobs:
           
           # ビルド済みの dist とアセットをコピーするっす
           cp -r dist ../remote-repo/
-          cp -r obsidian-e2e-toolkit-assets ../remote-repo/
+          cp -r .e2e/obsidian-e2e-toolkit-assets ../remote-repo/obsidian-e2e-toolkit-assets
           
           cd ../remote-repo
           git config user.email "action@github.com"

@@ -42,7 +42,7 @@ jobs:
       - name: Cache Obsidian assets
         uses: actions/cache@v5
         with:
-          path: obsidian-e2e-toolkit-assets
+          path: .e2e/obsidian-e2e-toolkit-assets
           key: ${{ runner.os }}-obsidian-smoke-${{ env.OBSIDIAN_E2E_TOOLKIT_OBSIDIAN_VERSION }}
 
       - name: Install dependencies
@@ -68,7 +68,8 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: obsidian-smoke-${{ matrix.os }}
+          include-hidden-files: true
           path: |
-            playwright-report/
-            test-results/
+            .e2e/playwright-report/
+            .e2e/test-results/
           retention-days: 14

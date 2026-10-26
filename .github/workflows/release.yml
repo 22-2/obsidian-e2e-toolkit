@@ -54,16 +54,16 @@ jobs:
         run: |
           # Build the setup assets into the release package, then remove downloads not needed at runtime.
           pnpm run postinstall
-          rm -rf obsidian-e2e-toolkit-assets/cache
+          rm -rf .e2e/obsidian-e2e-toolkit-assets/cache
 
-          mkdir -p release-package release-artifacts
-          cp -R dist scripts obsidian-e2e-toolkit-assets release-package/
-          cp README.md LICENSE package.json release-package/
+          mkdir -p .e2e/release-package .e2e/release-artifacts
+          cp -R dist scripts README.md LICENSE package.json .e2e/release-package/
+          cp -R .e2e/obsidian-e2e-toolkit-assets .e2e/release-package/
 
           # Keep release-only lifecycle changes inside the tarball so source tags stay on main's history.
           node - <<'NODE'
           const fs = require('node:fs');
-          const path = 'release-package/package.json';
+          const path = '.e2e/release-package/package.json';
           const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
           delete pkg.scripts.prepare;
           delete pkg.scripts.postinstall;
@@ -73,9 +73,9 @@ jobs:
           fs.writeFileSync(path, JSON.stringify(pkg, null, 4) + '\n');
           NODE
 
-          npm pack ./release-package --pack-destination ./release-artifacts
-          tar -czf "release-artifacts/obsidian-e2e-toolkit-${{ steps.tag_version.outputs.VERSION }}.tar.gz" -C release-package .
-          cd release-artifacts
+          npm pack ./.e2e/release-package --pack-destination ./.e2e/release-artifacts
+          tar -czf ".e2e/release-artifacts/obsidian-e2e-toolkit-${{ steps.tag_version.outputs.VERSION }}.tar.gz" -C .e2e/release-package .
+          cd .e2e/release-artifacts
           sha256sum *.tgz *.tar.gz > checksums.txt
 
       - name: Generate Release Notes
@@ -132,9 +132,9 @@ jobs:
           name: Release ${{ steps.tag_version.outputs.TAG_NAME }}
           body: ${{ steps.release_notes.outputs.NOTES }}
           files: |
-            release-artifacts/*.tgz
-            release-artifacts/*.tar.gz
-            release-artifacts/checksums.txt
+            .e2e/release-artifacts/*.tgz
+            .e2e/release-artifacts/*.tar.gz
+            .e2e/release-artifacts/checksums.txt
           draft: false
           prerelease: false
           generate_release_notes: true

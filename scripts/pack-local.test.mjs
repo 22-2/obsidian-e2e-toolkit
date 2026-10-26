@@ -59,10 +59,10 @@ async function createFixture(t, overrides = {}) {
     await write(root, "scripts/postinstall.cjs", "// postinstall\n");
     await write(root, "README.md", "# fixture\n");
     await write(root, "LICENSE", "MIT\n");
-    await write(root, "obsidian-e2e-toolkit-assets/cache/app.tar.gz", "download cache\n");
-    await write(root, "obsidian-e2e-toolkit-assets/obsidian-unpacked/main.cjs", "module.exports = 'app';\n");
-    await write(root, "obsidian-e2e-toolkit-assets/obsidian-unpacked/obsidian.asar", "asar\n");
-    await write(root, "obsidian-e2e-toolkit-assets/obsidian-unpacked/.obsidian-version", "v1.0.0\n");
+    await write(root, ".e2e/obsidian-e2e-toolkit-assets/cache/app.tar.gz", "download cache\n");
+    await write(root, ".e2e/obsidian-e2e-toolkit-assets/obsidian-unpacked/main.cjs", "module.exports = 'app';\n");
+    await write(root, ".e2e/obsidian-e2e-toolkit-assets/obsidian-unpacked/obsidian.asar", "asar\n");
+    await write(root, ".e2e/obsidian-e2e-toolkit-assets/obsidian-unpacked/.obsidian-version", "v1.0.0\n");
     return root;
 }
 
@@ -117,7 +117,7 @@ test("the file name carries a content hash, so changed content gets a new name",
 test("staging is removed, and the result is marked as an unpublished development build", async (t) => {
     const root = await createFixture(t);
     const result = await packLocal({ repoRoot: root });
-    assert.deepEqual(await readdir(path.join(root, "coverage", "local-pack")), [path.basename(result.archive)]);
+    assert.deepEqual(await readdir(path.join(root, ".e2e", "local-pack")), [path.basename(result.archive)]);
     assert.equal(result.specifier, "file:" + result.archive.split(path.sep).join("/"));
     assert.match(result.sha256, /^[0-9a-f]{64}$/);
     assert.match(result.note, /unpublished development build/);
@@ -125,16 +125,16 @@ test("staging is removed, and the result is marked as an unpublished development
 
 test("a missing prebuilt asset stops the pack before any archive is written", async (t) => {
     const root = await createFixture(t);
-    await rm(path.join(root, "obsidian-e2e-toolkit-assets", "obsidian-unpacked", "main.cjs"));
+    await rm(path.join(root, ".e2e", "obsidian-e2e-toolkit-assets", "obsidian-unpacked", "main.cjs"));
     await assert.rejects(packLocal({ repoRoot: root }), /main\.cjs[\s\S]*postinstall/);
-    assert.equal(existsSync(path.join(root, "coverage")), false);
+    assert.equal(existsSync(path.join(root, ".e2e", "local-pack")), false);
 });
 
 test("a missing type definition that the package declares blocks the pack", async (t) => {
     const root = await createFixture(t);
     await rm(path.join(root, "dist", "coverage.d.mts"));
     await assert.rejects(packLocal({ repoRoot: root }), /dist\/coverage\.d\.mts/);
-    assert.equal(existsSync(path.join(root, "coverage")), false);
+    assert.equal(existsSync(path.join(root, ".e2e", "local-pack")), false);
 });
 
 test("a repo that is not this package is refused", async (t) => {
@@ -165,7 +165,7 @@ test("an output directory that points outside the repo is refused and nothing is
         await rm(outside, { recursive: true, force: true });
     });
     // Windows の junction は管理者権限なしで作れる。ほかの OS では通常の directory link になる。
-    await symlink(outside, path.join(root, "coverage"), process.platform === "win32" ? "junction" : "dir");
+    await symlink(outside, path.join(root, ".e2e", "local-pack"), process.platform === "win32" ? "junction" : "dir");
     await assert.rejects(packLocal({ repoRoot: root }), /symbolic link or junction|resolves outside/);
     assert.deepEqual(await readdir(outside), []);
 });

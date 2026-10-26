@@ -18,7 +18,7 @@ export class PluginCoverageCollector {
         if (new Set(targets.map((target) => target.pluginId)).size !== targets.length) {
             throw new Error("Coverage pluginPaths contain duplicate plugin ids.");
         }
-        return new PluginCoverageCollector(targets, path.resolve(options.outputDir ?? "coverage/e2e"));
+        return new PluginCoverageCollector(targets, path.resolve(options.outputDir ?? ".e2e/coverage/e2e"));
     }
 
     async start(page: Page): Promise<void> {

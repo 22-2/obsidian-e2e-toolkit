@@ -7,4 +7,5 @@ export default defineConfig({
     testMatch: /runtime-.*\.spec\.ts$/,
     workers: 1,
     timeout: 120_000,
+    outputDir: ".e2e/test-results",
 });
